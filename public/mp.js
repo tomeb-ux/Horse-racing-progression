@@ -242,7 +242,7 @@ const MP = (() => {
       h.rank = B[14]; const fl = B[15]; h.finished = !!(fl & 1); h.dnf = !!(fl & 2); h.started = !!(fl & 4); h.fallen = !!(fl & 8); h.fallDir = B[16]; h.vFall = B[17];
       h.fallKind = ["balance", "trip", "side"][(fl >> 4) & 3];
       if (h.fallen && h.fallT <= 0) h.fallT = 0.0001;
-      trackPoint(race.startD + h.progress, laneOff(h.laneF), h.pos);
+      race.route.point(h.progress, laneOff(h.laneF), h.pos);
     });
     race.order = race.horses.slice().sort((x, y) => x.rank - y.rank); race.leader = race.order[0];
     race.dnfs = race.horses.filter(h => h.dnf);

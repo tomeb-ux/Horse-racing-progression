@@ -1031,6 +1031,7 @@ const CAREER = (() => {
     return Object.assign({
       distance: meta.dist, field: meta.field, diff: meta.diff || "hard", playerDef: toDef(h), oppDefs,
       going: goingKey || "good", incidents: settings.incidents, chaos: false, assist: false, unlimited: false, topSpeed: null,
+      track: /randwick/i.test(meta.venue || "") ? "randwick" : "generic",        // Royal Randwick events race on the real course
       champ: false, fixedOpponents: null,
     }, extra);
   }

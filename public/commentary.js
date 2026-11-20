@@ -445,7 +445,7 @@ const COMM = (() => {
   function metaFor(cfg) {
     const c = cfg && cfg.career;
     if (c) return { name: c.name, venue: c.venue, major: !!c.major, crown: !!c.crown, official: !!c.official, rivalry: c.rivalry || {} };
-    return { name: null, venue: "Furlong Park", major: false, crown: false, official: false };
+    return { name: null, venue: cfg && cfg.track === "randwick" ? "Royal Randwick" : "Furlong Park", major: false, crown: false, official: false };
   }
   return {
     Booth, voiceParams, scoreVoice, metaFor, lengthsW, distW, nmShort, nmFull,

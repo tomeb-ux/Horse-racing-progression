@@ -25,3 +25,9 @@ Tests need: server `FF_TEST_HOOKS=1 PORT=8095 node server/index.js`; node_module
 - Balance (tests/progression.js, real engine): well ridden rating 73→77→80→84 (r17-20)→87; first 3 races win ~60% top3 ~72%; flat-out riding wins ~0. Rivals identical between good/poor careers.
 - Tests: tests/season.js 64/64, tests/commentary.js OK, tests/progression.js.
 - TODO P8: update tests/career-browser.js for the new creator UI (uses old selectors #cAttrs .car-arow etc.).
+
+## Status (after phases 5–7)
+- P5 commentary: continuous caller (Booth.nextLine stages early/mid/turn/straight/final; orderCall; linked clauses; news folding; markers; nmShort/nmFull + def.say; rivalry from cfg.career.rivalry). Continuity metric: 83% speaking, last-25 s max gap 0.4 s (old: 63%, 3.8 s).
+- P6 track engine in sim.js: TRACKS.generic (analytic, bit-identical), buildTableTrack (clothoid segments, arc-length tables, Newton closure), route(dist) with chute; race.trk/race.route; racePhase(…, trk); Race.lapD. index.html: all race positions via route.point; buildGates(route), buildMarkers(route), buildShots(trk), minimap fit per track, replay/highlight cams on route.
+- P7 Randwick: TRACK_DEFS.randwick (2224 lap, 410 straight, W 28, cw, runout 110, top turn r≈162, back 377 + 12° dogleg, chute join, home turn r≈177, sprint chute for 1200/1400). public/venues.js (VENUES.use/update): turf/rails/chute/infield/trees/skyline/stands (QEII-style glass + canopy, heritage stand, lawn stand)/finish/landmarks/crowd by event. VENUE_GENERIC group in index. Quick Race "Course" chip; career competitiveCfg track by venue /randwick/i. MP stays generic.
+- tests/randwick.js 41/41.

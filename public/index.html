@@ -314,6 +314,8 @@ body.touch #touchUI{display:flex;}
     <div class="menu-inner">
       <h2 style="font-size:26px;" id="setupTitle">Quick Race</h2>
       <div class="setup-box">
+        <div class="opt-label">Course</div>
+        <div class="opt-row" id="optTrack"></div>
         <div class="opt-label">Race distance</div>
         <div class="opt-row" id="optDist"></div>
         <div class="opt-label">Opponents</div>
@@ -562,6 +564,7 @@ const settings = {
   assist: store.get("assist", false),
   steer: store.get("steer", "assisted"),
   autoReplay: store.get("autoReplay", true),
+  track: store.get("track", "generic") === "randwick" ? "randwick" : "generic",
 };
 
 /* ---------- Renderer / scene ---------- */
@@ -766,17 +769,16 @@ function disposeGroup(g) {
     c.traverse(o => { if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); });
   }
 }
-function buildMarkers(startD, dist) {
+function buildMarkers(route, dist) {
   disposeGroup(markerGroup);
   SHARED.markerBoard = SHARED.markerBoard || new THREE.BoxGeometry(1.6, 0.9, 0.1);
   SHARED.markerPole = SHARED.markerPole || new THREE.CylinderGeometry(0.06, 0.07, 1.7, 6);
   SHARED.markerBoard.userData.shared = SHARED.markerPole.userData.shared = true;
   SHARED.poleMat = SHARED.poleMat || new THREE.MeshLambertMaterial({ color: 0xeeeeee });
   for (let m = 200; m < dist; m += 200) {
-    const d = (startD + dist - m + T.lap * 4) % T.lap;
     const key = m, mat = markerCache[key] || (markerCache[key] = new THREE.MeshLambertMaterial({ map: boardTex(String(m), m <= 400 ? "#7a1d1d" : "#163a63", "#ffffff") }));
-    [-1.6, T.W + 1.6].forEach(off => {
-      const p = trackPoint(d, off, {});
+    [-1.6, route.trk.W + 1.6].forEach(off => {
+      const p = route.point(dist - m, off, {});
       const board = new THREE.Mesh(SHARED.markerBoard, mat);
       board.position.set(p.x, 2.0, p.z); board.rotation.y = Math.atan2(p.hx, p.hz) + Math.PI / 2;
       const pole = new THREE.Mesh(SHARED.markerPole, SHARED.poleMat); pole.position.set(p.x, 0.85, p.z);
@@ -1180,6 +1182,10 @@ cloudTex.wrapS = cloudTex.wrapT = THREE.ClampToEdgeWrapping;
     f.mesh = m; f.base = Float32Array.from(g.attributes.position.array); f.ph = Math.random() * 6;
   });
 })();
+// the original course's scenery lives in one group so a real venue (venues.js) can replace it for a race
+const VENUE_GENERIC = new THREE.Group(); VENUE_GENERIC.name = "venue-generic";
+world.children.slice().forEach(c => { if (c !== markerGroup) VENUE_GENERIC.add(c); });
+world.add(VENUE_GENERIC);
 // flags in the breeze and the big screen's live leaderboard (cheap: a few dozen vertices, a 512×192 canvas at 4 Hz)
 function updateVenue(dt) {
   const t = performance.now() / 1000;
@@ -1240,7 +1246,7 @@ function updateCrowd(dt, excite) {
 /* Starting gates */
 const gateGroup = new THREE.Group(); world.add(gateGroup);
 let gateDoors = [];
-function buildGates(startD, n) {
+function buildGates(route, n) {
   disposeGroup(gateGroup);
   gateDoors = [];
   SHARED.gate = SHARED.gate || {
@@ -1250,7 +1256,7 @@ function buildGates(startD, n) {
   };
   const G = SHARED.gate; Object.values(G).forEach(x => { if (x.userData) x.userData.shared = true; });
   for (let i = 0; i < n; i++) {
-    const off = laneOff(i), p = trackPoint(startD - 1.95, off, {});
+    const off = laneOff(i), p = route.point(-1.95, off, {});
     const g = new THREE.Group();
     g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(p.hx, p.hz);
     const side1 = new THREE.Mesh(G.side, G.frameM); side1.position.set(-1, 1.3, 0);
@@ -2378,13 +2384,13 @@ const _pp = {};
 // place a horse mesh from (recorded or live) state. The sim position is the nose, so the body sits NOSE_OFF behind it.
 function placeHorseMesh(h, prog, laneF, latV, v, dt) {
   const m = h.mesh; if (!m) return;
-  trackPoint(race.startD + prog - NOSE_OFF, laneOff(laneF), _pp);
+  race.route.point(prog - NOSE_OFF, laneOff(laneF), _pp);
   m.position.set(_pp.x, 0, _pp.z);
   const yaw = Math.atan2(_pp.hx, _pp.hz) - Math.PI / 2;
   const drift = Math.atan2(latV * LANE_W, Math.max(2, v));           // heading follows the diagonal of a lane change
   h.yawD = h.yawD == null || dt == null ? drift : h.yawD + (drift - h.yawD) * Math.min(1, dt * 7);
   m.rotation.y = yaw + h.yawD;
-  const curvT = isTurn(race.startD + prog) ? Math.min(0.35, (v * v) / ((T.R + laneOff(laneF)) * 9.81) * 0.9) : 0;
+  const kk = race.route.kIn(prog), curvT = kk > 1e-6 ? Math.min(0.35, (v * v) * kk / (1 + kk * laneOff(laneF)) / 9.81 * 0.9) : 0;
   h.curv = h.curv == null || dt == null ? curvT : h.curv + (curvT - h.curv) * Math.min(1, dt * 3);
   h.latS = h.latS == null || dt == null ? latV : h.latS + (latV - h.latS) * Math.min(1, dt * 5);
 }
@@ -2406,19 +2412,22 @@ const camPos = new THREE.Vector3(0, 30, 260), camLook = new THREE.Vector3(), cam
 const cam = { fov: 56, shotIdx: -1, shotT: 0, shake: 0, lagBack: 0, pullback: 0, boxUp: 0, side: 0, kick: 0, accS: 0, rush: 0 };
 // broadcast positions: side-on trackers around the course, elevated views on the bends, a finish gantry
 const SHOTS = [];
-(function buildShots() {
-  for (let i = 0; i < 16; i++) {
-    const d = i / 16 * T.lap;
-    const turn = isTurn(d + 60);
-    const homeSide = !turn && ((d % T.lap) < T.L);                                 // the home straight is lined with spectators:
-    const p = trackPoint(d, turn ? T.W + 18 : homeSide ? -13 : T.W + 9, {});        // film it from the infield, stands behind
+function buildShots(trk) {
+  trk = trk || TRACKS.generic; SHOTS.length = 0;
+  const n = Math.max(16, Math.round(trk.lap / 104));
+  for (let i = 0; i < n; i++) {
+    const d = i / n * trk.lap;
+    const turn = trk.isTurn(d + 60);
+    const homeSide = !turn && trk.isHome(d);                                       // the home straight is lined with spectators:
+    const p = trk.point(d, turn ? trk.W + 18 : homeSide ? -13 : trk.W + 9, {});    // film it from the infield, stands behind
     SHOTS.push({ d, x: p.x, y: turn ? 16 : 4.5 + (i % 2) * 3, z: p.z, kind: turn ? "high" : "side", nx: p.nx, nz: p.nz, hx: p.hx, hz: p.hz });
   }
-  const f = trackPoint(FINISH_D + 8, T.W + 6, {});
-  SHOTS.push({ d: FINISH_D + 8, x: f.x, y: 9, z: f.z, kind: "finish" });
-  const f2 = trackPoint(FINISH_D - 260, -14, {});
-  SHOTS.push({ d: FINISH_D - 260, x: f2.x, y: 7, z: f2.z, kind: "straight" });
-})();
+  const f = trk.point(trk.finishD + 8, trk.W + 6, {});
+  SHOTS.push({ d: trk.finishD + 8, x: f.x, y: 9, z: f.z, kind: "finish" });
+  const f2 = trk.point(trk.finishD - 260, -14, {});
+  SHOTS.push({ d: trk.finishD - 260, x: f2.x, y: 7, z: f2.z, kind: "straight" });
+}
+buildShots(TRACKS.generic);
 const _tmpP = {};
 function updateCamera(dt) {
   if (RP.on || HL.on) return;                                       // the replay drives its own camera
@@ -2433,22 +2442,22 @@ function updateCamera(dt) {
     lx = ph.x - ddz / dl * 4.5; lz = ph.z + ddx / dl * 4.5; ly = 1.4;
   } else if (p.fallen && race.state === "running") {   // the incident: a wider view of the fall, from the infield
     cam.fallT = (cam.fallT || 0) + dt;
-    const m = p.mesh ? (p.mesh.userData.fallCenter && p.mesh.userData.fallVis ? p.mesh.userData.fallCenter : p.mesh.position) : p.pos, at = race.startD + (p.stat.dnfAt || p.progress);
-    const tp = trackPoint(at, 0, _tmpP), k = Math.min(1, cam.fallT / 1.2);
+    const m = p.mesh ? (p.mesh.userData.fallCenter && p.mesh.userData.fallVis ? p.mesh.userData.fallCenter : p.mesh.position) : p.pos, at = (p.stat.dnfAt || p.progress);
+    const tp = race.route.point(at, 0, _tmpP), k = Math.min(1, cam.fallT / 1.2);
     tx = m.x - tp.nx * lerp(5, 7.5, k) + tp.hx * lerp(-3, 4, k); ty = lerp(3.2, 2.6, k); tz = m.z - tp.nz * lerp(5, 7.5, k) + tp.hz * lerp(-3, 4, k);   // close in from the infield side, swinging round
     lx = m.x; ly = 0.7; lz = m.z;
   } else if (camMode === 1) { // jockey: from the rider's eyes — hands, reins, the horse's neck and ears, rivals ahead
     const h = p.pos, b = p.mesh ? p.mesh.userData : null;
     const bob = b ? b.bob : 0;
     if (b) { tx = b.eyeW.x - h.hx * 0.12; ty = b.eyeW.y + 0.2; tz = b.eyeW.z - h.hz * 0.12; } else { tx = h.x - h.hx * 1.3; ty = 2.45; tz = h.z - h.hz * 1.3; }
-    const ahead = trackPoint(race.startD + p.progress + 24, laneOff(p.laneF) + (p.latS || 0) * 1.2, _tmpP);
+    const ahead = race.route.point(p.progress + 24, laneOff(p.laneF) + (p.latS || 0) * 1.2, _tmpP);
     lx = ahead.x; ly = 0.55 + bob * 0.2; lz = ahead.z;
   } else if (camMode === 2) { // broadcast: pick a shot, hold it, cut when the action leaves it
-    const d = (race.startD + p.progress) % T.lap, rem = race.dist - p.progress;
+    const LAP = race.trk.lap, d = race.route.loopD(p.progress), rem = race.dist - p.progress;
     cam.shotT += dt;
     let want = cam.shotIdx;
     const cur = SHOTS[cam.shotIdx];
-    const delta = s => { let dd = (s.d - d + T.lap) % T.lap; if (dd > T.lap / 2) dd -= T.lap; return dd; };
+    const delta = s => { let dd = (s.d - d + LAP) % LAP; if (dd > LAP / 2) dd -= LAP; return dd; };
     if (rem < 230 && rem > -40) want = -2;                                    // side-on tracking shot for the finish
     else if (rem < 420 && rem > 230) want = SHOTS.length - 1;                // low head-on down the straight
     else if (!cur || delta(cur) < -28 || cam.shotT > 9) {
@@ -2461,7 +2470,7 @@ function updateCamera(dt) {
     let cx = 0, cz = 0, cp = 0, n = 0;
     for (const o of race.horses) if (Math.abs(o.progress - p.progress) < 14) { cx += o.pos.x; cz += o.pos.z; cp += o.progress; n++; }
     if (cam.shotIdx === -2) {                                                  // tracking alongside, from the stands side
-      const t = trackPoint(race.startD + cp / n - NOSE_OFF + 4, -12, _tmpP);         // from the infield, grandstand and crowd behind
+      const t = race.route.point(cp / n - NOSE_OFF + 4, -12, _tmpP);         // from the infield, grandstand and crowd behind
       tx = t.x; ty = 4.6; tz = t.z;
     } else {
     const s = SHOTS[cam.shotIdx];
@@ -2487,7 +2496,7 @@ function updateCamera(dt) {
     // frame a horse racing alongside: drift the camera to keep both in view
     let sideT = 0; for (const o of race.horses) if (o !== p && Math.abs(o.progress - p.progress) < 3.5 && Math.abs(o.laneF - p.laneF) < 2.2) sideT += (o.laneF - p.laneF) * 0.6;
     cam.side += (clamp(sideT, -1.4, 1.4) - cam.side) * Math.min(1, dt * 1.2);
-    const behind = trackPoint(race.startD + p.progress - NOSE_OFF - back, laneOff(p.laneF) + 1.2 + cam.side * LANE_W * 0.5, _tmpP);
+    const behind = race.route.point(p.progress - NOSE_OFF - back, laneOff(p.laneF) + 1.2 + cam.side * LANE_W * 0.5, _tmpP);
     tx = behind.x; ty = up; tz = behind.z;
     // never inside another horse: rise over anyone close to the camera
     for (const o of race.horses) {
@@ -2495,15 +2504,15 @@ function updateCamera(dt) {
       const dd = Math.hypot(o.mesh.position.x - tx, o.mesh.position.z - tz);
       if (dd < 3.4) ty = Math.max(ty, up + (3.4 - dd) * 0.9);
     }
-    const ahead = trackPoint(race.startD + p.progress + 14 + 8 * sN, laneOff(p.laneF) + cam.side * LANE_W * 0.35, _tmpP);
+    const ahead = race.route.point(p.progress + 14 + 8 * sN, laneOff(p.laneF) + cam.side * LANE_W * 0.35, _tmpP);
     lx = ahead.x; ly = 1.5; lz = ahead.z;
   }
   // look behind (R): swing smoothly over the rider to a rear-facing view; controls stay live
   if (racing && race && lookBack.k > 0.01) {
     const k = SMOOTH(clamp(lookBack.k, 0, 1)), h = p.pos;
-    const front = trackPoint(race.startD + p.progress + 2.2, laneOff(p.laneF) + 0.9, _tmpP);
+    const front = race.route.point(p.progress + 2.2, laneOff(p.laneF) + 0.9, _tmpP);
     const fx = front.x, fz = front.z;
-    const rear = trackPoint(race.startD + p.progress - 26, laneOff(p.laneF), _tmpP);
+    const rear = race.route.point(p.progress - 26, laneOff(p.laneF), _tmpP);
     tx = lerp(tx, fx, k); tz = lerp(tz, fz, k); ty = lerp(ty, 3.1, k) + Math.sin(k * Math.PI) * 1.8;
     lx = lerp(lx, rear.x, k); lz = lerp(lz, rear.z, k); ly = lerp(ly, 1.3, k);
   }
@@ -2696,8 +2705,8 @@ const audio = (() => {
       const remain = p.raceDist - p.progress;
       let cT = 0.05, hT = 0.0;
       if (running) {
-        const d = (race.startD + p.progress) % T.lap;
-        const nearStand = d < T.L ? 1 - Math.abs(d - FINISH_D + 40) / 300 : 0;
+        const rem0 = race.dist - p.progress;
+        const nearStand = race.trk.analytic ? (() => { const d = (race.startD + p.progress) % T.lap; return d < T.L ? 1 - Math.abs(d - FINISH_D + 40) / 300 : 0; })() : (rem0 < race.trk.homeStraight + 60 ? 1 - Math.abs(rem0 - 40) / 300 : 0);
         cT = 0.06 + Math.max(0, nearStand) * 0.12 + Math.max(0, 1 - Math.max(0, remain) / 500) * 0.32;
         let close = 0; for (const o of race.horses) if (o !== p && Math.abs(o.progress - p.progress) < 4) close++;
         hT = remain < 350 ? 0.08 + Math.min(0.2, close * 0.06) : 0.0;
@@ -2875,19 +2884,30 @@ function clearToasts() { toastsEl.innerHTML = ""; toastState.live.length = 0; to
 const mmCanvas = $("minimap"), mmCtx = mmCanvas.getContext("2d");
 const MM = { s: 0.21, ox: 85, oy: 64 };
 function mmXY(x, z) { return [MM.ox + x * MM.s, MM.oy + z * MM.s * 0.95]; }
+let mmTrk = null;
+function fitMinimap(trk) {
+  if (mmTrk === trk) return; mmTrk = trk;
+  if (trk.analytic) { MM.s = 0.21; MM.ox = 85; MM.oy = 64; return; }
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for (let s2 = 0; s2 < trk.lap; s2 += 10) { const p = trk.point(s2, trk.W / 2, {}); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+  for (const c of Object.values(trk.chutes || {})) { const p = { x: c.x - c.hx * 400, z: c.z - c.hz * 400 }; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+  MM.s = Math.min(150 / (x1 - x0), 108 / ((z1 - z0) * 0.95)); MM.ox = 85 - (x0 + x1) / 2 * MM.s; MM.oy = 64 - (z0 + z1) / 2 * MM.s * 0.95;
+}
 function drawMinimapBase() {
+  const trk = race ? race.trk : TRACKS.generic; fitMinimap(trk);
   const g = mmCtx; g.clearRect(0, 0, 170, 128);
   g.strokeStyle = "rgba(255,255,255,0.7)"; g.lineWidth = 6; g.lineCap = "round";
   g.beginPath();
-  for (let i = 0; i <= 90; i++) { const p = trackPoint(i / 90 * T.lap, T.W / 2, {}); const [X, Y] = mmXY(p.x, p.z); i ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+  for (let i = 0; i <= 120; i++) { const p = trk.point(i / 120 * trk.lap, trk.W / 2, {}); const [X, Y] = mmXY(p.x, p.z); i ? g.lineTo(X, Y) : g.moveTo(X, Y); }
   g.closePath(); g.stroke();
+  if (race && race.route.chuteLen) { g.lineWidth = 4; g.beginPath(); for (let i = 0; i <= 8; i++) { const p = race.route.point(race.route.chuteLen * i / 8, trk.W / 2, {}); const [X, Y] = mmXY(p.x, p.z); i ? g.lineTo(X, Y) : g.moveTo(X, Y); } g.stroke(); }
   if (race) {
     // the part of the course still to run, highlighted
     const rem = Math.max(0, race.dist - race.player.progress);
     g.strokeStyle = "rgba(232,195,90,0.55)"; g.lineWidth = 6; g.beginPath();
-    const n = 40; for (let i = 0; i <= n; i++) { const p = trackPoint(race.startD + race.player.progress + rem * i / n, T.W / 2, {}); const [X, Y] = mmXY(p.x, p.z); i ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+    const n = 60; for (let i = 0; i <= n; i++) { const p = race.route.point(race.player.progress + rem * i / n, trk.W / 2, {}); const [X, Y] = mmXY(p.x, p.z); i ? g.lineTo(X, Y) : g.moveTo(X, Y); }
     g.stroke();
-    const pf = trackPoint(FINISH_D, T.W / 2, {}); const [fx, fy] = mmXY(pf.x, pf.z);
+    const pf = race.route.point(race.dist, trk.W / 2, {}); const [fx, fy] = mmXY(pf.x, pf.z);
     g.fillStyle = "#e25b4a"; g.fillRect(fx - 2, fy - 8, 4, 16);
   }
 }
@@ -3118,6 +3138,7 @@ function show(state) {
   for (const k in screens) screens[k].hidden = (k !== state);
   hud.classList.toggle("on", state === "racing" || state === "pause");
   $("replayUI").hidden = state !== "replay";
+  if (state === "menu" && typeof VENUES !== "undefined") { VENUES.use(TRACKS.generic); buildShots(TRACKS.generic); }
   if (state === "menu") $("menuHorseLine").textContent = "Riding: " + ROSTER[settings.playerHorse].name + " · " + ROSTER[settings.playerHorse].role;
 }
 
@@ -3182,6 +3203,7 @@ function chipRow(el, options, current, onPick, fmt) {
   });
 }
 function buildSetup() {
+  chipRow($("optTrack"), ["generic", "randwick"], settings.track, v => { settings.track = v; store.set("track", v); }, v => v === "randwick" ? "Royal Randwick (right-handed, 2224 m)" : "Furlong Park (original oval)");
   chipRow($("optDist"), DISTANCES, settings.dist, v => { settings.dist = v; store.set("dist", v); }, v => v + "m · " + DIST_LABEL[v]);
   chipRow($("optOpp"), [7, 9, 11], settings.opp, v => { settings.opp = v; store.set("opp", v); }, v => v + " rivals");
   chipRow($("optDiff"), ["easy", "medium", "hard"], settings.diff, v => { settings.diff = v; store.set("diff", v); });
@@ -3275,7 +3297,7 @@ function rpMeasure(g, W, H) {
   const R = RP, r = R.r, pts = [];
   for (const h of R.key) {
     const q = h.rpNose; if (!q) continue;
-    const t2 = trackPoint(r.startD + q.prog, laneOff(q.lane), {}), top = rpProject(t2.x, q.y + 0.35, t2.z, W, H), bot = rpProject(t2.x, 0.02, t2.z, W, H);
+    const t2 = r.route.point(q.prog, laneOff(q.lane), {}), top = rpProject(t2.x, q.y + 0.35, t2.z, W, H), bot = rpProject(t2.x, 0.02, t2.z, W, H);
     if (!top || !bot) continue; pts.push({ h, q, top, bot });
   }
   const col = h => h.isPlayer ? "#ffd54a" : h.def.silk;
@@ -3373,7 +3395,7 @@ function updateReplay(dt) {
     h.rpProxy.stumV = sm[12]; h.rpProxy.fallT = sm[13]; h.rpProxy.fallDir = h.fallDir; h.rpProxy.fallV = h.vFall;
     animateHorse(h.mesh, sm[4], Math.min(1, sm[3] / h.vmax), sm[5], sm[6] / 100, h.rpRide, h.curv, Math.max(adv, R.paused ? 0 : 1 / 240), h.rpProxy, h.latS, sm[9], r.dist - sm[0] < RHYTHM_AT ? sm[8] : 0, sm[10], sm[11]);
     // the photo must show what the timing shows: shift the horse so its visible nose is exactly at the recorded nose
-    const nz = h.mesh.userData.nose.getWorldPosition(_v3), tp = trackPoint(r.startD + sm[0], laneOff(sm[1]), _tmpP);
+    const nz = h.mesh.userData.nose.getWorldPosition(_v3), tp = r.route.point(sm[0], laneOff(sm[1]), _tmpP);
     const err = (nz.x - tp.x) * tp.hx + (nz.z - tp.z) * tp.hz;
     h.mesh.position.x -= err * tp.hx; h.mesh.position.z -= err * tp.hz;
     h.rpNose = h.rpNose || {}; h.rpNose.prog = sm[0]; h.rpNose.lane = sm[1]; h.rpNose.y = nz.y; h.rpNose.v = sm[3];
@@ -3390,17 +3412,17 @@ function updateReplay(dt) {
   const base = r.startD + R.camD, spread = pMax - pMin + NOSE_OFF + 3;
   let fov;
   if (RP.angle === 0) {            // side-on, from the infield, the grandstand behind
-    const c = trackPoint(base, -15, _tmpP); camera.position.set(c.x, 3.4, c.z);
-    const l = trackPoint(base, laneOff(cl) + 1, _tmpP); camera.lookAt(l.x, 1.25, l.z);
+    const c = r.route.point(R.camD, -15, _tmpP); camera.position.set(c.x, 3.4, c.z);
+    const l = r.route.point(R.camD, laneOff(cl) + 1, _tmpP); camera.lookAt(l.x, 1.25, l.z);
     const distC = laneOff(lMax) + 15;
     fov = clamp(2 * Math.atan((spread * 0.62 + 2) / distC) * 180 / Math.PI, 20, 55);
   } else if (RP.angle === 1) {     // overhead on the line: shows the gaps exactly
-    const c = trackPoint(base - 7, T.W * 0.45, _tmpP); camera.position.set(c.x, 30, c.z);
-    const l = trackPoint(base - 1, T.W * 0.45, _tmpP); camera.lookAt(l.x, 0, l.z);
+    const c = r.route.point(R.camD - 7, r.trk.W * 0.45, _tmpP); camera.position.set(c.x, 30, c.z);
+    const l = r.route.point(R.camD - 1, r.trk.W * 0.45, _tmpP); camera.lookAt(l.x, 0, l.z);
     fov = clamp(30 + spread * 0.8, 32, 58);
   } else {                         // head-on from beyond the post
-    const c = trackPoint(r.startD + r.dist + 34, laneOff(cl), _tmpP); camera.position.set(c.x, 2.8, c.z);
-    const l = trackPoint(r.startD + cp - 3, laneOff(cl), _tmpP); camera.lookAt(l.x, 1.4, l.z);
+    const c = r.route.point(r.dist + 34, laneOff(cl), _tmpP); camera.position.set(c.x, 2.8, c.z);
+    const l = r.route.point(cp - 3, laneOff(cl), _tmpP); camera.lookAt(l.x, 1.4, l.z);
     fov = 26;
   }
   camera.fov = fov; camera.clearViewOffset(); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
@@ -3408,7 +3430,7 @@ function updateReplay(dt) {
   // zoom: a sub-rectangle of the full frame (like enlarging the photo), centred on the noses unless the viewer has panned
   { const W0 = innerWidth, H0 = innerHeight;
     if (R.zoom > 1.001) {
-      if (!R.zc) { let sx = 0, sy = 0, n = 0; for (const h of R.key) { const q = h.rpNose; if (!q) continue; const t2 = trackPoint(r.startD + q.prog, laneOff(q.lane), _tmpP); const pp = rpProject(t2.x, q.y, t2.z, W0, H0); if (pp) { sx += pp[0]; sy += pp[1]; n++; } }
+      if (!R.zc) { let sx = 0, sy = 0, n = 0; for (const h of R.key) { const q = h.rpNose; if (!q) continue; const t2 = r.route.point(q.prog, laneOff(q.lane), _tmpP); const pp = rpProject(t2.x, q.y, t2.z, W0, H0); if (pp) { sx += pp[0]; sy += pp[1]; n++; } }
         R.zAuto = n ? [sx / n / W0, sy / n / H0] : [0.5, 0.5]; }
       const c = R.zc || R.zAuto, w = W0 / R.zoom, hh = H0 / R.zoom;
       const ox = clamp(c[0] * W0 - w / 2, 0, W0 - w), oy = clamp(c[1] * H0 - hh / 2, 0, H0 - hh);
@@ -3421,7 +3443,7 @@ function updateReplay(dt) {
   if (rpCanvas.width !== Math.round(W * dpr) || rpCanvas.height !== Math.round(H * dpr)) { rpCanvas.width = Math.round(W * dpr); rpCanvas.height = Math.round(H * dpr); }
   const g = rpCtx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   camera.updateMatrixWorld();
-  const fa = trackPoint(FINISH_D, -0.6, {}), fb = trackPoint(FINISH_D, T.W + 0.6, {});
+  const rr = race, fa = rr.route.point(rr.dist, -0.6, {}), fb = rr.route.point(rr.dist, rr.trk.W + 0.6, {});
   const A = rpProject(fa.x, 0.03, fa.z, W, H), B = rpProject(fb.x, 0.03, fb.z, W, H);
   if (A && B) {
     const strong = R.t > R.slowA - 0.6 ? 1 : 0.5;
@@ -3546,12 +3568,12 @@ function updateHighlights(dt) {
   // camera per clip
   const fi = r.horses.indexOf(c.focus), fs = r.fullSample(HL.t, fi, hlS), fp = fs[0], fl = fs[1], fm = c.focus.mesh.userData.fallVis && c.focus.mesh.userData.fallCenter ? c.focus.mesh.userData.fallCenter : c.focus.mesh.position;
   let tx, ty, tz, lx, ly, lz, fov = 46;
-  if (c.cam === "start") { const q = trackPoint(r.startD + 25, -18, _tmpP); tx = q.x; ty = 9; tz = q.z; const l = trackPoint(r.startD + fp + 4, laneOff(5), _tmpP); lx = l.x; ly = 1.2; lz = l.z; fov = 50; }
-  else if (c.cam === "chase") { const q = trackPoint(r.startD + fp - NOSE_OFF - 9, laneOff(fl) + 1.4, _tmpP); tx = q.x; ty = 3.8; tz = q.z; const l = trackPoint(r.startD + fp + 12, laneOff(fl), _tmpP); lx = l.x; ly = 1.4; lz = l.z; fov = 56; }
-  else if (c.cam === "side") { const q = trackPoint(r.startD + fp + 1, -14, _tmpP); tx = q.x; ty = 4.2; tz = q.z; lx = fm.x; ly = 1.3; lz = fm.z; fov = 40; }
+  if (c.cam === "start") { const q = r.route.point(25, -18, _tmpP); tx = q.x; ty = 9; tz = q.z; const l = r.route.point(fp + 4, laneOff(5), _tmpP); lx = l.x; ly = 1.2; lz = l.z; fov = 50; }
+  else if (c.cam === "chase") { const q = r.route.point(fp - NOSE_OFF - 9, laneOff(fl) + 1.4, _tmpP); tx = q.x; ty = 3.8; tz = q.z; const l = r.route.point(fp + 12, laneOff(fl), _tmpP); lx = l.x; ly = 1.4; lz = l.z; fov = 56; }
+  else if (c.cam === "side") { const q = r.route.point(fp + 1, -14, _tmpP); tx = q.x; ty = 4.2; tz = q.z; lx = fm.x; ly = 1.3; lz = fm.z; fov = 40; }
   else if (c.cam === "wide") { const ev = r.events.find(e => e.h === c.focus && (e.type === "fall" || e.type === "major stumble") && Math.abs(e.t - (c.t0 + 2.5)) < 4); const at = ev ? ev.at : fp;
-    const q = trackPoint(r.startD + at + 9, -11, _tmpP); tx = q.x; ty = 7.5; tz = q.z; lx = fm.x; ly = 0.6; lz = fm.z; fov = 38; }
-  else { const q = trackPoint(r.startD + r.dist, -15, _tmpP); tx = q.x; ty = 3.4; tz = q.z; const l = trackPoint(r.startD + r.dist, laneOff(fl) + 1, _tmpP); lx = l.x; ly = 1.25; lz = l.z; fov = 34; finishNear.forEach(m => m.visible = false); }
+    const q = r.route.point(at + 9, -11, _tmpP); tx = q.x; ty = 7.5; tz = q.z; lx = fm.x; ly = 0.6; lz = fm.z; fov = 38; }
+  else { const q = r.route.point(r.dist, -15, _tmpP); tx = q.x; ty = 3.4; tz = q.z; const l = r.route.point(r.dist, laneOff(fl) + 1, _tmpP); lx = l.x; ly = 1.25; lz = l.z; fov = 34; finishNear.forEach(m => m.visible = false); }
   if (c.cam !== "photo") finishNear.forEach(m => m.visible = true);
   if (HL.cut) { camPos.set(tx, ty, tz); camLook.set(lx, ly, lz); HL.cut = false; }
   const kp = 1 - Math.pow(0.002, dt), kl = 1 - Math.pow(0.0005, dt);
@@ -3602,8 +3624,10 @@ function startRace(cfg) {
   clearToasts(); lastRank = 0; lbPrev = {}; lbChg = {}; sit.wasBoxed = false; sit.tiring = false; sit.clearT = 0; sit.phase = ""; sit.gl0 = 0; sit.glT = 0; sit.balLv = 0; sit.balCd = 0; for (const k in sit.cd) sit.cd[k] = 0; RP.on = false; $("replayUI").hidden = true;
   race = new Race(cfg);
   riderInput.effort = race.player.effort;
-  buildGates(race.startD, race.gateCount);
-  buildMarkers(race.startD, race.dist);
+  buildGates(race.route, race.gateCount);
+  buildMarkers(race.route, race.dist);
+  if (typeof VENUES !== "undefined") VENUES.use(race.trk, cfg);
+  buildShots(race.trk); drawMinimapBase();
   spawnHorseMeshes(race);
   FX.setGoing(race.goingKey);
   if (menuHorseMesh) { world.remove(menuHorseMesh); menuHorseMesh = null; }
@@ -3613,7 +3637,7 @@ function startRace(cfg) {
   $("hGoing").textContent = race.going.label + " going";
   showMsg(race.chaos ? "CHAOS MODE — one kick per race: P knocks over the horse beside you" : "Loading the gates…", 2.6);
   $("hudKeys").textContent = "W/S effort · E settle · Q check · Space urge · Shift drive" + (race.chaos ? " · P kick" : "");
-  const sp = trackPoint(race.startD, T.W / 2, {});
+  const sp = race.route.point(0, race.trk.W / 2, {});
   camPos.set(sp.x - sp.hx * 20 + sp.nx * 14, 6, sp.z - sp.hz * 20 + sp.nz * 14);
   camLook.set(sp.x, 1.5, sp.z);
   simAcc = 0;
@@ -3785,7 +3809,7 @@ function dbgColliders(dt) {
   const pos = [], col = [], y = 0.22, pt = {};
   const rect = (c, q, s0, s1, laneRef, rgb) => {
     const P = [];
-    for (const [dp, so] of [[-q, s0], [q, s0], [q, s1], [-q, s1]]) { trackPoint(race.startD + c + dp + NOSE_OFF, laneOff(laneRef) + so, pt); P.push([pt.x, pt.z]); }
+    for (const [dp, so] of [[-q, s0], [q, s0], [q, s1], [-q, s1]]) { race.route.point(c + dp + NOSE_OFF, laneOff(laneRef) + so, pt); P.push([pt.x, pt.z]); }
     for (let i = 0; i < 4; i++) { const a = P[i], b = P[(i + 1) % 4]; pos.push(a[0], y, a[1], b[0], y, b[1]); for (let k = 0; k < 2; k++) col.push(...rgb); }
   };
   for (const h of race.horses) {
@@ -3800,7 +3824,7 @@ function dbgColliders(dt) {
   // contact rings where collisions and kicks were registered
   for (; DBG.seenEv < race.events.length; DBG.seenEv++) { const e = race.events[DBG.seenEv]; if (e.type === "collision" || e.type === "kick") DBG.marks.push({ at: e.at, lane: e.h.laneF }); }
   for (const m of DBG.marks) {
-    trackPoint(race.startD + m.at, laneOff(m.lane), pt); const cx = pt.x, cz = pt.z;   // ring at the registered contact
+    race.route.point(m.at, laneOff(m.lane), pt); const cx = pt.x, cz = pt.z;   // ring at the registered contact
     for (let i = 0; i < 10; i++) { const a0 = i / 10 * 2 * Math.PI, a1 = (i + 1) / 10 * 2 * Math.PI; pos.push(cx + Math.cos(a0) * 0.8, y, cz + Math.sin(a0) * 0.8, cx + Math.cos(a1) * 0.8, y, cz + Math.sin(a1) * 0.8); col.push(1, 0, 0, 1, 0, 0); }
   }
   if (DBG.obj) { world.remove(DBG.obj); DBG.obj.geometry.dispose(); }
@@ -3811,7 +3835,7 @@ function dbgColliders(dt) {
 }
 
 function quickCfg() {
-  return { distance: settings.dist, field: settings.opp + 1, diff: settings.diff, playerHorse: settings.playerHorse, champ: false, fixedOpponents: null, going: settings.going, assist: settings.assist, incidents: settings.chaos ? "full" : settings.incidents, chaos: settings.chaos };
+  return { distance: settings.dist, field: settings.opp + 1, diff: settings.diff, playerHorse: settings.playerHorse, champ: false, fixedOpponents: null, going: settings.going, assist: settings.assist, incidents: settings.chaos ? "full" : settings.incidents, chaos: settings.chaos, track: settings.track };
 }
 /* Buttons */
 $("btnQuick").onclick = () => { $("setupTitle").textContent = "Quick Race"; buildSetup(); show("setup"); };
@@ -3859,7 +3883,7 @@ function frame(now) {
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
   // Career screens: the 3D racing stable is drawn instead of the racecourse
   if (typeof STABLE3D !== "undefined" && STABLE3D.active && !race && ui.state.startsWith("c_")) { STABLE3D.frame(dt); return; }
-  if (RP.on && ui.state === "replay") { updateReplay(dt); FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.75); renderer.render(scene, camera); return; }
+  if (RP.on && ui.state === "replay") { updateReplay(dt); FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); renderer.render(scene, camera); return; }
   if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.6); renderer.render(scene, camera); } return; }
   if (race && ui.state === "racing") {
     handlePlayerInput(dt);
@@ -3880,7 +3904,8 @@ function frame(now) {
     situational(dt);
     audio.frame(dt);
     const remP = race.dist - race.player.progress;
-    updateCrowd(dt, race.state === "running" ? clamp(1 - remP / 450, 0, 1) : race.state === "done" ? 0.6 : 0.1);
+    const exc = race.state === "running" ? clamp(1 - remP / 450, 0, 1) : race.state === "done" ? 0.6 : 0.1;
+    updateCrowd(dt, exc); if (typeof VENUES !== "undefined") VENUES.update(dt, exc);
     if (msgTimer > 0) { msgTimer -= dt; if (msgTimer <= 0) raceMsgEl.textContent = ""; }
   } else if (menuHorseMesh) {
     animateHorse(menuHorseMesh, 0, 0, 0, 0, 0, 0, dt, null);
@@ -3909,6 +3934,7 @@ if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude
 else boot();
 </script>
 <script src="mp.js"></script>
+<script src="venues.js"></script>
 <script src="stable3d.js"></script>
 <script src="career.js"></script>
 

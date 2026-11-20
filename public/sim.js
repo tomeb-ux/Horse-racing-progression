@@ -34,12 +34,13 @@ function trackPoint(d, off, out) {
 }
 // race phases (by distance remaining): the home turn ends where the straight to the post begins
 const HOME_STRAIGHT = FINISH_D, FINAL_BEND = HOME_STRAIGHT + Math.PI * T.R;
-function racePhase(progress, remain, dist) {
+function racePhase(progress, remain, dist, trk) {
+  const hs = trk ? trk.homeStraight : HOME_STRAIGHT, fb = trk ? trk.finalBend : FINAL_BEND;
   if (remain <= 0) return "finished";
   if (progress < Math.min(260, dist * 0.22)) return "opening";
   if (remain <= 200) return "final 200";
-  if (remain <= HOME_STRAIGHT) return "home straight";
-  if (remain <= FINAL_BEND + 40) return "final bend";
+  if (remain <= hs) return "home straight";
+  if (remain <= fb + 40) return "final bend";
   return "middle";
 }
 // shortest along-track distance between two progress values: a fallen horse blocks its WORLD position, so a runner
@@ -47,6 +48,163 @@ function racePhase(progress, remain, dist) {
 const lapDelta = d => { d = ((d % T.lap) + T.lap) % T.lap; return d >= T.lap / 2 ? d - T.lap : d; };
 const isTurn = d => { d = ((d % T.lap) + T.lap) % T.lap; return (d >= T.L && d < T.L + Math.PI * T.R) || d >= 2 * T.L + Math.PI * T.R; };
 const laneOff = lane => LANE0 + lane * LANE_W;
+
+/* =====================================================================
+   TRACK ENGINE — every course is a closed inside-rail reference line, parametrised by true arc length.
+   A race runs on a ROUTE: progress 0 at the start, `dist` at the winning post. The route maps progress to a world
+   position + heading + outward normal (lane offsets are measured outward from the inside rail), the inward curvature
+   (used for the bend's centripetal load, horse balance and the extra ground covered by running wide), and the loop
+   coordinate (for lap-later contacts with fallen horses). A route may begin in a CHUTE: a separate straight that joins
+   the course proper tangentially.
+     • generic — the original oval, kept on its exact analytic formulas (multiplayer and all balance tests unchanged)
+     • randwick — Royal Randwick course proper, built from straights, arcs and clothoid easements (see TRACK_DEFS)
+   ===================================================================== */
+const lapDeltaL = (d, lap) => { d = ((d % lap) + lap) % lap; return d >= lap / 2 ? d - lap : d; };
+const TRACKS = {};
+TRACKS.generic = {
+  id: "generic", name: "Furlong Park", lap: T.lap, W: T.W, finishD: FINISH_D, homeStraight: HOME_STRAIGHT, finalBend: FINAL_BEND, cw: false, analytic: true,
+  point: trackPoint, isTurn, kIn: d => isTurn(d) ? 1 / T.R : 0, isHome: d => (((d % T.lap) + T.lap) % T.lap) < T.L,
+  route(dist) {
+    const startD = ((FINISH_D - dist) % T.lap + T.lap) % T.lap;
+    return { trk: this, dist, startD, chuteLen: 0,
+      point: (p, off, out) => { out = trackPoint(startD + p, off, out); out.k = isTurn(startD + p) ? 1 / T.R : 0; return out; },
+      isTurn: p => isTurn(startD + p),
+      kIn: p => isTurn(startD + p) ? 1 / T.R : 0,
+      scale: (p, off) => { const d = ((startD + p) % T.lap + T.lap) % T.lap; return isTurn(d) ? T.R / (T.R + off) : 1; },
+      bendAcc: (p, off, v) => isTurn(startD + p) ? v * v / (T.R + off) : 0,
+      railScale: p => isTurn(((startD + p) % T.lap + T.lap) % T.lap) ? T.R / (T.R + LANE0) : 1,
+      inFinalBend: p => { const d = ((startD + p) % T.lap + T.lap) % T.lap; return d >= 2 * T.L + Math.PI * T.R; },
+      loopD: p => ((startD + p) % T.lap + T.lap) % T.lap,
+      inChute: () => false };
+  },
+};
+// ---- table-based tracks: curvature segments → arc-length samples ----
+const TRK_DS = 0.5;
+function integrateTrack(segs, cw) {
+  // curvature (1/m, positive towards the inside) varies linearly within each segment; heading φ integrates it
+  const sg = cw ? 1 : -1, sub = 4, h = TRK_DS / sub;
+  let len = 0; for (const s of segs) len += s.len;
+  const n = Math.ceil(len / TRK_DS) + 2, X = new Float64Array(n), Z = new Float64Array(n), P = new Float64Array(n), K = new Float64Array(n);
+  let x = 0, z = 0, ph = 0, si = 0, s0 = 0, i = 0;
+  const kAt = s => { while (si < segs.length - 1 && s > s0 + segs[si].len) { s0 += segs[si].len; si++; } const g = segs[si], u = Math.min(1, Math.max(0, (s - s0) / g.len)); return g.k0 + (g.k1 - g.k0) * u; };
+  for (i = 0; i < n; i++) {
+    const s = i * TRK_DS; X[i] = x; Z[i] = z; P[i] = ph; K[i] = kAt(Math.min(len, s));
+    for (let j = 0; j < sub; j++) { const sm = s + (j + 0.5) * h, k = kAt(Math.min(len, sm)), pm = ph + sg * k * h * 0.5; x += Math.cos(pm) * h; z += Math.sin(pm) * h; ph += sg * k * h; }
+  }
+  return { X, Z, P, K, len, n };
+}
+function tableSampler(tb, cw, closed) {
+  const lap = tb.len;
+  return function (d, off, out) {
+    out = out || {};
+    if (closed) d = ((d % lap) + lap) % lap; else d = Math.max(0, Math.min(lap, d));
+    const f = d / TRK_DS, i = Math.min(tb.n - 2, Math.floor(f)), u = f - i;
+    const x = tb.X[i] + (tb.X[i + 1] - tb.X[i]) * u, z = tb.Z[i] + (tb.Z[i + 1] - tb.Z[i]) * u, ph = tb.P[i] + (tb.P[i + 1] - tb.P[i]) * u;
+    const hx = Math.cos(ph), hz = Math.sin(ph), nx = cw ? hz : -hz, nz = cw ? -hx : hx;      // outward normal: away from the infield
+    out.x = x + nx * off; out.z = z + nz * off; out.hx = hx; out.hz = hz; out.nx = nx; out.nz = nz;
+    out.k = tb.K[i] + (tb.K[i + 1] - tb.K[i]) * u; out.turn = out.k > 1 / 900;
+    return out;
+  };
+}
+// expand a compact course description into curvature segments
+function courseSegments(spec) {
+  const segs = [];
+  for (const s of spec) {
+    if (s.straight) segs.push({ len: s.straight, k0: 0, k1: 0, tag: s.tag });
+    else if (s.bend) { const k = 1 / s.r, e = s.ease || 0, arc = s.r * s.ang - e; // clothoid in, arc, clothoid out: total turn = ang
+      if (e) segs.push({ len: e, k0: 0, k1: k, tag: s.tag }); segs.push({ len: Math.max(1, arc), k0: k, k1: k, tag: s.tag }); if (e) segs.push({ len: e, k0: k, k1: 0, tag: s.tag }); }
+  }
+  return segs;
+}
+// solve a course's free parameters so the loop closes exactly with the published circumference
+function solveCourse(def) {
+  const v = def.free.map(f => f.init);
+  const build = vv => { const spec = def.spec(vv); return integrateTrack(courseSegments(spec), def.cw); };
+  const resid = vv => { const tb = build(vv), e = tb.n - 1; const L = tb.len; const fx = tb.X[0] + 0, fz = tb.Z[0];
+    // position after exactly one lap (interpolated) must return to the start; length must equal the circumference
+    const f = L / TRK_DS, i = Math.floor(f), u = f - i, xe = tb.X[i] + (tb.X[Math.min(e, i + 1)] - tb.X[i]) * u, ze = tb.Z[i] + (tb.Z[Math.min(e, i + 1)] - tb.Z[i]) * u;
+    return [xe - fx, ze - fz, L - def.lap]; };
+  for (let it = 0; it < 30; it++) {
+    const r0 = resid(v); if (Math.hypot(...r0) < 1e-4) break;
+    const J = def.free.map((f, j) => { const vv = v.slice(); vv[j] += f.step; const r1 = resid(vv); return r1.map((x, k) => (x - r0[k]) / f.step); });   // J[j][k] = d r_k / d v_j
+    // solve J^T dv = -r (3x3)
+    const A = [0, 1, 2].map(k => [J[0][k], J[1][k], J[2][k]]), b = r0.map(x => -x);
+    const det = m => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    const D = det(A); if (!D) break;
+    for (let j = 0; j < 3; j++) { const Aj = A.map((row, k) => row.map((x, c) => c === j ? b[k] : x)); v[j] += det(Aj) / D * 0.9; }
+  }
+  return v;
+}
+function buildTableTrack(def) {
+  const v = solveCourse(def), spec = def.spec(v), segs = courseSegments(spec), tb = integrateTrack(segs, def.cw);
+  const lap = tb.len, point = tableSampler(tb, def.cw, true);
+  // named positions along the loop (s from the winning post, which is s = 0)
+  const marks = {}; { let s = 0; for (const p of spec) { const L = p.straight || (p.r * p.ang + (p.ease || 0)); if (p.tag && marks[p.tag] == null) marks[p.tag] = s; if (p.tag) marks[p.tag + "_end"] = s + L; s += L; } }
+  const K = d => { d = ((d % lap) + lap) % lap; const f = d / TRK_DS, i = Math.min(tb.n - 2, Math.floor(f)), u = f - i; return tb.K[i] + (tb.K[i + 1] - tb.K[i]) * u; };
+  const finishD = 0, homeStraight = def.homeStraight, finalBend = homeStraight + (marks.homeTurn_end - marks.homeTurn);
+  const trk = { id: def.id, name: def.name, lap, W: def.W, finishD, homeStraight, finalBend, cw: def.cw, analytic: false, def, solved: v, spec, marks, tb,
+    point, kIn: K, isTurn: d => K(d) > 1 / 900, isHome: d => { d = ((d % lap) + lap) % lap; return d > lap - homeStraight - 30 || d < (marks.runout_end || 0); },
+    chutes: {}, starts: def.starts };
+  // chutes: straight extensions behind a point of the loop, joining it tangentially
+  for (const c of def.chutes || []) {
+    const js = marks[c.joinAt] != null ? marks[c.joinAt] : c.joinS, jp = point(js, 0, {});
+    trk.chutes[c.id] = { id: c.id, joinS: js, x: jp.x, z: jp.z, hx: jp.hx, hz: jp.hz, nx: jp.nx, nz: jp.nz };
+  }
+  trk.route = function (dist) {
+    const st = def.starts[dist], sLoop = ((finishD - dist) % lap + lap) % lap;
+    const ch = st && st.chute ? trk.chutes[st.chute] : null;
+    const toPost = ch ? ((finishD - ch.joinS) % lap + lap) % lap || lap : 0;      // loop distance from the join to the post
+    const chuteLen = ch ? dist - toPost - (dist > lap ? lap * Math.floor((dist - toPost) / lap) : 0) : 0;
+    const useChute = ch && chuteLen > 0;
+    const startD = useChute ? ch.joinS - chuteLen : sLoop;                         // unwrapped: loop coordinate of progress 0
+    const R = { trk, dist, startD, chuteLen: useChute ? chuteLen : 0, chute: useChute ? ch : null,
+      inChute: p => useChute && p < chuteLen,
+      point(p, off, out) {
+        if (useChute && p < chuteLen) {                                           // in the chute: a straight line ending at the join
+          const back = chuteLen - p; out = out || {};
+          out.x = ch.x - ch.hx * back + ch.nx * off; out.z = ch.z - ch.hz * back + ch.nz * off; out.hx = ch.hx; out.hz = ch.hz; out.nx = ch.nx; out.nz = ch.nz; out.k = 0; out.turn = false; return out;
+        }
+        return point(startD + p, off, out);
+      },
+      kIn: p => useChute && p < chuteLen ? 0 : K(startD + p),
+      isTurn: p => (useChute && p < chuteLen ? 0 : K(startD + p)) > 1 / 900,
+      scale: (p, off) => { const k = useChute && p < chuteLen ? 0 : K(startD + p); return k > 1e-6 ? 1 / (1 + k * off) : 1; },
+      bendAcc: (p, off, v) => { const k = useChute && p < chuteLen ? 0 : K(startD + p); return k > 1e-6 ? v * v * k / (1 + k * off) : 0; },
+      railScale: p => { const k = useChute && p < chuteLen ? 0 : K(startD + p); return k > 1e-6 ? 1 / (1 + k * LANE0) : 1; },
+      inFinalBend: p => { const rem = dist - p; return rem <= finalBend && rem > homeStraight; },
+      loopD: p => (((startD + p) % lap) + lap) % lap };
+    return R;
+  };
+  return trk;
+}
+/* Royal Randwick (course proper), right-handed. Published figures: circumference 2224 m, home straight 410 m, 28 m wide
+   at the winning post; chute starts for the shorter sprints (the 1200 m chute leads into the long home turn); the 2000 m
+   start is just past the post with a short run to the first turn; the rise ~400 m from home. Exact bend radii, the
+   back-straight dogleg and chute angles are not published in a form available here, so they are estimated to match the
+   overall shape of the course diagram and solved so the loop closes at exactly 2224 m. Coordinates: s = 0 at the post. */
+const TRACK_DEFS = {
+  randwick: {
+    id: "randwick", name: "Royal Randwick", cw: true, lap: 2224, W: 28, homeStraight: 410,
+    free: [{ init: 350, step: 0.5 }, { init: 172, step: 0.2 }, { init: 178, step: 0.2 }],      // back-straight length, top-turn radius, home-turn radius
+    spec: v => [
+      { straight: 110, tag: "runout" },                                          // winning post → the first (Kensington-end) turn
+      { bend: true, r: v[1], ang: 174 * Math.PI / 180, ease: 45, tag: "topTurn" },
+      { straight: v[0], tag: "back" },                                           // the back straight
+      { bend: true, r: 420, ang: 12 * Math.PI / 180, ease: 30, tag: "dogleg" },  // the gentle kink where the sprint chutes join
+      { straight: 64, tag: "chuteJoin" },
+      { bend: true, r: v[2], ang: 174 * Math.PI / 180, ease: 70, tag: "homeTurn" }, // the long sweeping home turn
+      { straight: 410, tag: "home" },                                            // the 410 m straight to the post
+    ],
+    chutes: [{ id: "sprint", joinAt: "chuteJoin" }],
+    starts: { 1000: {}, 1100: {}, 1200: { chute: "sprint" }, 1400: { chute: "sprint" }, 1600: {}, 2000: {}, 2400: {}, 3200: {} },
+    rise: 400,
+  },
+};
+function getTrack(id) {
+  if (!id || id === "generic") return TRACKS.generic;
+  if (!TRACKS[id] && TRACK_DEFS[id]) TRACKS[id] = buildTableTrack(TRACK_DEFS[id]);
+  return TRACKS[id] || TRACKS.generic;
+}
 
 /* ---------- Roster ---------- */
 // attrs 0–100: top (top speed), acc, end (endurance), spr (sprint power), rec (recovery),
@@ -255,7 +413,7 @@ class Horse {
       default: c = 0.75;
     }
     this.kC += (c - this.kC) * Math.min(1, dt * 1.2);
-    const ph = K.ph[PHASE_KEYS.indexOf(racePhase(this.progress, remain, this.raceDist))] || 0;
+    const ph = K.ph[PHASE_KEYS.indexOf(racePhase(this.progress, remain, this.raceDist, race.trk))] || 0;
     this.kB = (K.cond === "settled" || K.cond === "back" ? 0.06 : 0.04) * ph * this.kC;   // patient rides earn a bigger late reward
   }
   // how much of the finishing burst the horse can still produce (0..1)
@@ -487,8 +645,8 @@ class Horse {
     this.stumV = Math.max(0, this.stumV - dt * 0.7);
     if (mode === "off" || !this.started || this.finished) { this.stab = Math.min(1, this.stab + dt); this.stress = 0; if (impact > 0.05) this.contact(race, impact, hitSide, false); return; }
     const vS = Math.min(this.v, 19.5);                                  // experimental speeds are treated like a top racehorse's
-    const off = laneOff(this.laneF), onBend = isTurn(race.startD + this.progress);
-    const aC = onBend ? vS * vS / (T.R + off) : 0;                      // the bend's own centripetal load
+    const off = laneOff(this.laneF), onBend = race.route.isTurn(this.progress);
+    const aC = race.route.bendAcc(this.progress, off, vS);              // the bend's own centripetal load (from the real local curvature)
     const aS = -aSteer * Math.min(1.25, vS / 16);                       // steering load, + towards the rail; harder at a gallop
     const latMs = Math.abs(this.latV * LANE_W);
     const dem = Math.abs(aC + (Number.isFinite(aS) ? aS : 0)) + 0.6 * latMs * vS / 17;
@@ -564,16 +722,15 @@ class Horse {
   }
   integrate(dt, race) {
     const off = laneOff(this.laneF);
-    const dTr = ((race.startD + this.progress) % T.lap + T.lap) % T.lap;
-    const scale = isTurn(dTr) ? T.R / (T.R + off) : 1;                                // wide on a bend = more ground
+    const scale = race.route.scale(this.progress, off);                               // wide on a bend = more ground (true curvature)
     const lat = this.latV * LANE_W;
     const fwd = Math.sqrt(Math.max(0, this.v * this.v - lat * lat));               // diagonal running costs forward ground
     this.progress += fwd * dt * scale;
     this.distRun += this.v * dt;
-    if (scale < 1 && !this.finished) this.groundLost += fwd * dt * (T.R / (T.R + LANE0) - scale);   // metres given away by running wide
-    if (dTr >= 2 * T.L + Math.PI * T.R && !this.finished) this.stat.bendExtra = (this.stat.bendExtra || 0) + fwd * dt * (T.R / (T.R + LANE0) - scale);
+    if (scale < 1 && !this.finished) this.groundLost += fwd * dt * (race.route.railScale(this.progress) - scale);   // metres given away by running wide
+    if (race.route.inFinalBend(this.progress) && !this.finished) this.stat.bendExtra = (this.stat.bendExtra || 0) + fwd * dt * (race.route.railScale(this.progress) - scale);
     this.phase += dt * this.v / this.strideLen();
-    trackPoint(race.startD + this.progress, off, this.pos);
+    race.route.point(this.progress, off, this.pos);
   }
 }
 
@@ -821,7 +978,7 @@ class Bot {
     }
     let tight = false;
     for (const o of race.horses) if (o !== h && !o.finished && Math.abs(o.laneF - h.laneF) < LAT_SEP && h.progress - o.progress > 0 && h.progress - o.progress < HORSE_LEN + 4) tight = true;
-    h.restrain = this.checkT > 0 && remain > 150 && this.mode !== "kick" && !tight && !(race.incMode !== "off" && (h.stab < 0.8 || h.v > 13) && isTurn(race.startD + h.progress));   // experienced riders ease rather than snatch up mid-bend
+    h.restrain = this.checkT > 0 && remain > 150 && this.mode !== "kick" && !tight && !(race.incMode !== "off" && (h.stab < 0.8 || h.v > 13) && race.route.isTurn(h.progress));   // experienced riders ease rather than snatch up mid-bend
     h.settle = this.mode !== "kick" && !h.restrain && remain > this.kickPoint + 60 &&
       ((j.patience > 0.3 && (h.keen > 0.2 || (h.draft && this.role !== "lead" && this.coverT <= 0))) || (h.keen > 0.45 && j.tactics > 0.35));
     if (remain < 300) e = Math.max(e, 0.85);                         // sanity: never ease right off near the finish
@@ -866,7 +1023,7 @@ class Bot {
       return;                                                         // hold the rail line: no wide tactical moves in the bunch
     }
     if (!race.chaos) for (const o of race.dnfs) {                      // normal racing: steer around a faller ahead (once seen — never in chaos)
-      const dp = lapDelta(o.progress - h.progress);
+      const dp = race.lapD(o.progress - h.progress);
       if (o.noAvoid && o.noAvoid.has(h)) continue;                     // was too close behind to react — committed to its line
       if (race.clock - o.stat.dnfT < this.react * 0.8) continue;
       if (dp > 0 && dp < 50 && Math.abs(o.laneF - h.laneF) < 2.2) {
@@ -905,7 +1062,7 @@ class Bot {
     }
     // save ground by getting to the rail (more urgent before a bend); wide closers late prefer clear running
     if (cur > 0 && this.wideBias <= 0 && !(st.wide && this.mode === "kick")) {
-      const turnSoon = isTurn(race.startD + h.progress + 40);
+      const turnSoon = race.route.isTurn(h.progress + 40);
       const p = st.rail * (turnSoon ? 0.9 : 0.4) * (0.5 + 0.5 * j.tactics);
       if (this.rng() < p && race.canMove(h, cur - 1, this.margin) && race.roomAhead(h, cur - 1, 20) > 9) { h.targetLane = cur - 1; this.laneCool = 1.0; }
     }
@@ -917,7 +1074,7 @@ class Bot {
     const opts = j.tactics > 0.5 ? [-1, 1, -2, 2] : [-1, 1];
     if (this.wideBias > 0 || this.st.wide) opts.push(3);
     const curRoom = race.roomAheadPred(h, cur, 40);
-    const turnSoon = isTurn(race.startD + h.progress + 30);
+    const turnSoon = race.route.isTurn(h.progress + 30);
     const need = minRoom * (1.3 - 0.6 * j.passConf);
     for (const dl of opts) {
       const L = cur + dl;
@@ -944,7 +1101,8 @@ class Race {
     this.rng = mulberry32(this.seed);
     this.goingKey = GOING[cfg.going] ? cfg.going : "good";
     this.going = GOING[this.goingKey];
-    this.startD = ((FINISH_D - this.dist) % T.lap + T.lap) % T.lap;
+    this.trk = getTrack(cfg.track); this.route = this.trk.route(this.dist);
+    this.startD = this.route.startD;                     // loop coordinate of the start (unwrapped; negative = in a chute)
     this.clock = 0; this.state = "load";  // load → count → running → done
     this.finishOrder = []; this.horses = [];
     const lanes = shuffle([...Array(cfg.field).keys()], this.rng);
@@ -963,7 +1121,7 @@ class Race {
     defs.forEach((def, i) => {
       const h = new Horse(def, lanes[i], i < nh, this.dist, cfg.diff, this.going, this.rng, !!cfg.assist && i === 0 && !cfg.humans);
       h.id = i; h.cloth = i + 1;
-      trackPoint(this.startD, laneOff(h.laneF), h.pos);
+      this.route.point(0, laneOff(h.laneF), h.pos);
       this.horses.push(h);
     });
     this.player = this.horses[0];
@@ -996,6 +1154,7 @@ class Race {
     this.pAhead = this.horses.map(() => false); this.playerSurge = false;
   }
   emit(type, a, b) { const f = this.hooks[type]; if (f) f(a, b, this); }
+  lapD(d) { return this.trk.analytic ? lapDelta(d) : lapDeltaL(d, this.trk.lap); }
   rankOf(h) { return h.rank; }
   // is the path sideways into `lane` free right now (and not about to be cut off)?
   corridorClear(h, lane, ahead, behind, predictive) {
@@ -1136,7 +1295,7 @@ class Race {
     const fp = this.fallenFootprint(h);
     h.noAvoid = new Set(this.horses.filter(o => {
       if (o === h || o.fallen || o.finished || !o.started) return false;
-      const dp = lapDelta((h.progress - NOSE_OFF) - (o.progress - NOSE_OFF));   // how far o is behind the body (+ = behind)
+      const dp = this.lapD((h.progress - NOSE_OFF) - (o.progress - NOSE_OFF));   // how far o is behind the body (+ = behind)
       if (dp <= 0 || dp > 40) return false;
       const dlm = (h.laneF - o.laneF) * LANE_W;
       return dlm + Math.max(fp.sTo, fp.sAway) > -0.55 && dlm + Math.min(fp.sTo, fp.sAway) < 0.55;   // o's line meets the body
@@ -1153,7 +1312,7 @@ class Race {
     for (const o of this.horses) {
       if (o === F || o.fallen || o.finished || !o.started) continue;
       const dl = o.laneF - F.laneF;
-      if (Math.abs(lapDelta(o.progress - F.progress)) > HORSE_LEN + 0.6) continue;   // bodies overlapping side by side
+      if (Math.abs(this.lapD(o.progress - F.progress)) > HORSE_LEN + 0.6) continue;   // bodies overlapping side by side
       if (dl * side > 0 && Math.abs(dl) < LAT_SEP + 0.35) {
         o.cause = "pushed over by " + F.def.name; o.stab = 0;
         this.event("collision", o, F, Math.max(1, o.v - F.v));
@@ -1191,14 +1350,14 @@ class Race {
       const sLo = Math.min(fp.sTo, fp.sAway), sHi = Math.max(fp.sTo, fp.sAway);
       for (const h of this.horses) {
         if (h === F || h.fallen || h.finished || !h.started) continue;
-        const dp = lapDelta(fp.c - (h.progress - NOSE_OFF));           // body centre to body centre, even a lap later
+        const dp = this.lapD(fp.c - (h.progress - NOSE_OFF));           // body centre to body centre, even a lap later
         const dlm = (F.laneF - h.laneF) * LANE_W;                      // lateral centre distance in metres (+ = F on my outside)
         const hit = (h.hitObs && h.hitObs.includes(F)) ? 2 : 0;
         // 1. genuine contact with the body (at any point of the fall — it is solid from the first frame)
         if (!hit && Math.abs(dp) < fp.q + HORSE_LEN / 2 && dlm + sHi > -HW && dlm + sLo < HW) { this.hitFallen(h, F, false); continue; }
         // 2. genuine contact with the thrown jockey — once they're actually on the turf (≈0.75 s into the fall), and
         //    only for a horse whose front reaches them: a body landing behind your girth can't trip you forward
-        const dR = lapDelta(R.p - (h.progress - NOSE_OFF)), dRl = (R.lane - h.laneF) * LANE_W;
+        const dR = this.lapD(R.p - (h.progress - NOSE_OFF)), dRl = (R.lane - h.laneF) * LANE_W;
         if (!hit && F.fallT > 0.75 && dR > -0.3 && dR < 0.85 + HORSE_LEN / 2 && Math.abs(dRl) < 0.3 + HW) { this.hitFallen(h, F, true); continue; }
         // 3. a hazard ahead — NORMAL RACING ONLY. In chaos nobody brakes or checks for a body: contact alone decides.
         if (this.chaos) continue;
@@ -1791,4 +1950,4 @@ const SIM_EXPORTS = { runRidingTests, simRace, raceStats, summarise, runSprintTe
 /*@sim-end*/
 // Node (multiplayer server, tests): export the simulation. In a browser this file is a plain script and the
 // declarations above are shared globals.
-if (typeof module !== "undefined" && module.exports) module.exports = { Race, Horse, Bot, ROSTER, DISTANCES, GOING, DIFF, SIM_DT, REC_F, RHYTHM_AT, RHYTHM_PERIOD, HORSE_LEN, NOSE_OFF: typeof NOSE_OFF !== "undefined" ? NOSE_OFF : null, START_CATS, KNACK, rideLevel, finishGap, momLevel, applyRiderInput, riderPress, riderKick, scaleDef, DIST_LABEL, clamp, SIM_EXPORTS, racePhase, isTurn, LEN_M, HOME_STRAIGHT, FINAL_BEND, marginText };
+if (typeof module !== "undefined" && module.exports) module.exports = { Race, Horse, Bot, ROSTER, DISTANCES, GOING, DIFF, SIM_DT, REC_F, RHYTHM_AT, RHYTHM_PERIOD, HORSE_LEN, NOSE_OFF: typeof NOSE_OFF !== "undefined" ? NOSE_OFF : null, START_CATS, KNACK, rideLevel, finishGap, momLevel, applyRiderInput, riderPress, riderKick, scaleDef, DIST_LABEL, clamp, SIM_EXPORTS, racePhase, isTurn, LEN_M, HOME_STRAIGHT, FINAL_BEND, marginText, TRACKS, TRACK_DEFS, getTrack, trackPoint, laneOff, T, FINISH_D, NLANES, LANE_W };
