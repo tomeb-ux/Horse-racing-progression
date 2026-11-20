@@ -108,81 +108,172 @@ const SEASON = (() => {
   const SILK_PAL = ["#d62828", "#1d3557", "#2e8b57", "#e8c35a", "#7a4fd1", "#e86a17", "#f4f1ea", "#15161a", "#5fb7e8", "#e75480", "#1f6b3a", "#d9a521"];
   const PATTERNS = ["plain", "hoops", "sash", "quartered", "stars", "chevrons", "braces", "diamond", "crossbelts"];
   const COAT_HEX = [0x7a4a28, 0x45291a, 0x8f4a24, 0x241a14, 0xb9b3aa, 0x5d3a22, 0x6b4226, 0x96522c, 0x3c2a1a];
+  const NAME_A = ["Copper", "Silver", "Golden", "Southern", "Northern", "Red", "Blue", "Wild", "Quiet", "Royal", "Coastal", "Desert", "Midnight", "River", "Storm", "Iron", "Opal", "Wattle", "Harbour", "Outback", "Ember", "Lucky", "Brave", "Summer"];
+  const NAME_B = ["Comet", "Ranger", "Echo", "Arrow", "Drifter", "Spirit", "Banner", "Charm", "Flyer", "Legend", "Gambler", "Breeze", "Duke", "Belle", "Prince", "Lass", "Rocket", "Mist", "Tide", "Thunder", "Whistle", "Ballad", "Dancer", "Jewel"];
   // template shapes from the roster: how sprint-leaning each horse is
   const shapeIdx = d => (d.attrs.top + d.attrs.acc + d.attrs.spr) / 3 - (d.attrs.end + d.attrs.rec) / 2;
   const sortedT = R0.slice().sort((a, b) => shapeIdx(b) - shapeIdx(a));
   const POOLS = { sprint: sortedT.slice(0, 5), mile: sortedT.slice(3, 9), stay: sortedT.slice(7) };
   const avgAttr = a => AKEYS.reduce((s, k) => s + a[k], 0) / AKEYS.length;
+  const r1 = v => Math.round(v * 10) / 10;
 
-  function makeStables(careerSeed, div) {
-    const D = DIVS[div], n = D.field - 1, rng = rngOf(hashStr(careerSeed + "/stables/" + div));
-    const usedNames = new Set(), out = [];
-    const nameRng = rngOf(hashStr(careerSeed + "/names"));
-    const pool = HORSE_NAMES.slice(); for (let i = pool.length - 1; i > 0; i--) { const j = nameRng() * (i + 1) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
-    let nameAt = div * 33;                                                   // each division draws its own block of names
+  // ---------- persistent rivals ----------
+  // Every AI horse is a persistent rival with its OWN attributes, potential and development rate. Nothing about a rival
+  // is ever scaled to the player's horses: rivals improve only through their own races (each run closes part of the gap
+  // to their potential, at their own rate) and eventually retire, replaced by a new prospect in the same stable.
+  // Grade bands (rating now → potential): provincial horses are genuinely weaker than metropolitan ones, and a handful of
+  // established stars headline the Feature Series.
+  const BANDS = [
+    { lo: 55, hi: 63, grow: [4, 11] },          // Provincial: maidens and country horses
+    { lo: 64, hi: 72, grow: [3, 9] },           // Metropolitan: listed / group 3 horses
+    { lo: 72, hi: 80, grow: [3, 8], stars: 3, star: [83, 86] },   // Feature Series: group 1 horses + a few elite stars
+  ];
+  function shapeTo(shape, rating) { const k = rating / avgAttr(shape), o = {}; for (const key of AKEYS) o[key] = clampN(r1(shape[key] * k), 30, 99); return o; }
+  function newRival(C, st, div, slot, type, rng, star) {
+    const B = BANDS[div], P = POOLS[type], t = P[(rng() * P.length) | 0];
+    const shape = {}; for (const key of AKEYS) shape[key] = clampN(t.attrs[key] + (rng() - 0.5) * 8, 40, 99);
+    const q = st.q;                               // a stable's quality shifts where its horses sit in the band
+    const r0 = star ? B.star[0] + rng() * (B.star[1] - B.star[0]) : B.lo + (B.hi - B.lo) * clampN((q - 0.965) / 0.07 * 0.6 + rng() * 0.5, 0, 1);
+    const g = star ? 1 + rng() * 3 : B.grow[0] + rng() * (B.grow[1] - B.grow[0]) * (rng() < 0.2 ? 1.5 : 1);   // a few late-blooming prospects
+    C.rivalSeq = (C.rivalSeq || 0) + 1;
+    return { id: st.sid + type[0] + C.rivalSeq, name: rivalName(C, rng), sid: st.sid, div, type, slot, style: t.style, role: t.role,
+      coat: COAT_HEX[(rng() * COAT_HEX.length) | 0], attrs: shapeTo(shape, r0), pot: shapeTo(shape, Math.min(94, r0 + g)), rate: r1(0.03 + rng() * 0.07) || 0.05,
+      star: !!star, born: C.season ? C.season.n : 1, starts: 0, wins: 0, seconds: 0, thirds: 0, majors: [], form: [], seasons: {} };
+  }
+  function rivalName(C, rng) {
+    const used = new Set(Object.values(C.rivals || {}).map(r => r.name).concat((C.horses || []).map(h => h.name)));
+    const fresh = HORSE_NAMES.filter(n => !used.has(n));
+    if (fresh.length) return fresh[(rng() * fresh.length) | 0];
+    for (let i = 0; i < 200; i++) { const n = NAME_A[(rng() * NAME_A.length) | 0] + " " + NAME_B[(rng() * NAME_B.length) | 0]; if (!used.has(n)) return n; }
+    return "Runner " + (C.rivalSeq || 0);
+  }
+  function stableShells(seed, div) {
+    const D = DIVS[div], n = D.field - 1, rng = rngOf(hashStr(seed + "/stables/" + div));
+    const out = [];
     for (let k = 0; k < n; k++) {
-      const sid = "d" + div + "s" + k;
-      const q = 1.035 - 0.07 * k / Math.max(1, n - 1) + (rng() - 0.5) * 0.012;  // a spread of strong and weaker stables
+      const sid = "d" + div + "s" + k, q = 1.035 - 0.07 * k / Math.max(1, n - 1) + (rng() - 0.5) * 0.012;
       const silk = SILK_PAL[(k * 5 + div * 3) % SILK_PAL.length], silk2 = SILK_PAL[(k * 7 + 6 + div) % SILK_PAL.length];
-      const st = { sid, name: STABLE_NAMES[div][k] || ("Stable " + (k + 1)), q: +q.toFixed(4), silk, silk2: silk2 === silk ? "#f4f1ea" : silk2, silkPat: PATTERNS[(k + div * 2) % PATTERNS.length], horses: [] };
-      for (const type of ["sprint", "mile", "stay"]) {
-        const P = POOLS[type], t = P[(rng() * P.length) | 0];
-        let nm = pool[nameAt++ % pool.length]; while (usedNames.has(nm)) nm = pool[nameAt++ % pool.length]; usedNames.add(nm);
-        const a = {}; for (const key of AKEYS) a[key] = clampN(Math.round(t.attrs[key] + (rng() - 0.5) * 8), 40, 99);
-        st.horses.push({ hid: sid + type[0], name: nm, type, style: t.style, role: t.role, coat: COAT_HEX[(rng() * COAT_HEX.length) | 0], shape: a });
-      }
-      out.push(st);
+      out.push({ sid, name: STABLE_NAMES[div][k] || ("Stable " + (k + 1)), q: +q.toFixed(4), silk, silk2: silk2 === silk ? "#f4f1ea" : silk2, silkPat: PATTERNS[(k + div * 2) % PATTERNS.length], horses: [] });
     }
     return out;
   }
-  // a stable horse rated for one race: its shape normalised to the round's strength × the stable's quality
-  function rateDef(st, h, str) {
-    const k = (str * st.q) / avgAttr(h.shape), attrs = {};
-    for (const key of AKEYS) attrs[key] = clampN(Math.round(h.shape[key] * k), 30, 99);
-    return { name: h.name, role: h.role, style: h.style, coat: h.coat, silk: st.silk, silk2: st.silk2, silkPat: st.silkPat, attrs, _sid: st.sid, _hid: h.hid, _stable: st.name };
+  // the whole racing world: every division's stables and their rivals (created once per career, then persistent)
+  function ensureWorld(C) {
+    C.rivals = C.rivals && typeof C.rivals === "object" ? C.rivals : {};
+    C.h2h = C.h2h && typeof C.h2h === "object" ? C.h2h : {};
+    if (Array.isArray(C.world) && C.world.length === DIVS.length && C.world.every((w, d) => Array.isArray(w) && w.length === DIVS[d].field - 1)) return;
+    C.world = [];
+    for (let d = 0; d < DIVS.length; d++) {
+      const rng = rngOf(hashStr(C.seed + "/rivals/" + d)), shells = stableShells(C.seed, d);
+      shells.forEach((st, k) => {
+        ["sprint", "mile", "stay"].forEach((type, j) => {
+          const star = BANDS[d].stars && k < BANDS[d].stars && j === k % 3;
+          const rv = newRival(C, st, d, j, type, rng, star); C.rivals[rv.id] = rv; st.horses.push(rv.id);
+        });
+      });
+      C.world.push(shells);
+    }
   }
+  const stablesOf = (C, div) => C.world[div];
+  const rival = (C, id) => C.rivals[id] || null;
+  function rivalDef(C, rv, st) {
+    st = st || stablesOf(C, rv.div).find(s => s.sid === rv.sid) || { silk: "#888888", silk2: "#ffffff", silkPat: "plain", name: "" };
+    const attrs = {}; for (const k of AKEYS) attrs[k] = clampN(Math.round(rv.attrs[k]), 30, 99);
+    return { name: rv.name, role: rv.role, style: rv.style, coat: rv.coat, silk: st.silk, silk2: st.silk2, silkPat: st.silkPat, attrs, _sid: rv.sid, _hid: rv.id, _stable: st.name, _rival: true };
+  }
+  const rRating = rv => Math.round(avgAttr(rv.attrs));
   // distance suitability (also the lightweight AI-only race model): which attributes matter more as the trip lengthens
   function power(attrs, dist) {
     const x = clampN((dist - 1000) / 2200, 0, 1);
     const w = { top: 0.30, acc: 0.17 - 0.11 * x, spr: 0.18 - 0.06 * x, end: 0.05 + 0.30 * x, rec: 0.04 + 0.11 * x, sta: 0.10 - 0.07 * x, tem: 0.06 + 0.03 * x, agi: 0.06 };
     let s = 0, ws = 0; for (const k in w) { s += w[k] * attrs[k]; ws += w[k]; } return s / ws;
   }
-  function pickRunner(st, round) {
+  // each stable sends its best-suited horse: sprinters for the sprints, stayers for the staying races
+  function stableRunner(C, st, dist) {
     let best = null, bp = -1;
-    for (const h of st.horses) { const d = rateDef(st, h, round.str), p = power(d.attrs, round.dist); if (p > bp) { bp = p; best = d; } }
+    for (const id of st.horses) { const rv = C.rivals[id]; if (!rv) continue; const p = power(rv.attrs, dist); if (p > bp) { bp = p; best = rv; } }
     return best;
   }
-  // the AI runners for a round (used for the real race and for AI-only results)
-  function runners(season, idx) { const round = DIVS[season.div].rounds[idx]; return season.stables.map(st => pickRunner(st, round)); }
-  // AI-only result for a round the player skipped: a consistent lightweight model seeded by season + round
-  function simulateRound(season, idx) {
-    const round = DIVS[season.div].rounds[idx], rng = rngOf(hashStr(season.seed + "/round/" + idx));
-    const field = runners(season, idx).map(d => ({ d, s: power(d.attrs, round.dist) + gauss(rng) * 3.2, dnf: rng() < 0.006 }));
+  function runnersFor(C, div, idx) { const round = DIVS[div].rounds[idx]; return stablesOf(C, div).map(st => rivalDef(C, stableRunner(C, st, round.dist), st)); }
+  function runners(C, idx) { return runnersFor(C, C.season.div, idx == null ? C.season.cur : idx); }
+  // optional races: a field picked by grade from the whole rival population, preferring horses suited to the trip.
+  // Deterministic until the race is run (the form guide shows exactly the field you will meet).
+  function optionalField(C, id) {
+    const meta = BY_ID[id]; if (!meta) return [];
+    const rng = rngOf(hashStr(C.seed + "/opt/" + (C.optN | 0) + "/" + id));
+    const sc = Object.values(C.rivals).filter(rv => !rv.retired && rv.active !== false).map(rv => { const rt = rRating(rv), fit = power(rv.attrs, meta.dist) - rt;
+      return { rv, s: -Math.abs(rt - meta.str) * 1.4 + fit * 1.2 + rng() * 4 }; }).sort((a, b) => b.s - a.s);
+    const seen = new Set(), out = [];
+    for (const x of sc) { if (out.length >= meta.field - 1) break; if (seen.has(x.rv.sid) && out.length < meta.field - 3) continue; seen.add(x.rv.sid); out.push(rivalDef(C, x.rv)); }
+    return out;
+  }
+  // AI-only result for a round nobody human ran: a consistent lightweight model seeded by season + division + round
+  function simulateRound(C, div, idx) {
+    const s = C.season, round = DIVS[div].rounds[idx], rng = rngOf(hashStr(s.seed + "/round/" + div + "/" + idx));
+    const field = runnersFor(C, div, idx).map(d => ({ d, s: power(d.attrs, round.dist) + gauss(rng) * 3.2, dnf: rng() < 0.006 }));
     field.sort((a, b) => (a.dnf - b.dnf) || (b.s - a.s));
     let pl = 0;
     return field.map(f => ({ sid: f.d._sid, hid: f.d._hid, name: f.d.name, place: f.dnf ? 0 : ++pl }));
   }
+  // a rival's run: records + its own development (a share of the gap to its potential, at its own rate)
+  function recordRivalRun(C, hid, place, meta, season) {
+    const rv = C.rivals[hid]; if (!rv) return;
+    rv.starts++; if (place === 1) rv.wins++; if (place === 2) rv.seconds++; if (place === 3) rv.thirds++;
+    rv.form.push(place); if (rv.form.length > 10) rv.form.shift();
+    if (place === 1 && meta && meta.major && !meta.optional) rv.majors.push({ race: meta.name, season });
+    const ss = rv.seasons[season] || (rv.seasons[season] = { starts: 0, wins: 0, places: 0, rating: rRating(rv) }); ss.starts++; if (place === 1) ss.wins++; if (place > 0 && place <= 3) ss.places++;
+    const rng = rngOf(hashStr(C.seed + "/dev/" + hid + "/" + rv.starts));
+    for (const k of AKEYS) rv.attrs[k] = clampN(r1(rv.attrs[k] + (rv.pot[k] - rv.attrs[k]) * rv.rate * (0.6 + 0.8 * rng())), 30, rv.pot[k]);
+    ss.ratingEnd = rRating(rv);
+  }
+  function recordResult(C, meta, res, season) { for (const e of res) if (e.sid !== "player") recordRivalRun(C, e.hid, e.place, meta, season); }
+  // head-to-head: every real race a player horse runs against a rival is kept per pair
+  function recordH2H(C, horse, meta, finishers, season) {
+    const me = finishers.find(f => f.player); if (!me) return;
+    for (const f of finishers) {
+      if (f.player || !f.hid || !C.rivals[f.hid]) continue;
+      const key = horse.id + "|" + f.hid, r = C.h2h[key] || (C.h2h[key] = { n: 0, ahead: 0, behind: 0, closest: null, last: [] });
+      r.n++;
+      const mineBetter = me.place > 0 && (f.place === 0 || me.place < f.place);
+      if (mineBetter) r.ahead++; else r.behind++;
+      if (me.t != null && f.t != null) { const g = Math.abs(me.t - f.t); if (r.closest == null || g < r.closest) r.closest = +g.toFixed(3); }
+      r.last.push({ race: meta.name, season, me: me.place, them: f.place, gap: me.t != null && f.t != null ? +(f.t - me.t).toFixed(2) : null }); if (r.last.length > 8) r.last.shift();
+    }
+  }
+  function h2hFor(C, horseId, hid) { return C.h2h[horseId + "|" + hid] || null; }
+
   const GOINGS = [["good", 0.55], ["soft", 0.18], ["firm", 0.17], ["heavy", 0.10]];
   function goingFor(seed, idx) { const r = rngOf(hashStr(seed + "/going/" + idx))(); let acc = 0; for (const [g, p] of GOINGS) { acc += p; if (r < acc) return g; } return "good"; }
 
   // ---------- season lifecycle ----------
   function newSeason(C, div) {
+    ensureWorld(C);
     const n = (C.season ? C.season.n : 0) + 1;
     const seed = hashStr(C.seed + "/season/" + n);
-    C.season = { n, div, seed, cur: 0, closed: false, stables: makeStables(C.seed, div),
-      rounds: DIVS[div].rounds.map((r, i) => ({ id: r.id, st: "open", going: goingFor(seed, i), res: null, ph: null })) };
+    C.season = { n, div, seed, cur: 0, closed: false,
+      rounds: DIVS[div].rounds.map((r, i) => ({ id: r.id, st: "open", going: goingFor(seed, i), res: null, ph: null })),
+      others: {} };
+    for (let d = 0; d < DIVS.length; d++) if (d !== div) C.season.others[d] = { cur: 0, rounds: DIVS[d].rounds.map(r => ({ id: r.id, res: null })) };
     return C.season;
   }
   const done = s => s.cur >= s.rounds.length;
   const roundDef = (s, i) => DIVS[s.div].rounds[i == null ? s.cur : i];
+  // the other two championships keep racing in step with the player's season (their rivals develop too)
+  function advanceOthers(C, frac) {
+    const s = C.season;
+    for (const d in s.others) {
+      const o = s.others[d], target = Math.min(o.rounds.length, Math.round(frac * o.rounds.length));
+      while (o.cur < target) { const res = simulateRound(C, +d, o.cur); o.rounds[o.cur].res = res; recordResult(C, DIVS[d].rounds[o.cur], res, s.n); o.cur++; }
+    }
+  }
 
-  function standings(C) {
-    const s = C.season, rows = {};
+  function standingsFrom(C, div, rounds, stableName) {
+    const rows = {};
     const add = (sid, name) => rows[sid] || (rows[sid] = { sid, name, pts: 0, starts: 0, wins: 0, seconds: 0, podiums: 0, bestMajor: 99, you: sid === "player" });
-    add("player", C.stable);
-    s.stables.forEach(st => add(st.sid, st.name));
-    s.rounds.forEach((rd, i) => {
-      if (!rd.res) return; const meta = roundDef(s, i);
+    if (stableName) add("player", stableName);
+    stablesOf(C, div).forEach(st => add(st.sid, st.name));
+    rounds.forEach((rd, i) => {
+      if (!rd.res) return; const meta = DIVS[div].rounds[i];
       for (const e of rd.res) {
         const row = rows[e.sid]; if (!row) continue;
         row.starts++; row.pts += pointsFor(e.place);
@@ -196,6 +287,7 @@ const SEASON = (() => {
     list.forEach((r, i) => { r.rank = i + 1; r.behind = lead - r.pts; });
     return list;
   }
+  function standings(C) { return standingsFrom(C, C.season.div, C.season.rounds, C.stable); }
   const rankOf = (C, sid) => { const l = standings(C); const r = l.find(x => x.sid === sid); return r ? r.rank : l.length; };
 
   // commit one official round as a single logical result. Refuses anything that isn't the open current round.
@@ -204,34 +296,35 @@ const SEASON = (() => {
     if (!s || s.closed || idx !== s.cur || !s.rounds[idx] || s.rounds[idx].st !== "open") return null;
     const before = standings(C), b = before.find(x => x.you);
     const rd = s.rounds[idx]; rd.res = res; rd.st = "done"; rd.ph = playerHid || null; s.cur++;
+    recordResult(C, roundDef(s, idx), res, s.n);
+    advanceOthers(C, s.cur / s.rounds.length);
     const after = standings(C), a = after.find(x => x.you), me = res.find(e => e.sid === "player");
     return { round: idx, pts: me ? pointsFor(me.place) : 0, place: me ? me.place : null, before: b.rank, after: a.rank, total: a.pts, behind: a.behind, leader: after[0], next: done(s) ? null : roundDef(s) };
   }
   function skipRound(C) {
     const s = C.season; if (!s || s.closed || done(s)) return null;
     const idx = s.cur, rd = s.rounds[idx];
-    rd.res = simulateRound(s, idx); rd.st = "skip"; rd.ph = null; s.cur++;
+    rd.res = simulateRound(C, s.div, idx); rd.st = "skip"; rd.ph = null; s.cur++;
+    recordResult(C, roundDef(s, idx), rd.res, s.n);
+    advanceOthers(C, s.cur / s.rounds.length);
     return { round: idx, res: rd.res };
   }
-  // season over: archive it permanently, award the championship, promote, start the next one
+  // season over: archive it permanently, award the championship, promote, retire old rivals, start the next one
   function closeSeason(C) {
     const s = C.season; if (!s || s.closed || !done(s)) return null;
+    advanceOthers(C, 1);
     const list = standings(C), me = list.find(x => x.you), D = DIVS[s.div];
     const champ = list[0];
-    const majors = [];
-    s.rounds.forEach((rd, i) => {
-      const meta = roundDef(s, i); if (!meta.major || !rd.res) return;
-      const w = rd.res.find(e => e.place === 1); if (!w) return;
-      const st = w.sid === "player" ? C.stable : (s.stables.find(x => x.sid === w.sid) || {}).name;
-      majors.push({ race: meta.name, horse: w.name, stable: st || "", you: w.sid === "player" });
-    });
+    const majorsOf = (div, rounds) => { const out = []; rounds.forEach((rd, i) => { const meta = DIVS[div].rounds[i]; if (!meta.major || !rd.res) return; const w = rd.res.find(e => e.place === 1); if (!w) return;
+      const st = w.sid === "player" ? C.stable : (stablesOf(C, div).find(x => x.sid === w.sid) || {}).name; out.push({ race: meta.name, horse: w.name, stable: st || "", you: w.sid === "player", hid: w.hid }); }); return out; };
     const used = [...new Set(s.rounds.filter(r => r.res && r.ph).map(r => { const e = r.res.find(x => x.sid === "player"); return e ? e.name : null; }).filter(Boolean))];
     const promoted = D.promote > 0 && me.rank <= D.promote && s.div < DIVS.length - 1;
+    const others = Object.keys(s.others).map(d => { const l = standingsFrom(C, +d, s.others[d].rounds, null); return { div: +d, divName: DIVS[d].name, champion: l[0] ? { sid: l[0].sid, name: l[0].name, pts: l[0].pts } : null, majors: majorsOf(+d, s.others[d].rounds) }; });
     const entry = { n: s.n, div: s.div, divName: D.name, t: Date.now(),
       champion: { sid: champ.sid, name: champ.name, pts: champ.pts, you: champ.you },
       standings: list.map(r => ({ sid: r.sid, name: r.name, pts: r.pts, starts: r.starts, wins: r.wins, podiums: r.podiums, you: r.you })),
-      playerPos: me.rank, playerPts: me.pts, playerWins: me.wins, playerStarts: me.starts, majors, horsesUsed: used, promoted,
-      entered: s.rounds.filter(r => r.st === "done").length, skipped: s.rounds.filter(r => r.st === "skip").length };
+      playerPos: me.rank, playerPts: me.pts, playerWins: me.wins, playerStarts: me.starts, majors: majorsOf(s.div, s.rounds), horsesUsed: used, promoted,
+      entered: s.rounds.filter(r => r.st === "done").length, skipped: s.rounds.filter(r => r.st === "skip").length, others };
     C.history = C.history || []; C.history.push(entry);
     let trophy = null;
     if (me.rank === 1 && !C.trophies.some(t => t.kind === "champ" && t.season === s.n)) {
@@ -239,9 +332,25 @@ const SEASON = (() => {
       C.trophies.push(trophy);
     }
     s.closed = true;
+    retireRivals(C, s.n);
     const nextDiv = promoted ? s.div + 1 : s.div;
     newSeason(C, nextDiv);
     return { entry, trophy, promoted, nextDiv };
+  }
+  // rivals who have reached their ceiling and raced a long career retire; a new prospect takes their box
+  function retireRivals(C, season) {
+    const retired = [];
+    for (let d = 0; d < DIVS.length; d++) stablesOf(C, d).forEach(st => st.horses.forEach((id, j) => {
+      const rv = C.rivals[id]; if (!rv) return;
+      const atPeak = AKEYS.every(k => rv.pot[k] - rv.attrs[k] < 1.2), rng = rngOf(hashStr(C.seed + "/retire/" + id + "/" + season));
+      if (rv.starts >= 28 && atPeak && rng() < 0.4) {
+        rv.retired = season; retired.push(rv.name);
+        const nr = newRival(C, st, d, j, rv.type, rng, false); C.rivals[nr.id] = nr; st.horses[j] = nr.id;
+      }
+    }));
+    // retired horses keep their records (history, head-to-heads) but leave the active population
+    for (const id in C.rivals) if (C.rivals[id].retired && !stablesOf(C, C.rivals[id].div).some(st => st.horses.includes(id))) C.rivals[id].active = false;
+    return retired;
   }
 
   // ---------- qualification ----------
@@ -264,31 +373,80 @@ const SEASON = (() => {
     }
     return { label: "?", ok: true, detail: "" };
   }
-  function eligibility(h, race) {
-    const reqs = (race.req || []).map(rq => checkReq(h, rq));
-    return { ok: reqs.every(r => r.ok), reqs };
-  }
+  function eligibility(h, race) { const reqs = (race.req || []).map(rq => checkReq(h, rq)); return { ok: reqs.every(r => r.ok), reqs }; }
   const ordinalS = n => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
 
-  // ---------- save migration (career save v1 → v2) ----------
+  // ---------- form guide ----------
+  // what the numbers really say about each runner for THIS race: rating, how well the trip suits it (the same distance
+  // model that picks stable runners), recent form and achievements. No hidden favouritism for the player's horse.
+  const SUIT = [[1.2, "Excellent"], [3.2, "Good"], [6, "Fair"], [99, "Poor"]];
+  function suitability(attrs, dist) {
+    const best = Math.max(...[1000, 1200, 1400, 1600, 2000, 2400, 3200].map(d => power(attrs, d))), here = power(attrs, dist);
+    const loss = best - here; return { loss, label: SUIT.find(x => loss <= x[0])[1] };
+  }
+  function formGuide(C, entries, meta) {
+    const rows = entries.map(e => {
+      const a = e.attrs, p = power(a, meta.dist), suit = suitability(a, meta.dist), form = (e.form || []).slice(-5);
+      const recent = form.filter(x => x > 0), avgPlace = recent.length ? recent.reduce((s, x) => s + x, 0) / recent.length : null;
+      const top2 = AKEYS.slice().sort((x, y) => a[y] - a[x]).slice(0, 2);
+      return Object.assign({}, e, { rating: Math.round(avgAttr(a)), power: p, suit: suit.label, formTxt: form.length ? form.map(x => x === 0 ? "F" : x > 9 ? "0" : x).join("-") : "first start",
+        score: p + (avgPlace != null ? (6 - Math.min(10, avgPlace)) * 0.35 : 0), strengths: top2 });
+    });
+    const sorted = rows.slice().sort((x, y) => y.score - x.score);
+    sorted.forEach((r, i) => { r.rank = i + 1; r.contender = i < 3; });
+    return sorted;
+  }
+
+  // ---------- experience & training points (shared by the career UI and the progression tests) ----------
+  // tier of race × strength of the field × finishing place, reduced when the field is far weaker than the horse
+  const XP_PER_PT = 2;
+  function xpFor(o) {   // { tier, oppAvg, rating, place, field, dnf, optional }
+    const oppF = clampN(o.oppAvg / 70, 0.5, 1.35);
+    const gap = o.rating - o.oppAvg, gapF = gap > 6 ? Math.max(0.2, 1 - (gap - 6) / 16) : 1;
+    const placeMult = o.place === 1 ? 1 : Math.max(0.15, 1 - (o.place - 1) * 0.11);
+    const tierF = 0.8 + (o.tier || 0) * 0.28;
+    let xp = 56 * tierF * oppF * placeMult;
+    if (o.place === 1) xp += 18 * tierF;
+    if (o.dnf) xp = xp * 0.25 + 4;
+    if (o.optional) xp *= 0.9;
+    return Math.max(2, Math.round(xp * gapF * (o.field >= 10 ? 1 : 0.85)));
+  }
+  const upgCost = v => v < 70 ? 1 : v < 78 ? 2 : v < 85 ? 3 : v < 91 ? 4 : 6;
+
+  // ---------- save migration ----------
+  // v1 (no season) and v2 (season with per-race normalised AI horses) → v3 (persistent rivals). Every player horse,
+  // trophy, record and season result is kept; the v2 AI horses become rivals with the same ids and names.
   function migrate(C) {
     if (!C.seed) C.seed = (Math.random() * 2 ** 31) >>> 0;
     C.history = Array.isArray(C.history) ? C.history : [];
     C.trophies = Array.isArray(C.trophies) ? C.trophies : [];
     for (const h of C.horses) for (const e of h.history || []) { if (e.dist == null) { const f = runFacts(e); e.dist = f.dist; e.tier = f.tier; } if (e.off == null) e.off = true; }
-    // a valid season object, or a fresh one in the division that suits the stable's best horse
     const s = C.season;
-    const valid = s && typeof s === "object" && DIVS[s.div] && Array.isArray(s.rounds) && s.rounds.length === DIVS[s.div].rounds.length && Array.isArray(s.stables) && s.stables.length === DIVS[s.div].field - 1;
+    const v2stables = s && Array.isArray(s.stables) && s.stables.length && s.stables[0] && Array.isArray(s.stables[0].horses) && typeof s.stables[0].horses[0] === "object";
+    ensureWorld(C);
+    if (v2stables && DIVS[s.div] && s.stables.length === DIVS[s.div].field - 1) {
+      // keep the v2 identities (ids + names used in recorded results) for the current division's rivals
+      s.stables.forEach((old, k) => { const st = C.world[s.div][k]; if (!st) return; st.name = old.name || st.name;
+        (old.horses || []).forEach((oh, j) => { const id = st.horses[j], rv = C.rivals[id]; if (!rv || !oh || !oh.hid) return; let nid = oh.hid; if (C.rivals[nid] && nid !== id) nid = oh.hid + 'x' + j;   // v2 gave a stable's sprinter and stayer the same id
+          delete C.rivals[id]; rv.id = nid; rv.name = oh.name || rv.name; C.rivals[rv.id] = rv; st.horses[j] = rv.id; }); });
+      delete s.stables;
+    }
+    const valid = s && typeof s === "object" && DIVS[s.div] && Array.isArray(s.rounds) && s.rounds.length === DIVS[s.div].rounds.length;
     if (!valid) {
       C.season = null;
       const best = C.horses.reduce((m, h) => Math.max(m, hRating(h)), 0);
-      newSeason(C, best >= 80 ? 2 : best >= 74 ? 1 : 0);
-    } else s.cur = clampN(s.cur | 0, 0, s.rounds.length);
-    C.v = 2;
+      newSeason(C, best >= 82 ? 2 : best >= 75 ? 1 : 0);
+    } else {
+      s.cur = clampN(s.cur | 0, 0, s.rounds.length);
+      if (!s.others) { s.others = {}; for (let d = 0; d < DIVS.length; d++) if (d !== s.div) s.others[d] = { cur: 0, rounds: DIVS[d].rounds.map(r => ({ id: r.id, res: null })) }; }
+      delete s.stables;
+    }
+    C.v = 3;
     return C;
   }
 
-  return { DIVS, OPTIONAL, BY_ID, POINTS, pointsFor, makeStables, rateDef, runners, simulateRound, power, newSeason, done, roundDef, standings, rankOf,
-    commitRound, skipRound, closeSeason, eligibility, checkReq, migrate, hRating, sprintIdx, stayIdx, goingFor, hashStr, rngOf };
+  return { DIVS, OPTIONAL, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
+    commitRound, skipRound, closeSeason, eligibility, checkReq, migrate, hRating, sprintIdx, stayIdx, goingFor, hashStr, rngOf, ensureWorld, stablesOf, rival, rivalDef, rRating,
+    recordResult, recordH2H, h2hFor, formGuide, suitability, xpFor, upgCost, XP_PER_PT, retireRivals };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = SEASON;

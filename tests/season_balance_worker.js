@@ -17,9 +17,9 @@ for (const p of plan) for (let s = 0; s < n; s++) jobs.push(Object.assign({ s, s
 const out = [];
 for (let i = k; i < jobs.length; i += K) {
   const J = jobs[i];
-  const C = { seed: 4242 + J.s, stable: "T", horses: [], trophies: [] }; S.migrate(C); S.newSeason(C, J.div);
+  const C = { seed: 4242 + J.s, stable: "T", horses: [], trophies: [] }; S.migrate(C);
   const meta = S.DIVS[J.div].rounds[J.round];
-  const opp = S.runners(C.season, J.round);
+  const opp = S.runnersFor(C, J.div, J.round);
   const r = new sim.Race({ distance: meta.dist, field: meta.field, diff: meta.diff, playerDef: playerDef(J.rating, meta.dist), oppDefs: opp, allBots: true, going: "good", incidents: "full", seed: J.seed });
   r.state = "count"; r.openGates();
   while (r.finishOrder.length + r.dnfs.length < r.horses.length && r.clock < 600) r.simStep(sim.SIM_DT);

@@ -17,3 +17,11 @@ Tests need: server `FF_TEST_HOOKS=1 PORT=8095 node server/index.js`; node_module
 - Generic oval stays analytic & bit-identical (MP + balance tests). Randwick = table-based arc-length track (0.5 m samples), curvature piecewise-linear (clothoid easements), closure solved by adjusting two straights.
 - Per-race route: race.route.point(progress, off, out); chute table for starts off the loop. Ground loss factor 1/(1+kIn*off).
 - MP stays on generic track (server/client both use sim.js; track id in cfg for future).
+
+## Status (after phases 2–4)
+- P2 done: public/stable3d.js (STABLE3D: enter/leave/setBayHorse/setStalls/setTrophies/preset/zoom/setViewShift/onPick/frame/info). index.html frame() renders it when ui.state starts "c_" and !race; show() leaves it. horseKey() cache keys; def._preview builds are disposed. Look params added: muscle, neckG, tailLen (+ existing build, neck, head, maneLen).
+- career.js rebuilt (v3): BASE 54 / START_POOL 136 / START_CAP 84 / POT_POOL 168 / POT_CAP 98. 5-step creator (sidePage + camBar), stable overview (bottom strip), profile, training (immediate +1, undo, effect text, flash), one-time potential redistribution (old horses: !potSet && !potRedist), trophy room (3D shelves), rivals list + rival profile (rival shown in bay), form guide in event view.
+- season.js v3: persistent rivals C.rivals (world C.world[div] stables → rival ids), bands Prov 55-63 / Metro 64-72 / Feature 72-80 + 3 stars 83-86, per-run development at own rate, retirement at peak, optionalField (grade-matched, C.optN), background divisions season.others, h2h C.h2h["horseId|rivalId"], formGuide/suitability, xpFor/upgCost/XP_PER_PT=2 shared.
+- Balance (tests/progression.js, real engine): well ridden rating 73→77→80→84 (r17-20)→87; first 3 races win ~60% top3 ~72%; flat-out riding wins ~0. Rivals identical between good/poor careers.
+- Tests: tests/season.js 64/64, tests/commentary.js OK, tests/progression.js.
+- TODO P8: update tests/career-browser.js for the new creator UI (uses old selectors #cAttrs .car-arow etc.).

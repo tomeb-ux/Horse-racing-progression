@@ -24,7 +24,7 @@ const CAREER = (() => {
   // (potential ≥ current, max POT_CAP): you choose what it can become, not just what it is.
   const BASE = 54, START_POOL = 136, START_CAP = 84, POT_POOL = 168, POT_CAP = 98;
   const FLOOR = 48;                                          // legacy minimum (older horses may have attributes below BASE)
-  const XP_PER_PT = 5;                                       // experience → training points
+  const XP_PER_PT = SEASON.XP_PER_PT;                        // experience → training points (shared with the progression tests)
   const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   // what each attribute really does in the race engine (sim.js Horse), and the effect of one upgrade
   const EFFECT = {
@@ -164,7 +164,7 @@ const CAREER = (() => {
   const activeHorse = () => C.horses[C.active] || null;
   const slots = () => { let n = 1; for (const [w, s] of SLOT_AT) if (C.wins >= w) n = s; return Math.min(5, n); };
   // training cost per point: cheap while a stat is modest, steep near the top (diminishing returns)
-  const upgCost = v => v < 66 ? 1 : v < 74 ? 2 : v < 82 ? 3 : v < 88 ? 4 : v < 93 ? 6 : 9;
+  const upgCost = SEASON.upgCost;
   const xpForLevel = lvl => Math.min(240, 70 + (lvl - 1) * 15);
   const going = g => (typeof GOING !== "undefined" && GOING[g] ? GOING[g].label : g);
   const distLbl = d => (typeof DIST_LABEL !== "undefined" && DIST_LABEL[d]) || "";
@@ -391,6 +391,7 @@ const CAREER = (() => {
     }
     row.appendChild(navBtn("Stable", () => openStable()));
     row.appendChild(navBtn(h ? "Create Horse" : "Create Your Horse", () => openCreate(), h ? "" : "primary"));
+    row.appendChild(navBtn("Rivals", () => openRivals()));
     row.appendChild(navBtn("Trophy Room", () => openTrophies()));
     row.appendChild(navBtn("Championship History", () => openHistory()));
     row.appendChild(navBtn("Main Menu", () => { race = null; show("menu"); }));
@@ -455,6 +456,7 @@ const CAREER = (() => {
         ${optional ? "" : `<div style="font-size:12px;color:var(--fg-dim);margin-top:6px">One horse represents ${esc(C.stable)} in this round. Points: 1st 15 · 2nd 12 · 3rd 10 · 4th 8 · 5th 6 · 6th 5 · 7th 4 · 8th 3 · 9th 2 · 10th 1. Chaos Mode is never used in championship racing.</div>`}
       </div>
       <div id="evSkip"></div>
+      <div class="car-panel"><div class="car-row" style="justify-content:space-between"><div class="car-sub">Form guide — ${optional ? "the field you will meet" : "every stable's runner"}</div><span style="font-size:11.5px;color:var(--fg-dim)">★ likely contenders · click a rival for its profile</span></div><div id="evForm" style="overflow-x:auto"></div></div>
       <div class="car-sub">Choose a horse${optional ? "" : " to represent the stable"}</div>
       <div class="car-grid">${cards || `<div class="car-panel">No horses in the stable yet.</div>`}</div>
       <div class="car-row" id="evBtns"></div>`);
@@ -462,7 +464,10 @@ const CAREER = (() => {
     if (!optional) b.appendChild(navBtn("Skip This Round", () => drawSkip()));
     b.appendChild(navBtn("Back", () => optional ? openOptional() : openHub()));
     el.querySelectorAll("[data-go]").forEach(x => x.onclick = (e) => { e.stopPropagation(); const i = +x.getAttribute("data-go"); optional ? enterOptional(meta.id, i) : enterOfficial(idx, i); });
-    el.querySelectorAll(".car-card[data-h]").forEach(c => c.onclick = () => { const i = +c.getAttribute("data-h"); C.active = i; save(); el.querySelectorAll(".car-card").forEach(x => x.classList.toggle("sel", x === c)); });
+    const field = optional ? SEASON.optionalField(C, meta.id) : SEASON.runners(C, idx);
+    const drawForm = () => { el.querySelector("#evForm").innerHTML = formGuideHtml(field, meta, activeHorse()); el.querySelectorAll("#evForm [data-rv]").forEach(t => t.onclick = () => openRival(t.getAttribute("data-rv"), () => openEvent(idxOrId, false))); };
+    drawForm();
+    el.querySelectorAll(".car-card[data-h]").forEach(c => c.onclick = () => { const i = +c.getAttribute("data-h"); C.active = i; save(); el.querySelectorAll(".car-card").forEach(x => x.classList.toggle("sel", x === c)); drawForm(); });
     function drawSkip() {
       const box = el.querySelector("#evSkip");
       box.innerHTML = `<div class="car-panel car-warn"><b style="font-family:var(--font-d)">Skip ${esc(meta.name)}?</b>
@@ -475,6 +480,19 @@ const CAREER = (() => {
     if (askSkip && !optional) drawSkip();
     stage("stalls");
     show("c_event");
+  }
+  // the pre-race form guide: real ratings, trip suitability, recent form and achievements (no favouritism)
+  const SHORT = { top: "speed", acc: "acceleration", end: "endurance", spr: "finish", rec: "recovery", tem: "temperament", agi: "agility", sta: "gate speed" };
+  function formGuideHtml(field, meta, h) {
+    const entries = field.map(d => { const rv = SEASON.rival(C, d._hid) || {};
+      return { name: d.name, hid: d._hid, stable: d._stable, attrs: d.attrs, form: rv.form || [], starts: rv.starts || 0, wins: rv.wins || 0, majors: (rv.majors || []).length, style: d.role, h2h: h ? SEASON.h2hFor(C, h.id, d._hid) : null }; });
+    if (h) entries.push({ name: h.name, you: true, stable: C.stable, attrs: h.attrs, form: (h.history || []).map(e => e.dnf ? 0 : e.place), starts: h.races, wins: h.wins, majors: h.majors || 0, style: detectStyle(h.attrs).label });
+    const rows = SEASON.formGuide(C, entries, meta);
+    return `<table class="car-tbl"><tr><th></th><th>Horse</th><th>Rtg</th><th>Form</th><th class="hide-s">W/Starts</th><th>Trip</th><th class="hide-s">Best at</th><th class="hide-s">Strengths</th><th class="hide-s">vs you</th></tr>
+      ${rows.map(r => `<tr class="${r.you ? "me" : "click"}" ${r.hid ? `data-rv="${r.hid}"` : ""}><td>${r.contender ? "★" : ""}</td><td><b>${esc(r.name)}</b>${r.you ? " (yours)" : ""}<div style="font-size:11px;color:var(--fg-dim)">${esc(r.stable || "")}${r.majors ? " · " + r.majors + " major" + (r.majors > 1 ? "s" : "") : ""}</div></td>
+        <td>${r.rating}</td><td>${r.formTxt}</td><td class="hide-s">${r.wins}/${r.starts}</td><td style="color:${r.suit === "Excellent" ? "var(--good)" : r.suit === "Poor" ? "var(--bad)" : "inherit"}">${r.suit}</td>
+        <td class="hide-s">${bestDistances(r.attrs).text}</td><td class="hide-s">${r.strengths.map(k => SHORT[k]).join(", ")}</td>
+        <td class="hide-s">${r.h2h ? `${r.h2h.ahead}–${r.h2h.behind}` : ""}</td></tr>`).join("")}</table>`;
   }
   function reqText(rq) {
     if (rq.k === "rating") return "Horse rating " + rq.min + " or higher";
@@ -490,6 +508,53 @@ const CAREER = (() => {
     const r = SEASON.skipRound(C); save();
     if (r) { const w = r.res.find(e => e.place === 1); toast("Round skipped · " + meta.name + " won by " + (w ? w.name : "—"), "info", 2.4); }
     openHub();
+  }
+
+  // ---------- RIVALS ----------
+  function devLabel(rv) { const gap = Object.keys(rv.pot).reduce((s, k) => s + (rv.pot[k] - rv.attrs[k]), 0) / 8; return rv.retired ? "Retired" : gap < 1.2 ? "At its peak" : gap < 4 ? "Still improving" : "Rising prospect"; }
+  function openRivals() {
+    style(); const el = screen("rivals");
+    stage("stalls");
+    const met = {};
+    for (const key in C.h2h) { const [hid, rid] = key.split("|"); const h = C.horses.find(x => x.id === hid); if (!h) continue; const m = met[rid] || (met[rid] = { n: 0, ahead: 0, behind: 0, closest: null, vs: [] }); const r = C.h2h[key]; m.n += r.n; m.ahead += r.ahead; m.behind += r.behind; if (r.closest != null && (m.closest == null || r.closest < m.closest)) m.closest = r.closest; m.vs.push(h.name); }
+    const metList = Object.keys(met).map(id => ({ rv: SEASON.rival(C, id), m: met[id] })).filter(x => x.rv).sort((a, b) => b.m.n - a.m.n);
+    const s = S(), divRivals = SEASON.stablesOf(C, s.div).flatMap(st => st.horses.map(id => SEASON.rival(C, id))).filter(Boolean).sort((a, b) => SEASON.rRating(b) - SEASON.rRating(a));
+    const row = (rv, extra) => `<tr class="click" data-rv="${rv.id}"><td><b>${esc(rv.name)}</b><div style="font-size:11px;color:var(--fg-dim)">${esc(stableName(rv.sid))}${rv.star ? " · ★ star" : ""}</div></td><td>${SEASON.rRating(rv)}</td><td>${(rv.form || []).slice(-5).map(x => x === 0 ? "F" : x > 9 ? "0" : x).join("-") || "—"}</td><td>${rv.wins}/${rv.starts}</td><td class="hide-s">${bestDistances(rv.attrs).text}</td>${extra}</tr>`;
+    page(el, `<h2>Rivals</h2>
+      <div class="car-sub">Persistent AI horses — they develop through their own racing, never because of yours</div>
+      <div class="car-panel"><div class="car-sub">Horses you have raced against</div>
+        ${metList.length ? `<table class="car-tbl"><tr><th>Horse</th><th>Rtg</th><th>Form</th><th>W/Starts</th><th class="hide-s">Best at</th><th>Meetings</th><th>You ahead</th><th class="hide-s">Closest</th></tr>
+        ${metList.slice(0, 24).map(x => row(x.rv, `<td>${x.m.n}</td><td>${x.m.ahead}–${x.m.behind}</td><td class="hide-s">${x.m.closest != null ? x.m.closest.toFixed(2) + " s" : "—"}</td>`)).join("")}</table>` : `<div style="font-size:13px;color:var(--fg-dim)">Race a few times and your rivals will appear here.</div>`}</div>
+      <div class="car-panel"><div class="car-sub">${esc(DIVS[s.div].name)} — every stable's horses</div>
+        <table class="car-tbl"><tr><th>Horse</th><th>Rtg</th><th>Form</th><th>W/Starts</th><th class="hide-s">Best at</th><th>Development</th></tr>${divRivals.map(rv => row(rv, `<td>${devLabel(rv)}</td>`)).join("")}</table></div>
+      <div class="car-row"><button class="btn" id="rvBack">Back</button></div>`);
+    el.querySelectorAll("[data-rv]").forEach(t => t.onclick = () => openRival(t.getAttribute("data-rv"), openRivals));
+    el.querySelector("#rvBack").onclick = () => openHub();
+    show("c_rivals");
+  }
+  function stableName(sid) { for (let d = 0; d < DIVS.length; d++) { const st = SEASON.stablesOf(C, d).find(x => x.sid === sid); if (st) return st.name; } return ""; }
+  function openRival(id, back) {
+    style(); const rv = SEASON.rival(C, id); if (!rv) return;
+    const el = screen("rival"), def = SEASON.rivalDef(C, rv);
+    stage("full", { bay: def, rider: false, shift: true });
+    const h2h = C.horses.map(h => ({ h, r: SEASON.h2hFor(C, h.id, id) })).filter(x => x.r);
+    const seasons = Object.keys(rv.seasons || {}).map(n => ({ n: +n, ...rv.seasons[n] })).sort((a, b) => a.n - b.n);
+    sidePage(el, {
+      hint: `<b>${esc(rv.name)}</b>${esc(stableName(rv.sid))}`, cam: camBar(),
+      head: `<div class="car-row" style="justify-content:space-between"><div><div class="car-sub">${esc(stableName(rv.sid))} · ${esc(DIVS[rv.div].short)}${rv.star ? " · ★ star" : ""}</div><h2>${esc(rv.name)}</h2></div>
+        <div style="text-align:right"><div class="car-sub">Rating</div><b class="car-big" style="color:var(--accent)">${SEASON.rRating(rv)}</b><div style="font-size:11px;color:var(--fg-dim)">${devLabel(rv)}</div></div></div>`,
+      body: `<div class="car-stat"><div><b>${rv.starts}</b><span>Starts</span></div><div><b>${rv.wins}</b><span>Wins</span></div><div><b>${rv.wins + rv.seconds + rv.thirds}</b><span>Placings</span></div>
+          <div><b>${rv.majors.length}</b><span>Major wins</span></div><div><b>${(rv.form || []).slice(-5).map(x => x === 0 ? "F" : x > 9 ? "0" : x).join("-") || "—"}</b><span>Recent form</span></div><div><b>${esc(rv.role)}</b><span>Style</span></div></div>
+        <div class="sd-sec"><div class="car-sub">Profile</div><div style="font-size:13px">Best at <b>${bestDistances(rv.attrs).text}</b> · strengths: ${Object.keys(rv.attrs).sort((a, b) => rv.attrs[b] - rv.attrs[a]).slice(0, 3).map(k => ALABEL[k].toLowerCase()).join(", ")}</div></div>
+        ${rv.majors.length ? `<div class="sd-sec"><div class="car-sub">Major victories</div>${rv.majors.map(m => `<div class="car-res"><b>${esc(m.race)}</b><span>Season ${m.season}</span></div>`).join("")}</div>` : ""}
+        <div class="sd-sec"><div class="car-sub">Head-to-head with your horses</div>${h2h.length ? h2h.map(({ h, r }) => `<div class="car-panel" style="padding:10px 12px"><b>${esc(h.name)} vs ${esc(rv.name)}</b>
+          <div class="car-kv" style="margin-top:4px"><span>Meetings <b>${r.n}</b></span><span>${esc(h.name)} ahead <b>${r.ahead}</b></span><span>${esc(rv.name)} ahead <b>${r.behind}</b></span><span>Closest finish <b>${r.closest != null ? r.closest.toFixed(2) + " s" : "—"}</b></span></div>
+          ${r.last.slice().reverse().slice(0, 4).map(m => `<div class="car-res"><span>${esc(m.race)} · S${m.season}</span><span>${m.me ? ordinal(m.me) : "DNF"} vs ${m.them ? ordinal(m.them) : "DNF"}${m.gap != null ? " · " + (m.gap >= 0 ? "+" : "") + m.gap.toFixed(2) + " s" : ""}</span></div>`).join("")}</div>`).join("") : `<div style="font-size:13px;color:var(--fg-dim)">Your horses haven't met ${esc(rv.name)} yet.</div>`}</div>
+        ${seasons.length ? `<div class="sd-sec"><div class="car-sub">Development by season</div>${seasons.map(x => `<div class="car-res"><span>Season ${x.n}: ${x.wins} win${x.wins === 1 ? "" : "s"} from ${x.starts}</span><span>rating ${x.rating} → ${x.ratingEnd || x.rating}</span></div>`).join("")}</div>` : ""}`,
+      foot: `<span></span><button class="btn" id="rvBack2">Back</button>`,
+    });
+    el.querySelector("#rvBack2").onclick = () => (back || openRivals)();
+    show("c_rival");
   }
 
   // ---------- OPTIONAL RACES ----------
@@ -585,6 +650,7 @@ const CAREER = (() => {
         <div style="text-align:right"><div class="car-sub">Your stable</div><b class="car-rz" style="font-size:20px">${ordinal(e.playerPos)}</b><div style="font-size:12px;color:var(--fg-dim)">${e.playerPts} pts · ${e.playerWins} wins${e.promoted ? " · promoted" : ""}</div></div></div>
       ${e.majors.length ? `<div style="font-size:12.5px;margin-top:6px">${e.majors.map(m => `<span class="car-tag ${m.you ? "car-won" : ""}" style="display:inline-block;margin:2px">${esc(m.race)}: ${esc(m.horse)}</span>`).join("")}</div>` : ""}
       <div style="font-size:12px;color:var(--fg-dim);margin-top:4px">Horses used: ${e.horsesUsed.length ? e.horsesUsed.map(esc).join(", ") : "—"} · entered ${e.entered}, skipped ${e.skipped}</div>
+      ${(e.others || []).filter(o => o.champion).map(o => `<div style="font-size:12px;color:var(--fg-dim)">${esc(o.divName)} champion: <b style="color:var(--fg)">${esc(o.champion.name)}</b> (${o.champion.pts} pts)${o.majors.length ? " · " + o.majors.map(m => esc(m.race) + ": " + esc(m.horse)).join(" · ") : ""}</div>`).join("")}
       <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--fg-dim)">Final standings</summary>
         <table class="car-tbl">${e.standings.map((r, i) => `<tr class="${r.you ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.pts}</td><td>${r.wins}W</td></tr>`).join("")}</table></details>
     </div>`).join("");
@@ -979,34 +1045,38 @@ const CAREER = (() => {
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
     C.active = hi; save();
     pending = { kind: "off", season: s.n, round: idx, hid: h.id };
-    launch(competitiveCfg(meta, h, SEASON.runners(s, idx), s.rounds[idx].going, {
-      career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier },
+    const opp = SEASON.runners(C, idx);
+    launch(competitiveCfg(meta, h, opp, s.rounds[idx].going, {
+      career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
     }));
   }
   function enterOptional(id, hi) {
     const meta = BY_ID[id], h = C.horses[hi]; if (!meta || !h) return openOptional();
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
     C.active = hi; save();
-    // the field comes from the Metropolitan stables, rated for this race
-    const stables = SEASON.makeStables(C.seed, 1);
-    const opp = stables.slice(0, meta.field - 1).map(st => { let best = null, bp = -1; for (const x of st.horses) { const d = SEASON.rateDef(st, x, meta.str), p = SEASON.power(d.attrs, meta.dist); if (p > bp) { bp = p; best = d; } } return best; });
-    pending = { kind: "opt", id, hid: h.id };
-    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier } }));
+    // the field: persistent rivals of the right grade for this race (the same field the form guide showed)
+    const opp = SEASON.optionalField(C, id);
+    pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0 };
+    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
+  }
+  // real head-to-head history the commentator may mention (only pairs that have actually met before)
+  function rivalryFor(h, opp) {
+    const out = {};
+    for (const d of opp) { const r = SEASON.h2hFor(C, h.id, d._hid); if (r && r.n >= 2) out[d.name] = { n: r.n, ahead: r.ahead, behind: r.behind }; }
+    return out;
   }
   // experience for a run: race tier × field strength × finishing place, reduced when the field is far weaker than the horse
   function xpFor(meta, r, h, place, dnf) {
-    const field = r.horses.length;
     const opps = r.horses.filter(x => !x.isPlayer);
     const oppAvg = opps.reduce((s, x) => s + AKEYS.reduce((t, k) => t + (x.def.attrs[k] || 0), 0) / 8, 0) / Math.max(1, opps.length);
-    const oppF = clampN(oppAvg / 70, 0.5, 1.35);
-    const gap = rating(h) - oppAvg, gapF = gap > 6 ? Math.max(0.2, 1 - (gap - 6) / 16) : 1;
-    const placeMult = place === 1 ? 1 : Math.max(0.12, 1 - (place - 1) * 0.12);
-    const tierF = 0.8 + (meta.tier || 0) * 0.28;
-    let xp = 46 * tierF * oppF * placeMult;
-    if (place === 1) xp += 18 * tierF;
-    if (dnf) xp = xp * 0.25 + 4;
-    if (meta.optional) xp *= 0.9;
-    return Math.max(2, Math.round(xp * gapF * (field >= 10 ? 1 : 0.85)));
+    return SEASON.xpFor({ tier: meta.tier, oppAvg, rating: rating(h), place, field: r.horses.length, dnf, optional: !!meta.optional });
+  }
+  // the race's official finishing order as championship result entries (fallers last, as DNF)
+  function resOf(r, h, withTimes) {
+    const res = [];
+    r.finishOrder.forEach((x, i) => res.push(Object.assign({ sid: x.isPlayer ? "player" : x.def._sid, hid: x.isPlayer ? h.id : x.def._hid, name: x.def.name, place: i + 1 }, withTimes ? { t: x.finishTime } : {})));
+    r.dnfs.forEach(x => { if (!res.some(e => e.name === x.def.name)) res.push({ sid: x.isPlayer ? "player" : x.def._sid, hid: x.isPlayer ? h.id : x.def._hid, name: x.def.name, place: 0 }); });
+    return res;
   }
   // called from finishRace / finishRaceDNF when cfg.career is set. Commits everything as one save.
   function onResult(r, place) {
@@ -1022,12 +1092,14 @@ const CAREER = (() => {
     if (P.kind === "off") {
       const s = S();
       if (s.n !== P.season || s.cur !== P.round) return;           // stale (e.g. a restarted page): nothing is awarded twice
-      const res = [];
-      r.finishOrder.forEach((x, i) => res.push({ sid: x.isPlayer ? "player" : x.def._sid, hid: x.isPlayer ? h.id : x.def._hid, name: x.def.name, place: i + 1 }));
-      r.dnfs.forEach(x => { if (!res.some(e => e.name === x.def.name)) res.push({ sid: x.isPlayer ? "player" : x.def._sid, hid: x.isPlayer ? h.id : x.def._hid, name: x.def.name, place: 0 }); });
-      summary = SEASON.commitRound(C, P.round, res, h.id);
+      summary = SEASON.commitRound(C, P.round, resOf(r, h), h.id);
       if (!summary) return;
+    } else {
+      if ((C.optN | 0) !== P.optN) return;                          // already recorded
+      SEASON.recordResult(C, meta, resOf(r, h).filter(e => e.sid !== "player"), S().n);   // the rivals' runs count for them too
+      C.optN = (C.optN | 0) + 1;                                   // a fresh field next time
     }
+    SEASON.recordH2H(C, h, meta, resOf(r, h, true).map(e => ({ hid: e.hid, place: e.place, t: e.t, player: e.sid === "player" })), S().n);
     // 2. the horse's own record + experience
     const xp = xpFor(meta, r, h, place || field, dnf);
     h.xp += xp; h.races++; h.xpFrac += xp / XP_PER_PT;
@@ -1041,8 +1113,9 @@ const CAREER = (() => {
     let trophy = false;
     if (!dnf && place === 1) {
       if (P.kind === "off" || (meta.tier || 0) >= 2) C.wins++;
-      if (P.kind === "off" && meta.major && !C.trophies.some(t => t.raceId === meta.id && t.season === P.season)) { C.trophies.push({ raceId: meta.id, race: meta.name, horse: h.name, season: P.season, t: Date.now() }); trophy = true; }
+      if (P.kind === "off" && meta.major && !C.trophies.some(t => t.raceId === meta.id && t.season === P.season)) { C.trophies.push({ raceId: meta.id, race: meta.name, horse: h.name, season: P.season, t: Date.now() }); trophy = true; h.majors++; }
     }
+    if (!dnf && place <= 3 && meta.prize) h.prize += Math.round((+String(meta.prize).replace(/[^0-9]/g, '') || 0) * [0.6, 0.2, 0.1][place - 1]);   // prize money: a record only
     save();
     // feedback on the results screen
     renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy });
@@ -1072,5 +1145,5 @@ const CAREER = (() => {
   // ---------- entry ----------
   function open() { load(); race = null; hidePanel(); openHub(); }
   return { open, onResult, load, hidePanel, get data() { return C; },
-    _test: { enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
+    _test: { enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

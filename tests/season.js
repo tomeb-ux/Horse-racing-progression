@@ -6,14 +6,15 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const mkHorse = (id, name, r) => ({ id, name, attrs: { top: r, acc: r, end: r, spr: r, rec: r, tem: r, agi: r, sta: r }, history: [] });
 const C = { seed: 777, stable: 'Test Stable', horses: [mkHorse('a', 'Sprint Queen', 70), mkHorse('b', 'Stayer King', 70)], trophies: [] };
 S.migrate(C);
-ok(C.v === 2 && C.season && C.season.n === 1 && C.season.div === 0 && C.season.rounds.length === 10 && C.season.stables.length === 9, 'a new career starts in the 10-round Provincial Championship with 9 AI stables');
+ok(C.v === 3 && C.season && C.season.n === 1 && C.season.div === 0 && C.season.rounds.length === 10 && S.stablesOf(C, 0).length === 9 && Object.keys(C.rivals).length === 93, 'a new career starts in the 10-round Provincial Championship with 9 AI stables and a world of 93 persistent rivals');
 // determinism: the same career seed gives the same stables, goings and AI-only results
 { const D = { seed: 777, stable: 'x', horses: [], trophies: [] }; S.migrate(D);
-  ok(JSON.stringify(D.season.stables) === JSON.stringify(C.season.stables) && D.season.rounds.map(r => r.going).join() === C.season.rounds.map(r => r.going).join(), 'stables and going are deterministic from the career seed');
-  ok(JSON.stringify(S.simulateRound(C.season, 3)) === JSON.stringify(S.simulateRound(D.season, 3)), 'AI-only round results are deterministic (standings never change on reload)'); }
+  ok(JSON.stringify(D.world) === JSON.stringify(C.world) && JSON.stringify(D.rivals) === JSON.stringify(C.rivals) && D.season.rounds.map(r => r.going).join() === C.season.rounds.map(r => r.going).join(), 'stables, rivals and going are deterministic from the career seed');
+  ok(JSON.stringify(S.simulateRound(C, 0, 3)) === JSON.stringify(S.simulateRound(D, 0, 3)), 'AI-only round results are deterministic (standings never change on reload)'); }
+const rivalSnap = JSON.parse(JSON.stringify(C.rivals));
 // the player result as a real race would deliver it: all runners, our place p
 function raceRes(Cx, idx, horse, p) {
-  const all = S.simulateRound(Cx.season, idx), ai = all.filter(e => e.place > 0), dnf = all.filter(e => !e.place);
+  const all = S.simulateRound(Cx, Cx.season.div, idx), ai = all.filter(e => e.place > 0), dnf = all.filter(e => !e.place);
   const out = []; let k = 0;
   for (let place = 1; place <= ai.length + 1; place++) out.push(place === p ? { sid: 'player', hid: horse.id, name: horse.name, place } : Object.assign({}, ai[k++], { place }));
   return out.concat(dnf);
@@ -84,5 +85,51 @@ ok(S.closeSeason(C) === null && C.history.length === 1, 'a season cannot be clos
 // migration of a damaged / older season object
 { const M = { seed: 9, stable: 'M', horses: [mkHorse('m', 'M', 82)], trophies: [{ raceId: 'everest', race: 'The Everest', horse: 'M' }], season: { n: 3, div: 7, rounds: 'bad' } };
   S.migrate(M); ok(M.season && M.season.div === 2 && M.trophies.length === 1, 'a corrupt season is rebuilt (division chosen from the best horse) without touching trophies'); }
+// ---- persistent rivals ----
+{ const R = { seed: 31, stable: 'R', horses: [], trophies: [] }; S.migrate(R); const hh = mkHorse('me', 'Midnight Legend', 72); R.horses.push(hh);
+  const ids0 = S.stablesOf(R, 0).flatMap(st => st.horses), snap = JSON.parse(JSON.stringify(R.rivals));
+  // the same runner turns up again with its records, and its rating moves only through its own races
+  const first = S.runnersFor(R, 0, 0)[0];
+  for (let i = 0; i < R.season.rounds.length; i++) { const res = raceRes(R, i, hh, 1 + (i % 4)); S.commitRound(R, i, res, 'me'); S.recordH2H(R, hh, S.roundDef(R.season, i), res.map((e, k) => ({ hid: e.hid, place: e.place, t: 60 + e.place * 0.2, player: e.sid === 'player' })), R.season.n); }
+  const rv = R.rivals[first._hid];
+  ok(rv && rv.name === first.name && rv.starts >= 3 && rv.form.length >= 3, `a rival keeps its identity and records across rounds (${first.name}: ${rv.starts} starts, form ${rv.form.join('-')})`);
+  ok(Object.values(R.rivals).every(x => Object.keys(x.attrs).every(k => x.attrs[k] <= x.pot[k] + 1e-9)), 'no rival ever exceeds its own potential');
+  const grew = ids0.filter(id => S.rRating(R.rivals[id]) > S.rRating(snap[id])).length;
+  ok(grew >= 5, `rivals develop through their own racing (${grew} of ${ids0.length} provincial rivals improved over the season)`);
+  // independence: the same season with the player losing every race gives the rivals exactly the same development
+  const Q = { seed: 31, stable: 'R', horses: [], trophies: [] }; S.migrate(Q); const hq = mkHorse('me', 'Midnight Legend', 50); Q.horses.push(hq);
+  for (let i = 0; i < Q.season.rounds.length; i++) S.commitRound(Q, i, raceRes(Q, i, hq, 10), 'me');
+  const diff = ids0.filter(id => Math.abs(S.rRating(R.rivals[id]) - S.rRating(Q.rivals[id])) > 1).length;
+  ok(diff <= 2, `rival development does not follow the player's results (${diff} of ${ids0.length} differ by more than a point between a winning and a losing career)`);
+  const metro = S.stablesOf(R, 1).flatMap(st => st.horses).filter(id => R.rivals[id].starts > 0).length;
+  ok(metro >= 11 && R.season.others[1].cur === 10 && R.season.others[2].cur === 12, `the other championships race on in the background (${metro} metropolitan rivals have run)`);
+  // head-to-head
+  const key = Object.keys(R.h2h).sort((a, b) => R.h2h[b].n - R.h2h[a].n)[0], hr = R.h2h[key];
+  ok(hr && hr.n >= 3 && hr.ahead + hr.behind === hr.n && hr.closest != null && hr.last.length === Math.min(8, hr.n), `head-to-head recorded per pair (${hr.n} meetings, ${hr.ahead}-${hr.behind}, closest ${hr.closest} s)`);
+  // form guide is grounded in the numbers
+  const fg = S.formGuide(R, S.runnersFor(R, 0, 4).map(d => ({ name: d.name, attrs: d.attrs, form: R.rivals[d._hid].form })), S.DIVS[0].rounds[4]);
+  ok(fg.length === 9 && fg.filter(r => r.contender).length === 3 && fg.every(r => ['Excellent', 'Good', 'Fair', 'Poor'].includes(r.suit)), 'form guide ranks the field with contenders and trip suitability');
+  const sp = mkHorse('s', 'S', 80); Object.assign(sp.attrs, { top: 92, acc: 92, spr: 92, sta: 90, end: 60, rec: 60 });
+  ok(S.suitability(sp.attrs, 1200).label === 'Excellent' && ['Fair', 'Poor'].includes(S.suitability(sp.attrs, 3200).label), 'a sprinter is rated Excellent at 1200 m and poorly suited to 3200 m');
+  // optional fields are grade-matched and stable until raced
+  const f1 = S.optionalField(R, 'o_maiden'), f2 = S.optionalField(R, 'o_maiden'), fw = S.optionalField(R, 'o_wildcard');
+  const avg = f => f.reduce((a, d) => a + Object.values(d.attrs).reduce((x, y) => x + y) / 8, 0) / f.length;
+  ok(JSON.stringify(f1) === JSON.stringify(f2) && avg(f1) < avg(fw) - 8, `optional fields match the grade (maiden ${avg(f1).toFixed(0)} vs Everest wildcard ${avg(fw).toFixed(0)}) and stay the same until raced`);
+  // a long career: rivals retire at their peak and new prospects arrive; records survive
+  const RR = { seed: 77, stable: 'RR', horses: [], trophies: [] }; S.migrate(RR); RR.horses.push(mkHorse('x', 'X', 90));
+  for (let season = 0; season < 6; season++) { while (!S.done(RR.season)) S.skipRound(RR); S.closeSeason(RR); }
+  const retired = Object.values(RR.rivals).filter(x => x.retired);
+  ok(retired.length > 0 && S.stablesOf(RR, 0).every(st => st.horses.length === 3 && st.horses.every(id => !RR.rivals[id].retired)), `over six seasons ${retired.length} rivals retired at their peak and were replaced by new prospects`);
+  ok(RR.history.length === 6 && RR.history.every(e => e.others.length === 2 && e.others.every(o => o.champion)), 'every season archives the champions of all three championships');
+  ok(JSON.stringify(RR).length < 400 * 1024, `the save stays small after six seasons (${(JSON.stringify(RR).length / 1024).toFixed(0)} KB)`);
+}
+// ---- migration of a Prompt-1 (v2) save: AI horse identities and results are kept ----
+{ const old = { v: 2, seed: 99, stable: 'Old', horses: [mkHorse('h1', 'Old Timer', 70)], trophies: [{ raceId: 'maiden', race: 'Maiden Plate', horse: 'Old Timer', season: 1 }], wins: 2,
+    season: { n: 1, div: 0, seed: 5, cur: 1, closed: false, stables: Array.from({ length: 9 }, (_, k) => ({ sid: 'd0s' + k, name: 'Legacy Stable ' + k, q: 1, silk: '#111111', silk2: '#eeeeee', silkPat: 'plain', horses: ['sprint', 'mile', 'stay'].map((t, j) => ({ hid: 'd0s' + k + t[0], name: 'Legacy ' + k + '-' + j, type: t, style: 'mid', role: 'x', coat: 1, shape: { top: 80, acc: 80, end: 80, spr: 80, rec: 80, tem: 80, agi: 80, sta: 80 } })) })),
+      rounds: Array.from({ length: 10 }, (_, i) => ({ id: S.DIVS[0].rounds[i].id, st: i === 0 ? 'done' : 'open', going: 'good', res: i === 0 ? [{ sid: 'player', hid: 'h1', name: 'Old Timer', place: 1 }, { sid: 'd0s0', hid: 'd0s0s', name: 'Legacy 0-0', place: 2 }] : null, ph: i === 0 ? 'h1' : null })) } };
+  S.migrate(old);
+  ok(old.v === 3 && old.season.cur === 1 && old.season.rounds[0].res.length === 2 && old.rivals['d0s0s'] && old.rivals['d0s0s'].name === 'Legacy 0-0' && S.stablesOf(old, 0)[0].name === 'Legacy Stable 0', 'v2 save: season progress, results and AI horse identities are preserved as persistent rivals');
+  ok(old.horses[0].attrs.top === 70 && old.trophies.length === 1 && S.standings(old).find(r => r.you).pts === 15, 'v2 save: player horse, trophies and points intact');
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

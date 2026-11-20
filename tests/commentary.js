@@ -21,9 +21,9 @@ const AK = ["top", "acc", "end", "spr", "rec", "tem", "agi", "sta"];
 function runOne(i, opts) {
   opts = opts || {};
   const dists = [1000, 1200, 1400, 1600, 2000, 2400, 3200], dist = opts.dist || dists[i % dists.length];
-  const C = { seed: 900 + i, stable: "T", horses: [], trophies: [] }; S.migrate(C); S.newSeason(C, i % 3);
+  const C = { seed: 900 + i, stable: "T", horses: [], trophies: [] }; S.migrate(C);
   const ridx = Math.min(S.DIVS[i % 3].rounds.length - 1, i % 10);
-  const opp = S.runners(C.season, ridx).slice(0, 11);
+  const opp = S.runnersFor(C, i % 3, ridx).slice(0, 11);
   const t = sim.ROSTER[i % 12], avg = AK.reduce((s, k) => s + t.attrs[k], 0) / 8, rt = opts.rating || (S.DIVS[i % 3].rounds[ridx].str + (i % 5) * 2 - 2), a = {};
   for (const k of AK) a[k] = Math.max(30, Math.min(99, Math.round(t.attrs[k] * rt / avg)));
   const meta = i % 4 === 0 ? { name: "Melbourne Cup", venue: "Flemington", major: true, crown: true, official: true } : i % 4 === 1 ? { name: "Spring Sprint Championship", venue: "Royal Randwick", official: true } : { name: null, venue: "Furlong Park" };
