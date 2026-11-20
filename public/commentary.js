@@ -140,7 +140,7 @@ const COMM = (() => {
       this.lastSnap = s;
       const r = this.race, now = this.now, L = s.L; if (!L) return;
       if (!this.flags.away) { this.flags.away = true; this.awayT = now; this.nextOK = now + 0.3; }
-      this.leaderPhase = SIMG.racePhase(L.progress, s.rem, r.dist, r.trk);
+      this.leaderPhase = SIMG.racePhase(L.progress, s.rem, r.dist, r.route || r.trk);
       this.I = this.intensity(s);
       if (!this.rankT || now - this.rankT >= 0.5) { this.rankT = now; for (const [h, k] of s.ranks) { let a = this.rankHist.get(h); if (!a) this.rankHist.set(h, a = []); a.push([now, k]); while (a.length && now - a[0][0] > 12) a.shift(); } }
       // distance markers crossed by the leader (folded into the next line in the straight)
@@ -293,7 +293,8 @@ const COMM = (() => {
       const parts = [];
       if (!this.flags.straight) {
         this.flags.straight = true;
-        parts.push(m.major ? `They're turning for home in ${raceRef(m.name)}` : this.pick("str0", [`They straighten for home`, `Into the straight`, `They turn for home`]));
+        if (this.race.route && this.race.route.straightRace) parts.push(m.major ? `Down the Flemington straight in ${raceRef(m.name)}, the business end now` : this.pick("str0s", [`Into the last furlongs of the straight course`, `They're down to the business end of the Straight Six`, `Into the final stages down the straight`]));
+        else parts.push(m.major ? `They're turning for home in ${raceRef(m.name)}` : this.pick("str0", [`They straighten for home`, `Into the straight`, `They turn for home`]));
       } else if (mk) parts.push(mk);
       const prevLead = this.lastCalledLeader;
       if (gL > 4) parts.push(this.pick("sclear", [`${nmShort(A)} has a break on them`, `${nmShort(A)} is ${lengthsW(s.gap12)} clear`, `${nmShort(A)} is running right away from them`]));
@@ -454,7 +455,7 @@ const COMM = (() => {
   function metaFor(cfg) {
     const c = cfg && cfg.career;
     if (c) return { name: c.name, venue: c.venue, major: !!c.major, crown: !!c.crown, official: !!c.official, rivalry: c.rivalry || {} };
-    return { name: null, venue: cfg && cfg.track === "randwick" ? "Royal Randwick" : "Furlong Park", major: false, crown: false, official: false };
+    return { name: null, venue: cfg && cfg.track === "randwick" ? "Royal Randwick" : cfg && cfg.track === "flemington" ? "Flemington" : "Furlong Park", major: false, crown: false, official: false };
   }
   return {
     Booth, voiceParams, scoreVoice, metaFor, lengthsW, distW, nmShort, nmFull,

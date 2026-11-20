@@ -343,6 +343,7 @@ body.touch #touchUI{display:flex;}
       <h2 style="font-size:26px;">Settings</h2>
       <div class="setup-box">
         <div class="opt-label">Sound</div><div class="opt-row" id="optSound"></div>
+        <div class="opt-label">Graphics quality</div><div class="opt-row" id="optQuality"></div>
         <div class="opt-label">Shadows</div><div class="opt-row" id="optShadow"></div>
         <div class="opt-label">Crowd density</div><div class="opt-row" id="optCrowd"></div>
         <div class="opt-label">Scenery detail</div><div class="opt-row" id="optScenery"></div>
@@ -550,6 +551,7 @@ const store = {
 const settings = {
   sound: store.get("sound", true),
   shadows: store.get("shadows", true),
+  quality: ["high", "medium", "low"].includes(store.get("quality", "high")) ? store.get("quality", "high") : "high",
   crowd: store.get("crowd", "full"),
   scenery: store.get("scenery", "high"),
   chaos: store.get("chaos", false),
@@ -564,7 +566,7 @@ const settings = {
   assist: store.get("assist", false),
   steer: store.get("steer", "assisted"),
   autoReplay: store.get("autoReplay", true),
-  track: store.get("track", "generic") === "randwick" ? "randwick" : "generic",
+  track: ["randwick", "flemington"].includes(store.get("track", "generic")) ? store.get("track", "generic") : "generic",
 };
 
 /* ---------- Renderer / scene ---------- */
@@ -3086,7 +3088,7 @@ function situational(dt) {
   }
   for (const k in sit.cd) sit.cd[k] -= dt;
   sit.contactCd -= dt;
-  const remain = race.dist - p.progress, ph = racePhase(p.progress, remain, race.dist);
+  const remain = race.dist - p.progress, ph = racePhase(p.progress, remain, race.dist, race.route);
   if (ph !== sit.phase) {
     if (sit.phase) {
       if (ph === "final bend") showMsg("FINAL BEND — rail or room?", 1.6);
@@ -3203,7 +3205,7 @@ function chipRow(el, options, current, onPick, fmt) {
   });
 }
 function buildSetup() {
-  chipRow($("optTrack"), ["generic", "randwick"], settings.track, v => { settings.track = v; store.set("track", v); }, v => v === "randwick" ? "Royal Randwick (right-handed, 2224 m)" : "Furlong Park (original oval)");
+  chipRow($("optTrack"), ["generic", "randwick", "flemington"], settings.track, v => { settings.track = v; store.set("track", v); }, v => v === "randwick" ? "Royal Randwick (right-handed, 2224 m)" : v === "flemington" ? "Flemington (left-handed, 2312 m · Straight Six)" : "Furlong Park (original oval)");
   chipRow($("optDist"), DISTANCES, settings.dist, v => { settings.dist = v; store.set("dist", v); }, v => v + "m · " + DIST_LABEL[v]);
   chipRow($("optOpp"), [7, 9, 11], settings.opp, v => { settings.opp = v; store.set("opp", v); }, v => v + " rivals");
   chipRow($("optDiff"), ["easy", "medium", "hard"], settings.diff, v => { settings.diff = v; store.set("diff", v); });
@@ -3214,6 +3216,7 @@ function buildSetup() {
 function buildSettings() {
   chipRow($("optSound"), [true, false], settings.sound, v => { settings.sound = v; store.set("sound", v); if (!v && audio.on) location.reload(); }, v => v ? "On" : "Off");
   chipRow($("optShadow"), [true, false], settings.shadows, v => { settings.shadows = v; store.set("shadows", v); renderer.shadowMap.enabled = v; sun.castShadow = v; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }, v => v ? "On" : "Off");
+  chipRow($("optQuality"), ["high", "medium", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ high: "High", medium: "Medium", low: "Low (integrated graphics)" })[v]);
   chipRow($("optCrowd"), ["full", "light", "off"], settings.crowd, v => { settings.crowd = v; store.set("crowd", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optScenery"), ["high", "medium", "low"], settings.scenery, v => { settings.scenery = v; store.set("scenery", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optFx"), [true, false], settings.fx, v => { settings.fx = v; store.set("fx", v); }, v => v ? "On" : "Off");
@@ -3874,6 +3877,19 @@ function handleEsc() {
   else if (ui.state !== "menu" && ui.state !== "results") show("menu");
 }
 
+// crowd behaviour inputs (visual only): how excited the stands are, and where the action is
+const _gfxF = new THREE.Vector3();
+function gfxExcite() {
+  if (!race) return 0;
+  if (ui.state === "replay") return 0.7;
+  if (race.state === "count" || race.state === "load") return 0.18;
+  if (race.state === "done") return 0.55;
+  const L = race.order && race.order[0]; if (!L) return 0.2;
+  const rem = race.dist - L.progress, B = race.order[1], close = B ? clamp(1 - (L.progress - B.progress) / 6, 0, 1) : 0;
+  return clamp(0.22 + 0.5 * clamp(1 - rem / 600, 0, 1) + 0.35 * close * clamp(1 - rem / 300, 0, 1), 0, 1.1);
+}
+function gfxFocus() { const L = race && race.order && race.order[0]; if (L && L.pos) return _gfxF.set(L.pos.x, 0, L.pos.z); return _gfxF.copy(camera.position); }
+
 /* ---------- Main loop: fixed simulation step, free-running render ---------- */
 let simAcc = 0, lastT = performance.now();
 function frame(now) {
@@ -3913,6 +3929,7 @@ function frame(now) {
     updateCrowd(dt, 0);
   }
   FX.update(dt);
+  if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), race && race.finishOrder.length && race.clock - race.finishOrder[0].finishTime < 5 ? 1 : 0);
   dbgColliders(dt);
   updateVenue(dt);
   updateCamera(dt);
@@ -3933,6 +3950,7 @@ function boot() {
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot);
 else boot();
 </script>
+<script src="gfx.js"></script>
 <script src="mp.js"></script>
 <script src="venues.js"></script>
 <script src="stable3d.js"></script>

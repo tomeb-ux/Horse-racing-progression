@@ -10,6 +10,7 @@ swap(`<script>window.THREE || document.write('<script src="vendor/three.min.js">
 swap('<script src="sim.js"></script>', inline('sim.js'));
 swap('<script src="season.js"></script>', inline('season.js'));
 swap('<script src="commentary.js"></script>', inline('commentary.js'));
+swap('<script src="gfx.js"></script>', inline('gfx.js'));
 swap('<script src="mp.js"></script>', inline('mp.js'));
 swap('<script src="venues.js"></script>', inline('venues.js'));
 swap('<script src="stable3d.js"></script>', inline('stable3d.js'));

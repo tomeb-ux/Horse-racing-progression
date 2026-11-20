@@ -35,7 +35,7 @@ function trackPoint(d, off, out) {
 // race phases (by distance remaining): the home turn ends where the straight to the post begins
 const HOME_STRAIGHT = FINISH_D, FINAL_BEND = HOME_STRAIGHT + Math.PI * T.R;
 function racePhase(progress, remain, dist, trk) {
-  const hs = trk ? trk.homeStraight : HOME_STRAIGHT, fb = trk ? trk.finalBend : FINAL_BEND;
+  const hs = trk ? trk.homeStraight : HOME_STRAIGHT, fb = trk ? trk.finalBend : FINAL_BEND;      // trk: a race route (preferred) or a track
   if (remain <= 0) return "finished";
   if (progress < Math.min(260, dist * 0.22)) return "opening";
   if (remain <= 200) return "final 200";
@@ -66,7 +66,7 @@ TRACKS.generic = {
   point: trackPoint, isTurn, kIn: d => isTurn(d) ? 1 / T.R : 0, isHome: d => (((d % T.lap) + T.lap) % T.lap) < T.L,
   route(dist) {
     const startD = ((FINISH_D - dist) % T.lap + T.lap) % T.lap;
-    return { trk: this, dist, startD, chuteLen: 0,
+    return { trk: this, dist, startD, chuteLen: 0, homeStraight: HOME_STRAIGHT, finalBend: FINAL_BEND, straightRace: false,
       point: (p, off, out) => { out = trackPoint(startD + p, off, out); out.k = isTurn(startD + p) ? 1 / T.R : 0; return out; },
       isTurn: p => isTurn(startD + p),
       kIn: p => isTurn(startD + p) ? 1 / T.R : 0,
@@ -148,7 +148,7 @@ function buildTableTrack(def) {
   // chutes: straight extensions behind a point of the loop, joining it tangentially
   for (const c of def.chutes || []) {
     const js = marks[c.joinAt] != null ? marks[c.joinAt] : c.joinS, jp = point(js, 0, {});
-    trk.chutes[c.id] = { id: c.id, joinS: js, x: jp.x, z: jp.z, hx: jp.hx, hz: jp.hz, nx: jp.nx, nz: jp.nz };
+    trk.chutes[c.id] = { id: c.id, joinS: js, x: jp.x, z: jp.z, hx: jp.hx, hz: jp.hz, nx: jp.nx, nz: jp.nz, straightCourse: !!c.straightCourse, len: c.len || 0 };
   }
   trk.route = function (dist) {
     const st = def.starts[dist], sLoop = ((finishD - dist) % lap + lap) % lap;
@@ -157,7 +157,10 @@ function buildTableTrack(def) {
     const chuteLen = ch ? dist - toPost - (dist > lap ? lap * Math.floor((dist - toPost) / lap) : 0) : 0;
     const useChute = ch && chuteLen > 0;
     const startD = useChute ? ch.joinS - chuteLen : sLoop;                         // unwrapped: loop coordinate of progress 0
-    const R = { trk, dist, startD, chuteLen: useChute ? chuteLen : 0, chute: useChute ? ch : null,
+    // a race run wholly on a straight course (Flemington's Straight Six) has no final bend at all
+    const straightRace = !!(useChute && ch.straightCourse && dist <= chuteLen + toPost + 1e-6 && toPost <= homeStraight + 1e-6);
+    const R = { trk, dist, startD, chuteLen: useChute ? chuteLen : 0, chute: useChute ? ch : null, straightRace,
+      homeStraight, finalBend: straightRace ? homeStraight : finalBend,
       inChute: p => useChute && p < chuteLen,
       point(p, off, out) {
         if (useChute && p < chuteLen) {                                           // in the chute: a straight line ending at the join
@@ -171,7 +174,7 @@ function buildTableTrack(def) {
       scale: (p, off) => { const k = useChute && p < chuteLen ? 0 : K(startD + p); return k > 1e-6 ? 1 / (1 + k * off) : 1; },
       bendAcc: (p, off, v) => { const k = useChute && p < chuteLen ? 0 : K(startD + p); return k > 1e-6 ? v * v * k / (1 + k * off) : 0; },
       railScale: p => { const k = useChute && p < chuteLen ? 0 : K(startD + p); return k > 1e-6 ? 1 / (1 + k * LANE0) : 1; },
-      inFinalBend: p => { const rem = dist - p; return rem <= finalBend && rem > homeStraight; },
+      inFinalBend: p => { if (straightRace || (useChute && p < chuteLen)) return false; const rem = dist - p; return rem <= finalBend && rem > homeStraight; },
       loopD: p => (((startD + p) % lap) + lap) % lap };
     return R;
   };
@@ -198,6 +201,26 @@ const TRACK_DEFS = {
     chutes: [{ id: "sprint", joinAt: "chuteJoin" }],
     starts: { 1000: {}, 1100: {}, 1200: { chute: "sprint" }, 1400: { chute: "sprint" }, 1600: {}, 2000: {}, 2400: {}, 3200: {} },
     rise: 400,
+  },
+  /* Flemington (course proper + the straight course), left-handed. Published figures: circumference 2312 m, home straight
+     450 m, a pear shape whose long sweeping home turn runs from the 1200 m to the 450 m mark, and the 1200 m "Straight
+     Six": a dead-straight course that continues the line of the home straight back past the junction with the home turn.
+     Straight races (1000–1200 m) are run entirely on it; the Melbourne Cup (3200 m) starts on it 888 m from the post, runs
+     past the post once and then completes a full lap. ESTIMATES: the first-turn radius (125 m), the 2000 m chute, and the
+     run-out/back-straight lengths and first-turn angle (solved so the loop closes at exactly 2312 m). */
+  flemington: {
+    id: "flemington", name: "Flemington", cw: false, lap: 2312, W: 30, homeStraight: 450,
+    free: [{ init: 250, step: 0.5 }, { init: 165, step: 0.05 }, { init: 350, step: 0.5 }],    // run-out, first-turn angle (°), back straight
+    spec: v => { const a1 = v[1] * Math.PI / 180, a3 = (360 - v[1]) * Math.PI / 180; return [
+      { straight: v[0], tag: "runout" },                                          // past the post towards the first turn
+      { bend: true, r: 125, ang: a1, ease: 40, tag: "topTurn" },                  // the narrow end of the pear
+      { straight: v[2], tag: "back" },                                           // the back of the course (river side), converging
+      { bend: true, r: (750 - 90) / a3, ang: a3, ease: 90, tag: "homeTurn" },     // the broad sweeping home turn: 1200 m → 450 m
+      { straight: 450, tag: "home" },                                            // the 450 m straight to the post
+    ]; },
+    chutes: [{ id: "straight", joinAt: "home", straightCourse: true, len: 1200 - 450 + 20 },   // the Straight Six
+             { id: "c2000", joinAt: "back", len: 300 }],                                         // a short chute so the 2000 m start is not on a bend
+    starts: { 1000: { chute: "straight" }, 1100: { chute: "straight" }, 1200: { chute: "straight" }, 1400: {}, 1600: {}, 2000: { chute: "c2000" }, 2400: {}, 2500: {}, 3200: { chute: "straight" } },
   },
 };
 function getTrack(id) {
@@ -413,7 +436,7 @@ class Horse {
       default: c = 0.75;
     }
     this.kC += (c - this.kC) * Math.min(1, dt * 1.2);
-    const ph = K.ph[PHASE_KEYS.indexOf(racePhase(this.progress, remain, this.raceDist, race.trk))] || 0;
+    const ph = K.ph[PHASE_KEYS.indexOf(racePhase(this.progress, remain, this.raceDist, race.route || race.trk))] || 0;
     this.kB = (K.cond === "settled" || K.cond === "back" ? 0.06 : 0.04) * ph * this.kC;   // patient rides earn a bigger late reward
   }
   // how much of the finishing burst the horse can still produce (0..1)
@@ -941,6 +964,7 @@ class Bot {
     let e;
     if (this.mode === "early") {
       e = st.early + clamp((1400 - h.raceDist) / 1400, -0.6, 0.4) * 0.1 + (this.role === "lead" ? 0.03 : this.role === "late" ? -0.04 : 0) + 0.06 * (this.breakAggro - 0.45);
+      if (this.checkT > 0) this.checkT -= dt;                     // a check taken early runs out too (it used to persist through a long early phase)
     } else if (this.mode === "cruise") {
       const kickCost = this.costTo(0.98, this.kickPoint) * 1.05 + 3;
       const aff = this.affordable(remain - this.kickPoint, kickCost, Sest);
@@ -1046,7 +1070,8 @@ class Bot {
       const best = this.findGap(race, cur, 14);
       if (best != null) { h.targetLane = best; this.laneCool = 1.5; return; }
     }
-    if (remain < FINAL_BEND + 40 && remain > HOME_STRAIGHT - 60 && this.finalBend(race, remain, cur)) return;
+    const rFB = race.route ? race.route.finalBend : FINAL_BEND, rHS = race.route ? race.route.homeStraight : HOME_STRAIGHT;
+    if (remain < rFB + 40 && remain > rHS - 60 && this.finalBend(race, remain, cur)) return;
     if (this.laneCool > 0) return;
     if (this.wideBias > 0 && cur < NLANES - 1 && race.canMove(h, cur + 1, this.margin)) { h.targetLane = cur + 1; this.wideBias--; this.laneCool = 1.1; return; }
     // shut the door on a rival trying to come through on the inside (only before they get alongside)
