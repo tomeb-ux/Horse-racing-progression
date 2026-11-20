@@ -1507,14 +1507,16 @@ function buildHorseGeometry(def) {
   const coat = L.coat, tmp = new THREE.Color();
   const shade = (sn, k, y) => y == null ? 1 : 0.9 + 0.1 * clamp((y - 0.85) / 0.55, 0, 1);    // slightly darker under the belly (world height, same for every part)
   const dap = (x, y, z) => L.dapple ? 0.86 + 0.28 * smoothNoise(x * 11 + z * 7, y * 11 - z * 5, 9) : 1;
-  const coatAt = (sn, x, y, z) => tmp.copy(coat).multiplyScalar(shade(sn, 0, y) * dap(x, y, z));
+  const topline = L.type === "grey" ? 0 : L.type === "black" ? 0.05 : 0.13, mealy = L.type === "bay" || L.type === "brown" || L.type === "chestnut" ? 0.08 : 0;
+  const coatAt = (sn, x, y, z) => tmp.copy(coat).multiplyScalar(shade(sn, 0, y) * dap(x, y, z) * (1 - topline * clamp((y - 1.5) / 0.2, 0, 1) * Math.exp(-z * z / 0.03)) * (1 + mealy * clamp((1.05 - y) / 0.2, 0, 1)));
   const rings = arr => arr.map(r => ({ c: [r[0], r[1], r[5] || 0], top: r[2], bot: r[3], wid: r[4] }));
   // ---- body: buttock → hindquarters → loin → barrel → girth → withers → shoulder → breast ----
   const Q = L.quarters, C = L.chest, Bb = L.barrel;
   const BODY = [[-1.23, 1.44, .02, .03, .02], [-1.20, 1.43, .12 * Q, .16 * Q, .12 * Q], [-1.13, 1.41, .21 * Q, .30 * Q, .245 * Q], [-1.01, 1.395, .27 * Q, .40 * Q, .335 * Q],
-    [-0.85, 1.385, .29 * Q, .45 * Q, .37 * Q], [-0.67, 1.38, .28, .43, .365 * Q], [-0.47, 1.36, .245, .365 * Bb, .325 * Bb], [-0.25, 1.33, .245, .43 * Bb, .345 * Bb],
-    [0.0, 1.31, .26, .49, .365 * Bb], [0.22, 1.32, .28, .53, .36 * C], [0.42, 1.36, .33, .5, .34 * C], [0.60, 1.38, .34, .46, .325 * C],
-    [0.76, 1.38, .30, .42 * C, .31 * C], [0.88, 1.36, .24, .37 * C, .265 * C], [0.97, 1.33, .15, .27 * C, .18 * C], [1.01, 1.31, .04, .08, .05]];
+    [-0.85, 1.385, .29 * Q, .45 * Q, .37 * Q], [-0.67, 1.38, .28, .42, .365 * Q], [-0.47, 1.36, .245, .34 * Bb, .325 * Bb], [-0.25, 1.33, .245, .405 * Bb, .345 * Bb],
+    [0.0, 1.31, .26, .465, .365 * Bb], [0.22, 1.32, .28, .505, .36 * C], [0.42, 1.36, .33, .485, .34 * C], [0.60, 1.38, .34, .455, .325 * C],
+    [0.76, 1.38, .30, .42 * C, .31 * C], [0.88, 1.36, .24, .37 * C, .265 * C], [0.97, 1.33, .15, .27 * C, .18 * C], [1.01, 1.31, .04, .08, .05]]
+    .map((r, i) => i === 0 || i === 15 ? r : [r[0], r[1], r[2], r[3], r[4] * (i > 11 ? 0.9 : 0.87)]);   // a thoroughbred is narrow: ~0.6 m across the barrel
   // surface anatomy (side view, unscaled x): shoulder and arm muscles, scapula, breast, ribs, flank, point of hip,
   // the big muscles of the quarters with the hamstring groove between them, stifle; more relief on muscular horses
   const mus = 1 + 0.35 * clamp((L.quarters - 1) / 0.08, -1, 1);
@@ -1644,7 +1646,16 @@ function buildHorseGeometry(def) {
   }
   const maneRings = crest.map((p, i) => { const t = i / 14, e = (i === 0 || i === 14) ? 0.15 : 1;
     return { c: [p[0], p[1], -0.015], top: (0.035 + 0.05 * ml * (0.7 + 0.6 * mr())) * e * (1 - 0.3 * t), bot: 0.022 * e, wid: 0.016 * e, shear: -1.15, n: 2 }; });
-  part("neck"); horseLoft(G, maneRings, 10, c => chainWeights(c[0], c[1], neckChain), (k, sn, cs, x, y, z) => tmp.copy(L.mane).multiplyScalar(0.75 + 0.25 * Math.max(0, sn) + 0.25 * smoothNoise(x * 60, y * 8, 4)), { sub: 2 });
+  part("neck"); const hair0 = G.pos.length / 3;
+  horseLoft(G, maneRings.map(r => Object.assign({}, r, { top: r.top * 0.55 })), 10, c => chainWeights(c[0], c[1], neckChain), (k, sn, cs, x, y, z) => tmp.copy(L.mane).multiplyScalar(0.75 + 0.25 * Math.max(0, sn) + 0.25 * smoothNoise(x * 60, y * 8, 4)), { sub: 2 });
+  // locks of hair lying over to the off side: varied length and a slight wave, so the mane reads as hair, not a fin
+  for (let i = 1; i < crest.length - 1; i += 0.5) {
+    const k0 = Math.floor(i), f = i - k0, p0 = crest[k0], p1 = crest[Math.min(crest.length - 1, k0 + 1)], bx = lerp(p0[0], p1[0], f), by = lerp(p0[1], p1[1], f);
+    const len = (0.05 + 0.11 * ml * (0.6 + 0.8 * mr())) * (1 - 0.35 * i / crest.length), wv = (mr() - 0.5) * 0.02;
+    const R = [0, 0.3, 0.65, 1].map((t, j) => ({ c: [bx + 0.012 * t + wv * t, by - len * t * 0.85, -0.03 - len * (0.5 * t + 0.25 * t * t)], top: [0.006, 0.005, 0.004, 0.001][j], bot: [0.006, 0.005, 0.004, 0.001][j], wid: [0.016, 0.014, 0.009, 0.002][j], n: 2 }));
+    horseLoft(G, R, 5, c => chainWeights(c[0], c[1], neckChain), (k, sn) => tmp.copy(L.mane).multiplyScalar(0.7 + 0.3 * mr() + 0.15 * sn));
+  }
+  G.hairSpans = [[hair0, G.pos.length / 3]];
   part("shift"); { const f0 = HP(0.0), f1 = HP(0.2);
     horseLoft(G, [0, 0.4, 0.8, 1].map((t, i) => ({ c: [lerp(f0[0], f1[0], t) + UH[0] * 0.095, lerp(f0[1], f1[1], t) + UH[1] * 0.095, 0], top: [0.004, 0.022, 0.015, 0.003][i] * ml, bot: 0.008, wid: [0.004, 0.035, 0.028, 0.004][i], n: 2 })), 8,
       () => [[HBI.head, 1]], () => L.mane); }
@@ -1655,6 +1666,12 @@ function buildHorseGeometry(def) {
   horseLoft(G, TP.map((p, i) => { const y = 1.48 - (1.48 - p[1]) * tl; return { c: [p[0], y, 0], top: TR[i][0] * (0.9 + 0.2 * tl), bot: TR[i][1], wid: TR[i][2] * (0.9 + 0.2 * tl), n: 2 }; }), 12,
     c => chainWeights(c[0], c[1], tailChain), (k, sn, cs, x, y, z) => k < 4 ? tmp.copy(coat).multiplyScalar(0.8) : tmp.copy(L.tailCol).multiplyScalar(0.72 + 0.15 * sn + 0.3 * smoothNoise(Math.atan2(sn, cs) * 5, y * 6, 7)), { sub: 2,
       disp: (x, y, z2, nx, ny, nz) => y < 1.3 ? 0.008 * Math.sin(Math.atan2(nz, nx) * 9 + y * 13) : 0, ao: 9 });
+  // loose strands falling from the tail: a ragged, natural end instead of a solid point
+  { const t0 = G.pos.length / 3, tr = mulberry32(nameSeed(def.name + "/tail"));
+    for (let k = 0; k < 14; k++) { const a = k / 14 * TAU, r0 = 0.035 + 0.02 * tr(), sx = Math.cos(a) * r0, sz = Math.sin(a) * r0, len = (0.25 + 0.3 * tr()) * tl, y0 = 1.48 - (1.48 - 1.0) * tl;
+      const R = [0, 0.35, 0.7, 1].map((t, j) => ({ c: [-1.39 + sx - 0.05 * t, y0 - len * t, sz * (1 + 0.6 * t)], top: [0.012, 0.01, 0.007, 0.001][j], bot: [0.012, 0.01, 0.007, 0.001][j], wid: [0.012, 0.01, 0.007, 0.001][j], n: 2 }));
+      horseLoft(G, R, 5, c => chainWeights(c[0], c[1], tailChain), () => tmp.copy(L.tailCol).multiplyScalar(0.65 + 0.35 * tr())); }
+    G.hairSpans.push([t0, G.pos.length / 3]); }
   // ---- legs: shoulder/forearm/knee/cannon/fetlock/pastern/hoof and thigh/gaskin/hock ----
   const SOCK_H = [0, 0.11, 0.24, 0.42];
   [["FL", HLEG_F, HLEG_F_JOINTS, HORSE_FZ, HBI.body], ["FR", HLEG_F, HLEG_F_JOINTS, -HORSE_FZ, HBI.body], ["HL", HLEG_H, HLEG_H_JOINTS, HORSE_HZ, HBI.pelvis], ["HR", HLEG_H, HLEG_H_JOINTS, -HORSE_HZ, HBI.pelvis]].forEach(([nm, R, JJ, z, parentB], li) => {
@@ -1706,6 +1723,7 @@ function buildHorseGeometry(def) {
   g.setAttribute("color", new THREE.Float32BufferAttribute(G.col, 3));
   g.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(G.si, 4));
   g.setAttribute("skinWeight", new THREE.Float32BufferAttribute(G.sw, 4));
+  { const hair = new Float32Array(G.pos.length / 3); (G.hairSpans || []).forEach(([a, b]) => hair.fill(1, a, b)); g.setAttribute("hair", new THREE.BufferAttribute(hair, 1)); }
   g.setIndex(G.idx);
   g.computeBoundingSphere(); g.boundingSphere.radius += 0.8;
   g.userData.shared = true;
@@ -1742,9 +1760,57 @@ function jockeyGeos() {
     blob: new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }) };
   JG.ready = true; return JG;
 }
-const HORSE_MAT = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.0, skinning: true, clearcoat: 0.32, clearcoatRoughness: 0.42 });   // a groomed, glossy coat
+/* The coat: a groomed short-haired coat reads as soft sheen plus a fine directional sparkle, not plastic. Vertex colours
+   carry the coat colour and markings; the shader adds (in the horse's own bind-pose space, so it sticks to the body)
+   low-frequency tonal variation, fine hair relief that fades out with distance (no shimmer), and a little gloss
+   variation; mane and tail hair moves with the wind of the gallop. */
+const HORSE_U = { uTime: { value: 0 }, uHairWind: { value: 0.4 } };
+const HORSE_MAT = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.56, metalness: 0.0, skinning: true, clearcoat: 0.14, clearcoatRoughness: 0.5 });
+try { HORSE_MAT.sheen = new THREE.Color(0.10, 0.095, 0.085); } catch (e) {}
+HORSE_MAT.onBeforeCompile = sh => {
+  Object.assign(sh.uniforms, HORSE_U);
+  sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float hair; varying vec3 vBindP; varying float vHair; uniform float uTime, uHairWind;")
+    .replace("#include <begin_vertex>", `#include <begin_vertex>
+      vBindP = position; vHair = hair;
+      if (hair > 0.5) { float w = uHairWind; transformed.z += (sin(uTime * 11.0 + position.y * 22.0 + position.x * 9.0) * 0.010 + sin(uTime * 17.0 + position.x * 31.0) * 0.004) * w; transformed.y += sin(uTime * 9.0 + position.x * 17.0) * 0.004 * w; }`);
+  sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+      varying vec3 vBindP; varying float vHair;
+      float ffH(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }   // sine-free hash: stable on every GPU
+      float ffN3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(ffH(i), ffH(i + vec3(1, 0, 0)), f.x), mix(ffH(i + vec3(0, 1, 0)), ffH(i + vec3(1, 1, 0)), f.x), f.y), mix(mix(ffH(i + vec3(0, 0, 1)), ffH(i + vec3(1, 0, 1)), f.x), mix(ffH(i + vec3(0, 1, 1)), ffH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+      vec3 ffBump(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float fd) {
+        vec3 sx = dFdx(surf_pos), sy = dFdy(surf_pos), N = surf_norm, R1 = cross(sy, N), R2 = cross(N, sx); float det = dot(sx, R1) * fd;
+        vec3 g = sign(det) * (dHdxy.x * R1 + dHdxy.y * R2); return normalize(abs(det) * surf_norm - g); }`)
+    .replace("#include <color_fragment>", `#include <color_fragment>
+      float ffTone = ffN3(vBindP * 2.6) * 0.6 + ffN3(vBindP * 7.5) * 0.4;
+      diffuseColor.rgb *= mix(0.93 + 0.12 * ffTone, 0.82 + 0.3 * ffN3(vBindP * vec3(6.0, 40.0, 40.0)), vHair);`)
+    .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
+      roughnessFactor = clamp(roughnessFactor * (0.9 + 0.2 * ffTone) + 0.2 * vHair, 0.0, 1.0);`)
+    .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+`);
+};
+HORSE_MAT.customProgramCacheKey = () => "ffcoat";
 const EYE_MAT = new THREE.MeshStandardMaterial({ color: 0x0c0604, roughness: 0.05, metalness: 0.0 });
-const JOCKEY_MAT = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.0, skinning: true, clearcoat: 0.45, clearcoatRoughness: 0.35 });   // satin silks
+const JOCKEY_MAT = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.0, skinning: true, clearcoat: 0.35, clearcoatRoughness: 0.3 });   // satin silks
+try { JOCKEY_MAT.sheen = new THREE.Color(0.25, 0.25, 0.25); } catch (e) {}
+JOCKEY_MAT.onBeforeCompile = sh => {
+  Object.assign(sh.uniforms, HORSE_U);
+  sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float hair; uniform float uTime, uHairWind; varying float vCloth; varying vec3 vBindJ;")
+    .replace("#include <begin_vertex>", `#include <begin_vertex>
+      vCloth = hair; vBindJ = position;
+      if (hair > 0.5) { float w = uHairWind; float ph = position.x * 23.0 + position.y * 17.0 + position.z * 11.0;
+        transformed += objectNormal * (sin(uTime * 19.0 + ph) * 0.0045 + sin(uTime * 31.0 + ph * 1.7) * 0.002) * w; }`);
+  sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+      varying float vCloth; varying vec3 vBindJ;
+      float jkH(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
+      float jkN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(jkH(i), jkH(i + vec3(1, 0, 0)), f.x), mix(jkH(i + vec3(0, 1, 0)), jkH(i + vec3(1, 1, 0)), f.x), f.y), mix(mix(jkH(i + vec3(0, 0, 1)), jkH(i + vec3(1, 0, 1)), f.x), mix(jkH(i + vec3(0, 1, 1)), jkH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }`)
+    .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+      if (vCloth > 0.5) { float fold = jkN(vBindJ * vec3(9.0, 22.0, 9.0)); float fade = clamp(1.0 - 1.5 * length(fwidth(vBindJ * 22.0)), 0.0, 1.0);
+        vec3 sx = dFdx(-vViewPosition), sy = dFdy(-vViewPosition), R1 = cross(sy, normal), R2 = cross(normal, sx); float det = dot(sx, R1) * faceDirection;
+        vec3 gr = sign(det) * (dFdx(fold) * R1 + dFdy(fold) * R2) * 0.05 * fade; normal = normalize(abs(det) * normal - gr); }`);
+};
+JOCKEY_MAT.customProgramCacheKey = () => "ffsilks";
 /* ---------- Jockey: one continuous skinned figure ----------
    Lofted torso, neck, head and helmet, arms and gloved hands, legs in breeches and boots, all one mesh with
    silks painted into vertex colours. Each limb segment has its own bone; joints are blended 50/50 so knees,
@@ -1762,19 +1828,19 @@ function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
   const X = _jkX, accN = clamp(X.acc / 2.5, 0, 1) * (1 - rest), tf = clamp((X.fat - 0.45) * 2, 0, 1) * w2, cv = clamp(X.curv, -0.4, 0.4);
   const push = (w2 > 0 ? Math.sin((phase - 0.45) * TAU) : Math.sin((phase - 0.45) * TAU) * 0.4) * (1 + 0.55 * tf);
   const calm = Math.max(settle, 0) * (1 - rest);
-  o.P.set(-0.02 + 0.04 * w2 + 0.05 * w3 + push * (0.015 * w1 + 0.03 * w2 + 0.04 * w3) - 0.1 * rest + 0.035 * accN, 0.62 - 0.03 * w2 - 0.04 * w3 - bob * 0.55 - 0.13 * rest + 0.01 * calm - 0.035 * accN - 0.02 * tf, -lat * 0.04 - cv * 0.1);
-  const lean = lerp(1.08 + 0.1 * w1 + 0.07 * w2 + 0.08 * w3 + push * (0.03 * w2 + 0.06 * w3), 0.55, rest) + 0.04 * calm + 0.09 * accN;
-  o.S.set(o.P.x + Math.sin(lean) * 0.46, o.P.y + Math.cos(lean) * 0.46, o.P.z - cv * 0.05);
-  o.N.set(o.S.x + Math.sin(lean - 0.5) * 0.07, o.S.y + Math.cos(lean - 0.5) * 0.07, o.S.z);
-  o.H.set(o.N.x + 0.07, o.N.y + 0.06 + 0.02 * rest, o.N.z + cv * 0.16);            // the head stays level through a bend
+  o.P.set(-0.07 + 0.04 * w2 + 0.05 * w3 + push * (0.015 * w1 + 0.03 * w2 + 0.04 * w3) - 0.08 * rest + 0.035 * accN, 0.64 - 0.03 * w2 - 0.045 * w3 - bob * 0.6 - 0.17 * rest + 0.01 * calm - 0.035 * accN - 0.02 * tf, -lat * 0.04 - cv * 0.1);
+  const lean = lerp(1.2 + 0.08 * w1 + 0.06 * w2 + 0.06 * w3 + push * (0.03 * w2 + 0.06 * w3), 0.42, rest) + 0.03 * calm + 0.08 * accN;
+  o.S.set(o.P.x + Math.sin(lean) * 0.47, o.P.y + Math.cos(lean) * 0.47, o.P.z - cv * 0.05);
+  o.N.set(o.S.x + Math.sin(lean - 0.6) * 0.07, o.S.y + Math.cos(lean - 0.6) * 0.07, o.S.z);
+  o.H.set(o.N.x + 0.085 - 0.03 * rest, o.N.y + 0.07 + 0.03 * rest, o.N.z + cv * 0.16);   // head up, eyes between the ears; level through a bend
   o.face.set(o.H.x + 0.14, o.H.y - 0.01, o.H.z);                                   // just in front of the goggles (jockey camera)
   [1, -1].forEach(sd => {
     const L = sd > 0 ? "L" : "R";
-    const hip = o["hip" + L].set(o.P.x - 0.02, o.P.y - 0.03, o.P.z + sd * 0.1);
-    const ft = o["ft" + L].set(0.12, 0.05, sd * 0.42);
-    ik2(hip, ft, 0.4, 0.39, _jkTmp.pole.set(1, 0.25, sd * 0.35), o["kne" + L]);
-    const sho = o["sho" + L].set(o.S.x - 0.03, o.S.y - 0.03, o.S.z + sd * 0.15);
-    let hx = lerp(0.7 + pump * 0.035 * (1 - w2) + push * (0.05 * w2 + 0.12 * w3) - 0.04 * calm + 0.06 * accN, 0.40, rest), hy = lerp(0.52 - 0.03 * calm + 0.02 * w3, 0.64, rest), hz = sd * 0.075;
+    const hip = o["hip" + L].set(o.P.x - 0.02, o.P.y - 0.035, o.P.z + sd * 0.105);
+    const ft = o["ft" + L].set(0.13 - 0.06 * rest, -0.01 - 0.2 * rest, sd * (0.355 + 0.02 * rest));   // short irons: the foot sits beside the girth
+    ik2(hip, ft, 0.42, 0.40, _jkTmp.pole.set(1, 0.5, sd * 0.16), o["kne" + L]);
+    const sho = o["sho" + L].set(o.S.x - 0.03, o.S.y - 0.03, o.S.z + sd * 0.165);
+    let hx = lerp(0.72 + pump * 0.035 * (1 - w2) + push * (0.05 * w2 + 0.12 * w3) - 0.04 * calm + 0.06 * accN, 0.40, rest), hy = lerp(0.5 - 0.03 * calm + 0.02 * w3, 0.62, rest), hz = sd * 0.072;
     hx += w3 > 0.5 ? Math.sin((phase - 0.45) * TAU + sd * 0.9) * 0.05 * w3 : 0;
     if (sd < 0 && whipK >= 0) {                                                       // the whip hand: back and up, then down
       const up = Math.sin(Math.min(1, whipK / 0.45) * Math.PI / 2) * (whipK < 0.45 ? 1 : 1 - (whipK - 0.45) / 0.55);
@@ -1782,7 +1848,7 @@ function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
       hx = lerp(hx, o.P.x + 0.12, up * 0.8 + down * 0.6); hy = lerp(hy, o.P.y + 0.28, up) - 0.12 * down; hz = lerp(hz, -0.27, Math.max(up, down));
     }
     const han = o["han" + L].set(hx, hy, hz);
-    ik2(sho, han, 0.25, 0.24, _jkTmp.pole.set(-0.3, -1, sd * 0.9), o["elb" + L]);
+    ik2(sho, han, 0.27, 0.25, _jkTmp.pole.set(-0.25, -1, sd * 0.85), o["elb" + L]);
   });
   // whip direction: carried down-back across the shoulder; raised up and back, then brought down onto the quarters
   if (whipK >= 0) {
@@ -1806,7 +1872,7 @@ function buildJockeyGeometry(def) {
   else do { sec = new THREE.Color(PAL[Math.floor(jr() * PAL.length)]).convertSRGBToLinear(); } while (Math.abs(lum(sec) - lum(silk)) < 0.12);
   const PATS = ["hoops", "sash", "quartered", "stars", "chevrons", "braces", "diamond", "plain", "crossbelts", "hoops"];
   const pat = (def.silkPat && PATS.includes(def.silkPat)) ? def.silkPat : PATS[Math.floor(jr() * PATS.length)], sleeveP = ["plain", "hooped", "contrast", "armbands", "plain"][Math.floor(jr() * 5)], capP = ["plain", "contrast", "quartered", "spots"][Math.floor(jr() * 4)];
-  const C = { s: silk, v: silk, w: new THREE.Color(0.8, 0.79, 0.76), b: new THREE.Color(0.016, 0.014, 0.013), t: new THREE.Color(0.32, 0.17, 0.08),
+  const C = { s: silk, v: silk, w: new THREE.Color(0.8, 0.79, 0.76), b: new THREE.Color(0.016, 0.014, 0.013), t: new THREE.Color(0.32, 0.17, 0.08), g2: jr() < 0.6 ? new THREE.Color(0.75, 0.74, 0.72) : new THREE.Color(0.02, 0.02, 0.022),
     k: new THREE.Color(0.58, 0.38, 0.27), g: new THREE.Color(0.012, 0.014, 0.018), h: silk, x: sec };
   const skins = [[0.6, 0.4, 0.29], [0.48, 0.3, 0.2], [0.33, 0.2, 0.13], [0.68, 0.48, 0.36], [0.22, 0.13, 0.08]]; C.k = new THREE.Color(...skins[Math.floor(jr() * skins.length)]);
   const dir = new THREE.Vector3(), tmpC = new THREE.Color();
@@ -1834,22 +1900,27 @@ function buildJockeyGeometry(def) {
     else if (pat === "crossbelts") alt = Math.abs(Math.abs(t - 0.5) * 0.9 - az / 0.3 * 0.45) < 0.09;
     return alt ? C.x : C.s;
   };
-  seg("torso", [[-0.2, .02, .02, .03, "w"], [-0.12, .09, .09, .125, "w"], [0.0, .112, .112, .145, "w"], [0.1, .104, .104, .138, "w"], [0.16, .104, .104, .138, "s"], [0.38, .11, .115, .148, "s"],
-    [0.62, .12, .125, .165, "s"], [0.82, .112, .115, .178, "s"], [0.93, .088, .088, .15, "s"], [0.99, .055, .055, .07, "s"], [1.04, .045, .045, .05, "k"]], torsoCol, 2.6, 26);
-  // neck, face (nose, goggles, chinstrap), helmet under a silk cap with peak and pompom
+  // torso: seat and hips in white breeches → silks over a body-protector vest (chest, shoulder blades, broad shoulders)
+  // → collar → neck. Silks get soft folds (a little looser at the back where the wind fills them).
+  const cloth0 = G.pos.length / 3;
+  seg("torso", [[-0.2, .02, .02, .03, "w"], [-0.12, .088, .088, .125, "w"], [0.0, .108, .112, .14, "w"], [0.09, .1, .104, .132, "w"], [0.15, .102, .104, .134, "s"], [0.3, .108, .112, .138, "s"],
+    [0.48, .118, .128, .15, "s"], [0.64, .125, .134, .165, "s"], [0.78, .118, .124, .182, "s"], [0.88, .1, .1, .178, "s"], [0.95, .07, .072, .12, "s"], [1.0, .05, .05, .062, "s"], [1.05, .044, .044, .046, "k"]], torsoCol, 2.5, 30);
+  // neck, head: chin, jaw, cheekbones and nose under a skull cap with the owner's silk cover, peak and pompom;
+  // goggles pushed down over the eyes with a strap round the helmet; chinstrap
   const Lh = bp.S.distanceTo(bp.H);
   const capCol = (k, sn, cs, R, x, y, z) => {
-    if (R.col === "f") { if (sn < -0.3 && Math.abs(cs) < 0.85) return C.g; if (Math.abs(sn) < 0.22) return C.b; return C.k; }   // goggles, strap, skin
-    if (R.col !== "h") return R.col === "k" && sn > 0.4 && Math.abs(cs) < 0.5 && R.d > 10 + Lh - 0.07 ? C.b : C[R.col];       // chinstrap under the jaw
+    if (R.col === "f") { if (sn < -0.25 && Math.abs(cs) < 0.82) return C.g; if (Math.abs(sn) < 0.25) return C.b; return C.k; }   // goggles, strap, skin
+    if (R.col === "j") return sn > 0.55 && Math.abs(cs) < 0.45 ? C.b : C.k;                                                // jaw with the chinstrap under it
+    if (R.col !== "h") return C[R.col];
     if (capP === "contrast") return C.x;
     if (capP === "quartered") return (Math.atan2(sn, cs) > 0) !== (z > bp.H.z) ? C.x : C.s;
     if (capP === "spots") return Math.sin(Math.atan2(sn, cs) * 5) * Math.sin(R.d * 90) > 0.55 ? C.x : C.s;
     return C.s;
   };
-  seg("head", [[10.0, .045, .045, .045, "k"], [10 + Lh - 0.1, .046, .046, .046, "k"], [10 + Lh - 0.085, .062, .07, .062, "k"], [10 + Lh - 0.05, .086, .09, .084, "k"],
-    [10 + Lh - 0.012, .098, .098, .095, "f"], [10 + Lh + 0.012, .108, .108, .104, "f"], [10 + Lh + 0.03, .114, .114, .11, "h"], [10 + Lh + 0.064, .102, .102, .1, "h"], [10 + Lh + 0.094, .074, .074, .075, "h"],
-    [10 + Lh + 0.117, .028, .028, .029, "h"], [10 + Lh + 0.124, .003, .003, .003, "h"]], capCol, 2.1, 26);
-  // arms: sleeves (plain, hooped, contrast or armbands), white gloves at the hands
+  seg("head", [[10.0, .043, .043, .043, "k"], [10 + Lh - 0.115, .046, .05, .045, "k"], [10 + Lh - 0.09, .06, .072, .058, "j"], [10 + Lh - 0.06, .08, .088, .072, "j"],
+    [10 + Lh - 0.03, .092, .094, .082, "k"], [10 + Lh - 0.008, .1, .1, .092, "f"], [10 + Lh + 0.014, .106, .106, .098, "f"], [10 + Lh + 0.032, .116, .114, .108, "h"], [10 + Lh + 0.066, .104, .102, .1, "h"],
+    [10 + Lh + 0.096, .076, .074, .075, "h"], [10 + Lh + 0.118, .03, .03, .03, "h"], [10 + Lh + 0.125, .003, .003, .003, "h"]], capCol, 2.1, 28);
+  // arms: loose satin sleeves (fuller at the shoulder), cuffed at the wrist; gloved hands closed round the reins
   const sleeveCol = (k, sn, cs, R) => {
     if (R.col !== "v") return C[R.col];
     if (sleeveP === "contrast") return C.x;
@@ -1858,25 +1929,36 @@ function buildJockeyGeometry(def) {
     return C.s;
   };
   ["L", "R"].forEach(sd => {
-    seg("ua" + sd, [[-0.06, .058, .058, .058, "v"], [0.0, .056, .056, .056, "v"], [0.35, .05, .05, .048, "v"], [0.7, .044, .044, .042, "v"], [1.0, .039, .039, .039, "v"]], sleeveCol);
-    seg("fa" + sd, [[-0.08, .04, .04, .04, "v"], [0.3, .039, .039, .037, "v"], [0.74, .031, .031, .03, "v"], [0.8, .034, .034, .033, "v"], [0.86, .031, .031, .03, "w"], [1.0, .038, .036, .042, "w"], [1.1, .032, .03, .036, "w"], [1.17, .003, .003, .003, "w"]], sleeveCol);
-    seg("th" + sd, [[-0.12, .078, .078, .083, "w"], [0.0, .08, .078, .084, "w"], [0.45, .066, .064, .068, "w"], [0.85, .054, .052, .055, "w"], [1.0, .05, .05, .052, "w"]]);
-    seg("sh" + sd, [[-0.06, .052, .052, .052, "w"], [0.2, .047, .05, .046, "w"], [0.3, .049, .053, .049, "t"], [0.38, .048, .052, .048, "b"], [0.7, .044, .049, .044, "b"], [0.95, .04, .045, .04, "b"], [1.06, .036, .036, .036, "b"], [1.1, .003, .003, .003, "b"]]);
+    seg("ua" + sd, [[-0.07, .062, .062, .062, "v"], [0.0, .064, .062, .062, "v"], [0.22, .058, .056, .055, "v"], [0.55, .05, .05, .048, "v"], [0.85, .045, .045, .043, "v"], [1.0, .042, .042, .041, "v"]], sleeveCol);
+    seg("fa" + sd, [[-0.08, .043, .043, .042, "v"], [0.25, .042, .041, .039, "v"], [0.66, .034, .033, .032, "v"], [0.74, .036, .036, .035, "x"], [0.8, .03, .029, .029, "g2"], [0.9, .034, .03, .042, "g2"], [1.0, .042, .036, .046, "g2"], [1.08, .04, .034, .042, "g2"], [1.15, .022, .02, .026, "g2"], [1.18, .003, .003, .003, "g2"]], sleeveCol);
   });
-  // helmet peak, cap pompom, a nose, boot feet
+  const clothEnd = G.pos.length / 3;
+  ["L", "R"].forEach(sd => {
+    // breeches: a jockey's thigh is short and muscular; the knee is bony; boots are thin racing boots with tan tops
+    seg("th" + sd, [[-0.12, .08, .08, .084, "w"], [0.0, .084, .08, .086, "w"], [0.3, .08, .074, .078, "w"], [0.62, .066, .062, .064, "w"], [0.88, .054, .052, .055, "w"], [1.0, .052, .054, .054, "w"]]);
+    seg("sh" + sd, [[-0.06, .054, .054, .054, "w"], [0.12, .05, .056, .05, "w"], [0.28, .049, .058, .049, "w"], [0.32, .051, .058, .051, "t"], [0.42, .05, .056, .05, "t"], [0.45, .048, .054, .048, "b"], [0.7, .042, .047, .042, "b"], [0.92, .036, .04, .037, "b"], [1.04, .034, .036, .034, "b"], [1.1, .003, .003, .003, "b"]]);
+  });
+  G.clothSpans = [[cloth0, clothEnd]];
+  // helmet peak, cap pompom, nose, ears, and the boot feet (heel down, toe in the iron)
   { const A = bp.H, f = new THREE.Vector3(0.95, -0.1, 0).normalize(), pc = capP === "contrast" ? C.s : C.x;
-    const pk = [0, 0.4, 0.8, 1].map((t, i) => ({ c: [A.x + 0.088 * f.x + 0.065 * f.x * t, A.y + 0.04 + 1.30 + 0.065 * f.y * t, A.z], top: [.004, .006, .005, .002][i], bot: .004, wid: [.065, .08, .074, .03][i], n: 2 }));
+    const pk = [0, 0.4, 0.8, 1].map((t, i) => ({ c: [A.x + 0.095 * f.x + 0.06 * f.x * t, A.y + 0.045 + 1.30 + 0.06 * f.y * t, A.z], top: [.004, .006, .005, .002][i], bot: .004, wid: [.07, .084, .078, .03][i], n: 2 }));
     horseLoft(G, pk, 14, () => [[JKI.head, 1]], () => pc);
-    const up = new THREE.Vector3().subVectors(bp.H, bp.S).normalize(), tp = bp.H.clone().addScaledVector(up, 0.12);
+    const up = new THREE.Vector3().subVectors(bp.H, bp.S).normalize(), tp = bp.H.clone().addScaledVector(up, 0.125);
     horseLoft(G, [0, 0.3, 0.7, 1].map((t, i) => ({ c: [tp.x - 0.012 + 0.024 * t, tp.y + 1.30 + 0.004, tp.z], top: [.002, .014, .014, .002][i], bot: [.002, .01, .01, .002][i], wid: [.002, .014, .014, .002][i], n: 2 })), 10, () => [[JKI.head, 1]], () => pc);
-    const nz = bp.H.clone().addScaledVector(up, -0.035).add(new THREE.Vector3(0.088, -0.0, 0));
-    horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [nz.x + 0.022 * t, nz.y + 1.30 - 0.018 * t, nz.z], top: [.004, .012, .002][i], bot: [.004, .008, .002][i], wid: [.004, .011, .002][i], n: 2 })), 10, () => [[JKI.head, 1]], () => C.k); }
+    const fwd = new THREE.Vector3(up.y, -up.x, 0);                                                     // the face points forward, square to the neck
+    const nz = bp.H.clone().addScaledVector(up, -0.05).addScaledVector(fwd, 0.088);
+    horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [nz.x + fwd.x * 0.02 * t - up.x * 0.02 * t, nz.y + 1.30 + fwd.y * 0.02 * t - up.y * 0.02 * t, nz.z], top: [.005, .012, .003][i], bot: [.005, .009, .003][i], wid: [.005, .012, .003][i], n: 2 })), 10, () => [[JKI.head, 1]], () => C.k);
+    const ch = bp.H.clone().addScaledVector(up, -0.105).addScaledVector(fwd, 0.06);                  // chin
+    horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [ch.x + fwd.x * 0.015 * t, ch.y + 1.30 + fwd.y * 0.015 * t, ch.z], top: [.006, .02, .004][i], bot: [.006, .016, .004][i], wid: [.006, .024, .004][i], n: 2 })), 10, () => [[JKI.head, 1]], () => C.k);
+    [1, -1].forEach(sd2 => { const e = bp.H.clone().addScaledVector(up, -0.03).addScaledVector(fwd, -0.01);
+      horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [e.x, e.y + 1.30, e.z + sd2 * (0.09 + 0.012 * t)], top: [.004, .024, .004][i], bot: [.004, .018, .004][i], wid: [.004, .012, .004][i], n: 2 })), 8, () => [[JKI.head, 1]], () => C.k); }); }
   ["L", "R"].forEach(sd => { const F = bp["ft" + sd];
-    horseLoft(G, [0, 0.35, 0.7, 0.9, 1].map((t, i) => ({ c: [F.x + 0.14 * t, F.y - 0.022 * t + 1.30, F.z], top: [.04, .036, .03, .022, .003][i], bot: [.036, .033, .028, .02, .003][i], wid: [.042, .039, .034, .026, .003][i], n: 2.4 })), 14, () => [[JKI["sh" + sd], 1]], () => C.b); });
+    horseLoft(G, [0, 0.25, 0.55, 0.85, 1].map((t, i) => ({ c: [F.x - 0.045 + 0.2 * t, F.y - 0.01 - 0.026 * t + 1.30, F.z], top: [.038, .036, .028, .02, .003][i], bot: [.036, .034, .03, .02, .003][i], wid: [.036, .038, .034, .026, .003][i], n: 2.4 })), 14, () => [[JKI["sh" + sd], 1]], () => C.b); });
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(G.pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(G.nor, 3));
   g.setAttribute("color", new THREE.Float32BufferAttribute(G.col, 3));
   g.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(G.si, 4)); g.setAttribute("skinWeight", new THREE.Float32BufferAttribute(G.sw, 4));
+  { const cl = new Float32Array(G.pos.length / 3); (G.clothSpans || []).forEach(([a, b]) => cl.fill(1, a, b)); g.setAttribute("hair", new THREE.BufferAttribute(cl, 1)); }
   g.setIndex(G.idx); g.computeBoundingSphere(); g.boundingSphere.radius += 0.6; g.userData.shared = true;
   // rest direction of each bone (bind pose), for posing by direction
   const rest = {}; for (const n in JK_SEG) rest[n] = new THREE.Vector3().subVectors(bp[JK_SEG[n][1]], bp[JK_SEG[n][0]]).normalize();
@@ -1907,9 +1989,9 @@ function buildHorse(def, cloth) {
     cap: new THREE.MeshStandardMaterial({ color: new THREE.Color(def.silk).convertSRGBToLinear().multiplyScalar(0.55), roughness: 0.4 }) });
   const numKey = "cl" + (cloth || 0);
   const clothMat = markerCache[numKey] || (markerCache[numKey] = new THREE.MeshStandardMaterial({ map: boardTex(cloth ? String(cloth) : "", "#f2efe6", "#15181c", 256, 128, 92), roughness: 0.85, side: THREE.DoubleSide }));
-  const cl = new THREE.Mesh(JGs.cloth, clothMat); cl.position.set(-0.02, -0.02, 0); cl.scale.set(1, 0.7, 1); body.add(cl);
-  const sd = new THREE.Mesh(JGs.saddle, M.leather); sd.position.set(0.06, 0.0, 0); sd.scale.set(1, 0.72, 1); body.add(sd);
-  const gr = new THREE.Mesh(JGs.girth, M.leather); gr.rotation.y = Math.PI / 2; gr.scale.set(0.785, 0.79, 1); gr.position.set(0.36, -0.06, 0); body.add(gr);
+  const cl = new THREE.Mesh(JGs.cloth, clothMat); cl.position.set(-0.02, -0.02, 0); cl.scale.set(1, 0.7, 0.88); body.add(cl);
+  const sd = new THREE.Mesh(JGs.saddle, M.leather); sd.position.set(0.06, 0.0, 0); sd.scale.set(1, 0.72, 0.88); body.add(sd);
+  const gr = new THREE.Mesh(JGs.girth, M.leather); gr.rotation.y = Math.PI / 2; gr.scale.set(0.785 * 0.88, 0.79, 1); gr.position.set(0.36, -0.06, 0); body.add(gr);
   // jockey: one skinned mesh; its bones hang off the horse's body bone so the rider moves with the horse
   const JK = buildJockeyGeometry(def);
   const jb = JK_BONES.map(n => { const b = new THREE.Bone(); b.name = "jk_" + n; return b; });
@@ -3929,6 +4011,7 @@ function frame(now) {
     updateCrowd(dt, 0);
   }
   FX.update(dt);
+  HORSE_U.uTime.value += dt; HORSE_U.uHairWind.value += ((race && race.state === "running" ? 1 : 0.25) - HORSE_U.uHairWind.value) * Math.min(1, dt * 2);
   if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), race && race.finishOrder.length && race.clock - race.finishOrder[0].finishTime < 5 ? 1 : 0);
   dbgColliders(dt);
   updateVenue(dt);
