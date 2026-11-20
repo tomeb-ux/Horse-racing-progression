@@ -1,0 +1,12 @@
+# Render.com Blueprint: one Node web service (serves the game and the WebSocket server on the same URL).
+services:
+  - type: web
+    name: final-furlong
+    runtime: node
+    plan: free            # free instances sleep after ~15 min idle; the first visit then takes ~30–60 s to wake
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

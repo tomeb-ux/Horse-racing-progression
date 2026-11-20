@@ -1,0 +1,288 @@
+# Final Furlong
+
+A 3D horse-racing game for the browser (three.js). Single-player runs anywhere, including from one HTML file.
+**Private online races** let 2–6 friends ride against each other, with AI runners filling the rest of the field. They need the small Node
+server in this project, because the server runs the race.
+
+```
+public/            what the browser loads
+  index.html       the game (menus, rendering, audio, HUD, replays, single-player)
+  sim.js           the race simulation — shared by the browser (single-player) and the server (online races)
+  season.js        career championship core: divisions, calendar, AI stables, points, standings, qualification, history
+  commentary.js    live spoken race commentary (event detection, priority queue, speech synthesis)
+  career.js        Career Mode screens and the bridge to the race engine
+  mp.js            online client: lobby, connection, snapshot interpolation, input sending
+  vendor/three.min.js   fallback copy of three.js r128 if the CDN is unreachable
+server/
+  index.js         HTTP static server + WebSocket endpoint (/ws), rate limits, origin check
+  rooms.js         private rooms: codes, seats, horses, ready/start, reconnect, cleanup
+  race-server.js   the authoritative race: fixed-step simulation, inputs, starts, snapshots, results, replay
+  protocol.js      codes, tokens, validation of everything a client sends
+tests/             simulation tests, headless protocol test, browser end-to-end and spectate tests, latency proxy
+tools/build-single.js   builds dist/final-furlong-single.html (single-player, one file, no server)
+Dockerfile, render.yaml  deployment configs
+```
+
+## Career Mode (single-player) — the championship
+
+Create horses, build a stable and race it through three tiered championships inspired by Australian racing:
+**Provincial Championship** (10 rounds) → **Metropolitan Championship** (10 rounds) → **Group 1 Feature Series**
+(12 rounds: Golden Slipper, Newmarket, Doncaster, Derby, Golden Eagle, Caulfield Cup, Cox Plate, Champions Stakes and
+the two crown jewels, **The Everest** and the **Melbourne Cup**). Finish in the top 3 to be promoted.
+- **Your stable vs recurring AI stables** — each championship has its own fixed AI stables (9 or 11), every one with a
+  sprinter, a miler and a stayer. One runner per stable per round; points 15-12-10-8-6-5-4-3-2-1 from real finishing
+  positions (DNF and 11th+ score 0). Ties: wins → seconds → best feature-race result → a fixed order.
+- **Season progression** — enter the next round with any eligible horse, or skip it (no points; the AI result is
+  decided by a seeded lightweight model and recorded; the round can't be raced later). The season only advances
+  through an official result or a skip. Finish the season to archive it and start the next.
+- **Optional races** — race any time (trials, benchmarks, qualifiers). Experience and records only: never points,
+  never trophies, never advance the season. Beating a much weaker field earns little.
+- **Qualification** — feature races need a rating; The Everest needs sprinting ability + a top-3 sprint result in a
+  Listed race or better; the Melbourne Cup needs staying ability + a top-3 staying result; the Cox Plate needs recent
+  form. The event screen shows exactly which checks pass or fail for each horse.
+- **Create / train** — new horses start at a rating of about 70 with an uneven potential ceiling; every race earns
+  training points (about one per 6 XP), spent with diminishing returns.
+- **History & trophies** — every completed season (champion, final standings, your position, feature winners, horses
+  used) is kept permanently; championship titles and official feature wins fill the Trophy Cabinet.
+- **Always a normal race** — Chaos Mode, the kick, stamina assist and other Quick Race options are forced off in the
+  race config of every career race, whatever Quick Race is set to.
+- Saves in the browser (`localStorage` key `ff_career`, schema v2; v1 saves are migrated automatically). The
+  championship is fictional, not the real calendar or eligibility rules.
+
+## Live race commentary
+
+An original, energetic Australian-style race caller, spoken aloud in every mode (Quick Race, Career, online) using the
+browser's built-in speech synthesis — no audio files, no cloud service, no keys. It reads the race (never changes it):
+the break, leader changes, movers, traffic, wide runs, falls, the 600/400/200/100 m markers, challenges and the
+finish, calling every horse — including your custom horse — by name. Excitement rises with the distance to go and how
+close the contest really is, so a tight final 200 m is called flat out while a runaway win is called as one. Photo
+finishes wait for the timing before naming the winner. Settings: on/off, volume, captions, voice (an Australian voice is
+picked automatically when the system has one — on a Mac, Lee or Karen; Enhanced/Premium voices can be downloaded in
+System Settings → Accessibility → Spoken Content). Voice quality depends on the voices installed on the device.
+
+## Play single-player (no server)
+
+Use either of these:
+
+```bash
+npm run build:single
+```
+
+Then open `dist/final-furlong-single.html` in a browser. Or run the server locally (below) and open the page it serves.
+In the single-file build, the Multiplayer screen explains that online races need the hosted version.
+
+## Run the online version locally
+
+You need Node.js 18 or newer.
+
+```bash
+npm install
+```
+
+```bash
+npm start
+```
+
+Then open http://localhost:8080 → **Multiplayer** → enter a name → **Create Private Race**. Open a second
+browser window (or a private window) and paste the join link to get a second player on the same machine.
+To play with a friend on your home network, give them `http://<your-computer's-LAN-IP>:8080/?join=CODE`.
+Over the internet, deploy the server as described below.
+
+## Deploy it so a friend can join from anywhere
+
+The server is one long-running Node process that serves the game **and** the WebSocket on the same URL.
+That means it **cannot** go on a static-only host (GitHub Pages, Netlify/Vercel static sites, an S3 bucket,
+the Claude artifact page): those serve files but can't keep a WebSocket server running. Use a host that runs Node
+web services with WebSocket support. Any of these work:
+
+### Option A — Render.com (simplest; has a free tier)
+1. Put this folder in a GitHub repository (the `.gitignore` already leaves out `node_modules` and `dist`).
+2. On render.com: **New → Blueprint**, pick the repository. `render.yaml` sets it up: a Node web service with
+   build `npm install --omit=dev`, start `npm start`, health check `/healthz`.
+   (Or **New → Web Service** and enter those two commands by hand.)
+3. When the deploy finishes, Render shows the service URL at the top of its page, of the form
+   `https://<service-name>.onrender.com`. That is the game; nothing else needs configuring.
+   Render sets `PORT` itself, and WebSockets work on the same URL (`wss://…/ws`).
+4. Free instances go to sleep after about 15 minutes with no traffic. The next visit takes up to a minute to wake,
+   so open the page a minute before you race. A paid instance doesn't sleep.
+
+### Option B — any Docker host (Fly.io, Railway, Google Cloud Run, a VPS)
+```bash
+docker build -t final-furlong .
+```
+
+```bash
+docker run -p 8080:8080 final-furlong
+```
+
+On Fly.io, run `fly launch` in this folder (it detects the Dockerfile; set the internal port to 8080), then `fly deploy`.
+On Railway, use **New Project → Deploy from GitHub repo**; it uses the Dockerfile and provides `PORT`.
+Cloud Run supports WebSockets, but cap the instance count at 1 (see “One server process” below).
+
+### Environment variables
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `8080` | Port to listen on (hosts usually set this for you) |
+| `HOST` | `0.0.0.0` | Interface to bind |
+| `ALLOWED_ORIGINS` | *(empty)* | Extra comma-separated web origins allowed to open a WebSocket, e.g. `https://mygame.example.com`. The page's own host is always allowed. Only needed if the page is served from a different domain than the server. |
+
+There are no secrets or API keys anywhere. The browser code contains nothing private.
+
+### One server process
+Rooms live in the server's memory. Run **one instance** (the default on Render/Railway/Fly free tiers). With
+several instances behind a load balancer, two players could land on different instances and the code wouldn't be found.
+Restarting or redeploying the server ends any race in progress and clears all rooms.
+
+### Serving the page from somewhere else
+If the game page is hosted separately (say, on a static host) and the server elsewhere, open the page with
+`?server=wss://your-server-host/ws` and set `ALLOWED_ORIGINS` on the server to the page's origin.
+
+## How player 2 joins
+
+1. Player 1 opens the deployed URL → **Multiplayer** → name → **Create Private Race**. A 6-character room code appears,
+   with **Copy Code** and **Copy Link** buttons.
+2. They send the link (`https://…/?join=ABC123`) or just the code to up to 5 friends.
+3. Each friend opens the link (the code is filled in) or opens the site → **Multiplayer** → types the code → **Join Race**.
+4. Everyone picks a different horse. The host chooses distance, going, number of runners (AI fill the places the riders
+   don't), AI skill and incidents. Everyone presses **Ready**, then the host presses **Start Race**. Changing a horse or
+   a setting un-readies everyone. If the host leaves, the next rider becomes host.
+5. If your horse falls, the camera follows a rider who is still racing. Press **A / D** (or **← / →**) to switch
+   between them.
+6. After the race, everyone sees the same official result. Each player can watch the replay independently, then press
+   **Back to Lobby** for a rematch in the same room.
+
+## Controls
+
+| Key | Function |
+|---|---|
+| W / S | Effort up / down |
+| A / D | Toward the rail / wider |
+| Space | In the gates: hold to lift the marker and keep it in the moving sweet spot, then press when the gates open. Mid-race: urge. Final drive: tap on the stride rhythm |
+| Shift | Drive |
+| E / Q | Settle / check (take a pull) |
+| C | Camera |
+| Tab | Race stats |
+| P | Chaos mode only: your ONE kick of the race — knocks over the horse right beside you (hold A/D for the side) |
+| Esc | Pause (single-player only — an online race can't be paused) |
+
+## How the online race works
+
+- **The server is the referee.** It runs the same simulation file (`public/sim.js`) as single-player, at a fixed
+  120 steps per second. Race clock, gate timing, physics, AI jockeys, start outcomes, collisions, falls,
+  stamina, sprint momentum, results, margins and the replay recording are all computed there. Clients send only
+  **controls** (effort target, steering, settle/check/drive, Space presses). Positions, times, stamina and results
+  from a client are never accepted.
+- **Clients render** about 20 snapshots a second, interpolated, and show the race slightly in the past. The display
+  delay adapts to the measured network jitter (from about 100 ms, up to 450 ms on a poor connection), so horses move
+  smoothly instead of jumping. Your own effort bar and start marker respond to your keys immediately.
+- **Fair starts.** Each rider's reaction time is measured against when the gates opened *on their own screen*. The
+  server allows for that rider's measured latency, capped at 0.6 s. A horse that launches late because the message
+  was in transit is moved forward by the lag (at most 0.5 s), so a slower connection isn't penalised. The start
+  mini-game is also judged against the sweet spot as the rider saw it. The marker position a client reports is
+  only trusted within ±0.12 of the server's own copy.
+- **No host advantage.** The host only creates the room and chooses settings. Every player connects to the same server
+  the same way. Unlimited stamina, the top-speed slider and steering assist are single-player only.
+- **Disconnects.**
+  - In the lobby, a dropped player keeps their seat for 90 s and can rejoin.
+  - In a race, the other riders are told. The race carries on, because it can't pause for one player. The dropped
+    player has 20 s to come back; after that, an AI jockey rides their horse home, marked in the results.
+  - Reloading the page or a network drop reconnects automatically, using a reconnect token the server issued for
+    that seat (kept in the tab's sessionStorage).
+  - If a player leaves for good, the others can still finish the race.
+- **Falls** (incidents set to Full, the default online):
+  - Keep shoving into a horse alongside and you can fall, and the horse you were pushing goes down with you.
+  - A horse that falls brings down a horse tangled right beside it.
+  - Any horse that gallops into a fallen horse **or its jockey** falls as well. AI riders who are far enough back see
+    the crash and either pull up hard or steer round it.
+  - Runners within 30 m behind when it happens are too close to react. In tests, about 90% of them went down. AI riders
+    30–50 m back mostly pull up or steer round it (about 1 in 5 still fall), and nobody further back falls.
+  - The race ends when every rider has finished or fallen. If every rider falls before anyone has finished, the race runs
+    on until an AI horse wins it, and everyone spectates the leader.
+- **Normal mode** (incidents Stumbles/Full, chaos off) is the opposite for fallers: AI jockeys *do* try to avoid a
+  fallen horse when they have the time and room — steering off their line or checking. But a horse that is **on the
+  same path and within 40 m of the fall when it happens has no time to react** — it cannot steer round or pull up and
+  runs into the body, just as in real life. Horses further back, or whose line misses the body, can still get out of
+  the way.
+- Falls animate by how they happened: a kick or shove pitches the horse over sideways, a horse that runs into a body
+  trips forward over its front legs, and a horse that loses its own footing buckles and rolls. The thrown jockey is
+  unseated in every case.
+- Developer tool: press **F9** in a race to show the collision rectangles (green standing, orange mid-fall, red on the
+  ground, blue the thrown jockey) and red rings at each registered contact. Off by default.
+- **Chaos mode** (single-player setup, or the host's lobby setting online; it turns incidents to Full) races like a
+  normal event but with the AI bunched up tight, one extra ability and one changed rule:
+  - **The AI field runs as a tight column near the rail** — bunched up behind each other, only 3–4 horses wide (about a
+    3-lane span) and roughly 20 m front to back, against a field spread right across the track over ~50 m in a normal
+    race. Same overall pace; it fans out to sprint in the last 220 m. A connected kick in that column can bring down
+    the horses stacked behind it.
+  - **One kick per rider per race.** Press **P** (hold **A**/**D**, or the arrows, to choose the side) to kick the
+    horse immediately alongside you. It connects only against a horse genuinely in reach of a boot — level with you
+    along the track and about 1–2 m to the side, on the chosen side. A connected kick always brings that horse down.
+    The kick is spent **only when it actually knocks a horse over** — a miss (nobody in reach) leaves it ready to try
+    again. A small HUD chip reads **KICK READY** or **KICK USED**.
+  - **No automatic chain reaction.** The kick touches nobody but the target. There is no shockwave and no
+    area-of-effect: every further fall comes from a horse *physically running into* a falling or fallen body.
+  - **No dodging in chaos.** AI jockeys do not steer around or brake for a fallen horse — they hold their normal
+    racing lines. A pile-up builds only where horses actually collide; a horse whose line misses the body races on.
+  - A fallen horse is a solid obstacle from the first instant of its fall (not only once it is flat), and stays on the
+    track for the rest of the race — even a lap later on the longer trips. Its hitbox matches the visible body.
+- **Rooms** are removed 5 minutes after everyone leaves, or after 45 minutes of inactivity. The server holds at
+  most 400 rooms.
+
+## Security limits
+- Room codes are 6 characters from a 31-symbol alphabet (no 0/O/1/I/L), from a cryptographic RNG.
+  That gives about 887 million possible codes.
+- Reconnect tokens are 144-bit random values, compared per seat.
+- Every message is size-capped (4 KB), rate-limited per connection (token bucket, ~80/s sustained) and validated.
+  Names are cleaned and limited to 16 characters. Settings must come from fixed lists, and only the host may change them.
+- Each room holds at most 6 players. Each IP may hold at most 12 connections.
+- The WebSocket only accepts browser connections from the game's own origin, plus any in `ALLOWED_ORIGINS`.
+- There are no accounts, chat or public matchmaking. Only someone you give the code to can join.
+
+## Tests
+```bash
+node tests/season.js            # championship logic: seasons, points, tie-breakers, skips, promotion, history, migration
+node tests/commentary.js 36     # commentary checked line by line against 36 real simulated races
+node tests/season_balance.js 10 # division balance with the real race engine (multi-process)
+PORT=8095 node tests/career-browser.js   # (server running) career, chaos isolation, save migration and spoken commentary in a real browser
+npm run test:protocol
+```
+A headless run against a real server. It fills a room to 6 riders, turns away a 7th, and has two leave. The other 4
+then race. It also covers lobby errors (no such room, horse taken, host-only, not ready, bad token), identical
+results for all four, per-rider snapshot detail, the replay download and rejoin.
+
+```bash
+npm start
+```
+
+With the server running, in another terminal:
+
+```bash
+PORT=8080 npm run test:mp
+```
+
+Two real browser sessions (Playwright) play a race through the UI. Add `LAT=120 JIT=80` to route the second player
+through a laggy proxy. The test checks that the two screens agree, that movement is smooth, the start outcomes, a
+mid-race disconnect and reconnect, identical results, results lines, replays and the return to the lobby.
+
+With the server started as `FF_TEST_HOOKS=1 npm start`:
+
+```bash
+PORT=8080 node tests/mp-spectate.js
+```
+
+Three browsers race; one rider is made to fall (a test-only command that only works with `FF_TEST_HOOKS=1`, so never
+set that on a public server). The test checks spectating, switching riders with D, the results lines and that all
+three see the same order.
+
+With the server started as `FF_TEST_HOOKS=1 npm start`, `node tests/mp-chaos.js` checks the online chaos setting, the
+one-kick rule, that the kick causes no field-wide collapse, and a race where both riders fall (it must run on to an AI
+winner). `node tests/mp-leader.js` checks in two browsers that both riders spectate the leading horse.
+
+```bash
+npm run test:sim
+```
+112 simulated races checking balance and incidents. `node tests/pileup.js public/sim.js full 60` shows who goes down
+behind a faller, by distance. `node tests/pushfall.js public/sim.js` checks that shoving a horse into a fall takes it down too. `node tests/chaos.js public/sim.js` runs the chaos scenario suite (kick reach and the one-kick rule, that only the
+target falls, contact-only chains, bodies solid mid-fall, horses passing clear, lap persistence).
+`node tests/avoid.js public/sim.js` checks that normal mode avoids a faller when it can but not when boxed in, and that
+chaos never applies that avoidance.
