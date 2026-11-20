@@ -8,9 +8,11 @@ server in this project, because the server runs the race.
 public/            what the browser loads
   index.html       the game (menus, rendering, audio, HUD, replays, single-player)
   sim.js           the race simulation — shared by the browser (single-player) and the server (online races)
-  season.js        career championship core: divisions, calendar, AI stables, points, standings, qualification, history
-  commentary.js    live spoken race commentary (event detection, priority queue, speech synthesis)
-  career.js        Career Mode screens and the bridge to the race engine
+  season.js        career core: divisions, calendar, persistent rivals, points, standings, qualification, form guide, XP
+  commentary.js    live spoken race call (continuous call composer, scheduler, speech synthesis)
+  venues.js        real racecourse scenery (Royal Randwick) built from the track engine's geometry
+  stable3d.js      the 3D racing stable: grooming bay, five boxes, trophy room, orbit camera
+  career.js        Career Mode screens (creator, stable, training, rivals, championship) and the bridge to the race engine
   mp.js            online client: lobby, connection, snapshot interpolation, input sending
   vendor/three.min.js   fallback copy of three.js r128 if the CDN is unreachable
 server/
@@ -23,35 +25,39 @@ tools/build-single.js   builds dist/final-furlong-single.html (single-player, on
 Dockerfile, render.yaml  deployment configs
 ```
 
-## Career Mode (single-player) — the championship
+## Career Mode (single-player)
 
-Create horses, build a stable and race it through three tiered championships inspired by Australian racing:
-**Provincial Championship** (10 rounds) → **Metropolitan Championship** (10 rounds) → **Group 1 Feature Series**
-(12 rounds: Golden Slipper, Newmarket, Doncaster, Derby, Golden Eagle, Caulfield Cup, Cox Plate, Champions Stakes and
-the two crown jewels, **The Everest** and the **Melbourne Cup**). Finish in the top 3 to be promoted.
-- **Your stable vs recurring AI stables** — each championship has its own fixed AI stables (9 or 11), every one with a
-  sprinter, a miler and a stayer. One runner per stable per round; points 15-12-10-8-6-5-4-3-2-1 from real finishing
-  positions (DNF and 11th+ score 0). Ties: wins → seconds → best feature-race result → a fixed order.
-- **Season progression** — enter the next round with any eligible horse, or skip it (no points; the AI result is
-  decided by a seeded lightweight model and recorded; the round can't be raced later). The season only advances
-  through an official result or a skip. Finish the season to archive it and start the next.
-- **Optional races** — race any time (trials, benchmarks, qualifiers). Experience and records only: never points,
-  never trophies, never advance the season. Beating a much weaker field earns little.
-- **Qualification** — feature races need a rating; The Everest needs sprinting ability + a top-3 sprint result in a
-  Listed race or better; the Melbourne Cup needs staying ability + a top-3 staying result; the Cox Plate needs recent
-  form. The event screen shows exactly which checks pass or fail for each horse.
-- **Create / train** — new horses start at a rating of about 70 with an uneven potential ceiling; every race earns
-  training points (about one per 6 XP), spent with diminishing returns.
-- **History & trophies** — every completed season (champion, final standings, your position, feature winners, horses
-  used) is kept permanently; championship titles and official feature wins fill the Trophy Cabinet.
-- **Always a normal race** — Chaos Mode, the kick, stamina assist and other Quick Race options are forced off in the
-  race config of every career race, whatever Quick Race is set to.
-- Saves in the browser (`localStorage` key `ff_career`, schema v2; v1 saves are migrated automatically). The
-  championship is fictional, not the real calendar or eligibility rules.
+Your own racing yard in a **3D Australian racing stable**: create thoroughbreds in the grooming bay (drag to orbit, zoom,
+head / legs / silks views), keep up to five in their own boxes, train them, and race them through three tiered
+championships — **Provincial** (10 rounds) → **Metropolitan** (10) → **Group 1 Feature Series** (12, with The Everest,
+Cox Plate, Caulfield Cup and Melbourne Cup) — against **persistent rivals**. Top 3 are promoted.
+- **Creator** — five steps: appearance (coat, face, each leg's white markings, build, muscle, neck, head, mane, tail),
+  silks, starting ability (54 base + 136 points, max 84 → rating ≈ 71), **potential** (a separate 168-point budget for
+  each attribute's ceiling, max 98) and review. Every change updates the real 3D model at once.
+- **Training** — races earn training points (more for strong fields and good finishes); upgrades apply at once, show
+  their real engine effect, get dearer near the top and stop at the horse's potential.
+- **Rivals** — 93 named AI horses in 31 stables with their own abilities, potential and growth; they develop through
+  their own racing (never matched to yours) and retire at their peak. Head-to-head records, rival profiles, and a
+  **form guide** before every race.
+- **Championship** — one runner per stable per round; points 15-12-10-8-6-5-4-3-2-1; skip a round (no points); optional
+  races any time (experience only); qualification for the features from your horse's own results; permanent history.
+- **Always a normal race** — Chaos, the kick, stamina assist and other Quick Race options are forced off in career races.
+- Races at a Randwick venue run on **Royal Randwick**; other venues use the original course until their tracks exist.
+- Saves in the browser (`localStorage` key `ff_career`, schema v3; v1/v2 saves migrate automatically, with a backup copy).
+
+## Royal Randwick and the track engine
+
+Courses are defined by curvature (straights, arcs, clothoid easements), integrated to an arc-length table and solved to
+close at the published circumference. A race runs on a route (with chute support), and the bend load, balance, extra
+ground for running wide, AI turn anticipation, gates, markers, cameras, replays, photo finish and minimap all use that
+same geometry. Royal Randwick: right-handed, 2224 m, 410 m straight, 28 m wide, 1200/1400 m starts from the sprint chute.
+Bend radii, the back-straight kink and the chute angle are estimates (the official course diagram could not be consulted
+from the build environment) — see `TRACK_DEFS` in `public/sim.js`. Choose it in Quick Race → Course. Online races use the
+original course.
 
 ## Live race commentary
 
-An original, energetic Australian-style race caller, spoken aloud in every mode (Quick Race, Career, online) using the
+A continuous, original Australian-style race call (linked clauses, a call through the field, chained bursts in the straight), spoken aloud in every mode (Quick Race, Career, online) using the
 browser's built-in speech synthesis — no audio files, no cloud service, no keys. It reads the race (never changes it):
 the break, leader changes, movers, traffic, wide runs, falls, the 600/400/200/100 m markers, challenges and the
 finish, calling every horse — including your custom horse — by name. Excitement rises with the distance to go and how
@@ -240,7 +246,9 @@ If the game page is hosted separately (say, on a static host) and the server els
 
 ## Tests
 ```bash
-node tests/season.js            # championship logic: seasons, points, tie-breakers, skips, promotion, history, migration
+node tests/season.js            # championship + rivals: seasons, points, tie-breakers, skips, H2H, retirement, migration
+node tests/randwick.js 2        # track engine + Royal Randwick: geometry, route lengths, chutes, navigation, AI races
+node tests/progression.js 2 24  # beginner balance + development speed with the real engine (good vs bad riding)
 node tests/commentary.js 36     # commentary checked line by line against 36 real simulated races
 node tests/season_balance.js 10 # division balance with the real race engine (multi-process)
 PORT=8095 node tests/career-browser.js   # (server running) career, chaos isolation, save migration and spoken commentary in a real browser

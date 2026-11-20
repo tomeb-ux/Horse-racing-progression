@@ -314,7 +314,7 @@ const CAREER = (() => {
     el.innerHTML = `${o.hint ? `<div class="car-hint">${o.hint}</div>` : ""}${o.cam ? `<div class="car-cam">${o.cam}</div>` : ""}
       <div class="car-side${o.bottom ? " bottom" : ""}"><div class="sd-head">${o.head}</div><div class="sd-body">${o.body}</div>${o.foot != null ? `<div class="sd-foot">${o.foot}</div>` : ""}</div>`;
     const narrow = innerWidth <= 760;
-    if (typeof STABLE3D !== "undefined") STABLE3D.setViewShift(narrow || o.bottom ? 0 : Math.min(460, innerWidth - 28) + 14);
+    if (typeof STABLE3D !== "undefined") STABLE3D.setViewShift(narrow || o.bottom ? 0 : Math.min(460, innerWidth - 28) + 14, narrow && !o.bottom ? innerHeight * 0.4 : 0);   // phones: the subject sits above the panel
     el.querySelectorAll(".car-cam [data-cam]").forEach(b => b.onclick = () => { const c = b.getAttribute("data-cam"); if (c === "in") STABLE3D.zoom(0.85); else if (c === "out") STABLE3D.zoom(1.18); else STABLE3D.preset(c); });
     el.querySelectorAll("input,textarea").forEach(i => i.addEventListener("keydown", e => e.stopPropagation()));
   }

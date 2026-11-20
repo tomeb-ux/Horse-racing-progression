@@ -1,5 +1,57 @@
 # Final Furlong — change log
 
+## Update: 3D racing stable, new horse creator, faster development, persistent rivals, a real race-caller, and Royal Randwick
+**A 3D Australian racing stable** (`public/stable3d.js`). Career screens now sit inside a timber-and-steel stable block:
+concrete aisle, five loose boxes with grilles and sliding doors, straw beds, buckets and hay nets, a tack wall (saddle racks,
+bridles, rugs, feed bins, hay), a trophy corner, and a rubber-floored grooming bay lit by daylight through the open doors.
+The horses are the game's real procedural models (same anatomy, coat shading, markings, silks and skeleton as in a race).
+Orbit the horse by dragging, zoom with the wheel / pinch / buttons, presets for full body, head, legs, silks and rear, and a
+reset. Click a box to open that horse; click a trophy to inspect it. Indoor exposure keeps light coats detailed.
+- **Horse creator, rebuilt in five steps** (appearance → silks → ability → potential → review), side panel over the live 3D
+  bay, free movement between steps. Eight coats, six face markings, **white markings chosen leg by leg** (coronet / sock /
+  stocking), sliders for build, muscularity, neck length, neck thickness, head size, mane and tail length, mane and tail
+  colour, 16 silk colours × 9 patterns (the jockey mounts up to show them), and an optional **"commentator says it as"**
+  pronunciation. Every change rebuilds the real model instantly (render caches are now keyed by the full appearance — the
+  old name-only cache could show a stale look). Cosmetic changes are allowed after creation; abilities are not.
+- **Stronger starters + chosen potential**: attributes start at 54 with 136 points to spend (max 84) → rating ≈ 71; a
+  separate **168-point potential budget** sets each attribute's lifetime ceiling (≥ current, ≤ 98). The projected profile
+  ("Elite sprint potential", "Limited staying potential", "Suitable distance 1000–1400 m") comes from the real attributes.
+- **Faster training**: XP → training points at 1 per 2 XP; cheaper early upgrades; costs still rise steeply near the top.
+  The training screen shows current / potential / next cost / the real engine effect of each upgrade (e.g. "+0.14 km/h
+  top speed"), upgrades apply immediately with an animated bar and an undo. Older horses get a **one-time potential
+  redistribution** (total unchanged). Measured with the real engine: rating ≈73 after 3 races, ≈80 by race 12, ≈84 by
+  races 17–20 when ridden well; a badly ridden horse still loses.
+- **Five-box stable overview** (one horse per box, names on plaques, bottom strip of cards), horse profiles (stats, form,
+  majors, current/potential bars, prev/next), and a **3D trophy room** with real career trophies.
+- **Persistent rivals** (`season.js` v3): 93 named AI horses in 31 stables, each with its own attributes, potential and
+  development rate. Grade bands: Provincial ~55–63, Metropolitan ~64–72, Feature Series ~72–80 plus a few established stars.
+  Rivals improve only through their own races (never scaled to the player), eventually retire at their peak and are
+  replaced by new prospects. The other two championships race on in the background, so every rival has a real career.
+  Optional-race fields are grade-matched from the whole population. **Head-to-head** records per pair (meetings, who
+  finished ahead, closest finish, recent meetings) feed a **Rivals** screen and a rival profile (shown in the grooming bay).
+- **Pre-race form guide** on every event: rating, last-5 form, wins/starts, majors, best distance, strengths, trip
+  suitability (Excellent/Good/Fair/Poor from the distance model) and head-to-head — contenders marked, no favouritism.
+- **Commentary rebuilt as a continuous race call** (diagnosis in docs/WORKLOG-P2.md): instead of isolated sentences each
+  ending in "!", the caller links 2–3 clauses per line ("…still leads, but X is improving on the outside, and Y is
+  travelling nicely in fourth"), calls the field from leader to last mid-race, then chains short bursts through the straight
+  with the distance markers folded in. Long names are shortened after first mention; the pronunciation override is used;
+  rivalries are mentioned only when your saved head-to-head history supports it. Pace rises gently (0.97 → ~1.16) and
+  pitch barely moves. Measured on the same races: speaking 83 % of the race (was 63 %), longest silence in the last 25 s
+  0.4 s (was 3.8 s), 2.9 clauses per line (was 1.5). If speech fails to play, captions keep a natural pace.
+- **Track engine** (`sim.js`): courses defined by curvature segments with clothoid easements, integrated to an arc-length
+  table and solved to close at the published circumference; each race runs on a route (with chute support). Bend load,
+  balance, ground lost wide, AI turn anticipation, gates, markers, cameras, replays, minimap and photo finish all use the
+  real geometry. The original oval keeps its exact formulas (multiplayer + every balance test unchanged).
+- **Royal Randwick** (right-handed, 2224 m, 410 m straight, 28 m wide, sprint chute for 1200/1400 m): its own venue
+  (`venues.js`) — modern glass grandstand with a cantilevered canopy, heritage and lawn stands, finish post / judge's box /
+  gantry, infield trees, service roads and sheds, big screen, boundary trees and city skyline, landmark boards (THE RISE,
+  HOME TURN, KENSINGTON END), crowd sized to the meeting. Every Career race at a Randwick venue runs there (The Everest,
+  Doncaster, Derby, Spring Sprint, Chairman's, Kingsford, Maiden…); Quick Race has a Course option. Exact bend radii and
+  chute angles aren't published in a usable form, so they are estimates documented in sim.js.
+- **Fixes**: online, the caller could name the wrong winner when a "finished" flag arrived before the official time (now
+  only timed finishers count); v2 saves gave a stable's sprinter and stayer the same id (resolved in migration).
+- Save schema **v3** with automatic migration from v1/v2 (backup copy kept in localStorage before migrating).
+
 ## Update: Australian championship seasons, optional races, qualification and live spoken commentary
 **Career Mode is now a real championship.**
 - **Three tiered championships with promotion**: Provincial (10 rounds) → Metropolitan (10 rounds) → Group 1 Feature

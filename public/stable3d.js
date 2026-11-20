@@ -323,8 +323,8 @@ const STABLE3D = (() => {
     const k = 1 - Math.exp(-dt * 7);
     for (const a of ["tx", "ty", "tz", "pitch", "dist"]) orbit[a] += (orbit["g" + a] - orbit[a]) * k;
     let dy = orbit.gyaw - orbit.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); orbit.yaw += dy * k;
-    const cp = Math.cos(orbit.pitch);
-    let x = orbit.tx + Math.cos(orbit.yaw) * cp * orbit.dist, y = orbit.ty + Math.sin(orbit.pitch) * orbit.dist, z = orbit.tz + Math.sin(orbit.yaw) * cp * orbit.dist;
+    const cp = Math.cos(orbit.pitch), af = cam.aspect < 1 ? Math.min(2.1, 0.9 / cam.aspect) : 1, dd = orbit.dist * af;   // portrait screens: step back so the whole horse fits
+    let x = orbit.tx + Math.cos(orbit.yaw) * cp * dd, y = orbit.ty + Math.sin(orbit.pitch) * dd, z = orbit.tz + Math.sin(orbit.yaw) * cp * dd;
     // keep the camera inside the building and above the floor
     x = THREE.MathUtils.clamp(x, BX0 + 0.4, BX1 + 6); z = THREE.MathUtils.clamp(z, -BZ + 0.35, BZ - 0.35); y = THREE.MathUtils.clamp(y, 0.18, WALL_H + 1.2);
     cam.position.set(x, y, z); cam.lookAt(orbit.tx, orbit.ty, orbit.tz);
@@ -332,11 +332,11 @@ const STABLE3D = (() => {
   }
   function resize3d() { if (!cam) return; cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
   // the 3D view is the area not covered by the side panel: shift the projection so the subject sits in that area
-  let viewShift = 0;
-  function setViewShift(px) { viewShift = px || 0; }
+  let viewShift = 0, viewShiftY = 0;
+  function setViewShift(px, py) { viewShift = px || 0; viewShiftY = py || 0; }
   function applyShift() {
     if (!cam) return;
-    if (viewShift) { cam.setViewOffset(innerWidth, innerHeight, viewShift / 2, 0, innerWidth, innerHeight); } else cam.clearViewOffset();
+    if (viewShift || viewShiftY) { cam.setViewOffset(innerWidth, innerHeight, viewShift / 2, viewShiftY / 2, innerWidth, innerHeight); } else cam.clearViewOffset();
   }
 
   // ---------- input ----------
