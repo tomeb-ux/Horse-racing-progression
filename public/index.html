@@ -1351,8 +1351,11 @@ const HORSE_LOOKS = {
   "Quiet Thunder": { face: "snip", socks: [0, 0, 0, 1], build: 0.2 },
 };
 const horseLookCache = {};
+// every render cache is keyed by the horse's full appearance, so a cosmetic change (career creator / stable edits) always
+// rebuilds; preview builds (def._preview) are never cached and are disposed by their owner (the 3D stable)
+function horseKey(def) { return def.name + "|" + def.coat + "|" + (def.look ? JSON.stringify(def.look) : "") + "|" + def.silk + "|" + (def.silk2 || "") + "|" + (def.silkPat || ""); }
 function horseLook(def) {
-  if (horseLookCache[def.name]) return horseLookCache[def.name];
+  const hk = horseKey(def); if (!def._preview && horseLookCache[hk]) return horseLookCache[hk];
   const r = mulberry32(nameSeed(def.name + "/look")), a = def.attrs;
   const muscle = clamp(((a.top + a.acc + a.spr) / 3 - 78) / 15, -1, 1);    // sprinters carry more muscle
   const lean = clamp((a.end - 70) / 25, -1, 1);                            // stayers are leaner
@@ -1372,6 +1375,9 @@ function horseLook(def) {
     if (O.face) L.face = O.face; if (O.socks) L.socks = O.socks; if (O.carriage != null) L.carriage = O.carriage;
     if (O.build) { L.chest *= 1 + 0.05 * O.build; L.quarters *= 1 + 0.06 * O.build; L.barrel *= 1 + 0.03 * O.build; }
     if (O.neck) L.neck *= O.neck; if (O.head) L.head *= O.head;
+    if (O.muscle != null) { const m = clamp(+O.muscle || 0, -1, 1); L.chest *= 1 + 0.035 * m; L.quarters *= 1 + 0.05 * m; L.barrel *= 1 + 0.012 * m; }
+    if (O.neckG) L.neckG = clamp(+O.neckG, 0.88, 1.12);
+    if (O.tailLen) L.tail = clamp(+O.tailLen, 0.75, 1.3);
   }
   const c = L.coat, black = new THREE.Color(0.018, 0.015, 0.013);
   L.points = type === "bay" || type === "brown" ? black : null;
@@ -1382,7 +1388,8 @@ function horseLook(def) {
   L.maneLen = L.mane; L.maneLength = (O && O.maneLen) || (O && typeof O.mane === "number" ? O.mane : 0.55 + r() * 0.75);
   L.white = new THREE.Color(0.86, 0.84, 0.80); L.hoof = new THREE.Color(0.05, 0.045, 0.04); L.hoofPale = new THREE.Color(0.32, 0.27, 0.21);
   L.skin = new THREE.Color(0.03, 0.026, 0.025);
-  return horseLookCache[def.name] = L;
+  if (def._preview) return L;
+  return horseLookCache[hk] = L;
 }
 // bind-pose joint positions for this horse (neck length varies a little)
 function horseJoints(L) {
@@ -1485,7 +1492,7 @@ function gLine(x, y, ax, ay, bx, by, r) {
 }
 const horseGeoCache = {};
 function buildHorseGeometry(def) {
-  if (horseGeoCache[def.name]) return horseGeoCache[def.name];
+  if (!def._preview && horseGeoCache[horseKey(def)]) return horseGeoCache[horseKey(def)];
   const L = horseLook(def), Jf = horseJoints(L), G = { pos: [], nor: [], col: [], si: [], sw: [], idx: [], parts: [] };
   const J = {}; for (const n in Jf) J[n] = [HORSE_SHIFTED[n] || n === "neck1" ? (n === "neck1" ? 0.84 : Jf[n][0] - HORSE_NECK_SHIFT) : Jf[n][0] / HORSE_BX, Jf[n][1], Jf[n][2]];
   const part = mode => G.parts.push([G.pos.length / 3, mode]);
@@ -1530,7 +1537,8 @@ function buildHorseGeometry(def) {
   // ---- neck: from inside the shoulder, rising to the poll; crest on top, throat below ----
   const nb = J.neck1, nk = L.neck, NP = (x, y) => [nb[0] + (x - nb[0]) * nk, nb[1] + (y - nb[1]) * nk];
   const NECK = [[0.60, 1.42, .2, .2, .18], [0.84, 1.53, .23, .245, .2], [1.02, 1.70, .19, .22, .17], [1.18, 1.88, .155, .175, .14],
-    [1.32, 2.03, .13, .135, .12], [1.44, 2.15, .12, .115, .105], [1.54, 2.21, .11, .12, .10], [1.60, 2.20, .06, .07, .06]].map((r, i) => i < 2 ? r : [...NP(r[0], r[1]), r[2], r[3], r[4]]);
+    [1.32, 2.03, .13, .135, .12], [1.44, 2.15, .12, .115, .105], [1.54, 2.21, .11, .12, .10], [1.60, 2.20, .06, .07, .06]].map((r, i) => i < 2 ? r : [...NP(r[0], r[1]), r[2], r[3], r[4]])
+    .map((r, i) => { const g = L.neckG || 1, k = i === 0 || i === 7 ? 1 : 1 + (g - 1) * (i < 4 ? 1 : 0.6); return [r[0], r[1], r[2] * k, r[3] * k, r[4] * k]; });   // neck girth (career look)
   const neckChain = [{ b: HBI.body, p: [0.55, 1.40] }, { b: HBI.neck1, p: J.neck1 }, { b: HBI.neck2, p: J.neck2 }, { b: HBI.head, p: J.head }, { b: -1, p: [J.head[0] + 0.1, J.head[1] - 0.05] }];
   const neckW = c => chainWeights(c[0], c[1], neckChain);
   const nA = [0.72, 1.47], nB = [J.head[0], J.head[1]], nDx = nB[0] - nA[0], nDy = nB[1] - nA[1], nL = Math.hypot(nDx, nDy);
@@ -1693,7 +1701,9 @@ function buildHorseGeometry(def) {
   g.setIndex(G.idx);
   g.computeBoundingSphere(); g.boundingSphere.radius += 0.8;
   g.userData.shared = true;
-  return horseGeoCache[def.name] = { geo: g, look: L, joints: Jf, eyes };
+  const out = { geo: g, look: L, joints: Jf, eyes };
+  if (!def._preview) horseGeoCache[horseKey(def)] = out;
+  return out;
 }
 
 /* ---------- Jockey: shared smooth parts, posed every frame with two-bone IK ----------
@@ -1775,7 +1785,7 @@ function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
 }
 const jockeyGeoCache = {};
 function buildJockeyGeometry(def) {
-  if (jockeyGeoCache[def.name]) return jockeyGeoCache[def.name];
+  if (!def._preview && jockeyGeoCache[horseKey(def)]) return jockeyGeoCache[horseKey(def)];
   _jkX.curv = 0; _jkX.acc = 0; _jkX.fat = 0;
   const bp = jockeyPoints(jockeyPointSet(), 0, 1, 0, 0, 0, 0, 0, -1);
   const G = { pos: [], nor: [], col: [], si: [], sw: [], idx: [] };
@@ -1862,7 +1872,9 @@ function buildJockeyGeometry(def) {
   g.setIndex(G.idx); g.computeBoundingSphere(); g.boundingSphere.radius += 0.6; g.userData.shared = true;
   // rest direction of each bone (bind pose), for posing by direction
   const rest = {}; for (const n in JK_SEG) rest[n] = new THREE.Vector3().subVectors(bp[JK_SEG[n][1]], bp[JK_SEG[n][0]]).normalize();
-  return jockeyGeoCache[def.name] = { geo: g, bind: bp, rest };
+  const out = { geo: g, bind: bp, rest };
+  if (!def._preview) jockeyGeoCache[horseKey(def)] = out;
+  return out;
 }
 const horseMatCache = {};
 function buildHorse(def, cloth) {
@@ -1883,7 +1895,7 @@ function buildHorse(def, cloth) {
   const B = {}; HORSE_BONES.forEach((n, i) => B[n] = bones[i]);
   const body = B.body;
   // tack: saddle cloth with the race number, saddle, girth
-  const mc = horseMatCache[def.name] || (horseMatCache[def.name] = { silks: new THREE.MeshStandardMaterial({ color: new THREE.Color(def.silk).convertSRGBToLinear(), roughness: 0.55 }),
+  const mk = horseKey(def), mc = (!def._preview && horseMatCache[mk]) || (horseMatCache[def._preview ? "_p" : mk] = { silks: new THREE.MeshStandardMaterial({ color: new THREE.Color(def.silk).convertSRGBToLinear(), roughness: 0.55 }),
     cap: new THREE.MeshStandardMaterial({ color: new THREE.Color(def.silk).convertSRGBToLinear().multiplyScalar(0.55), roughness: 0.4 }) });
   const numKey = "cl" + (cloth || 0);
   const clothMat = markerCache[numKey] || (markerCache[numKey] = new THREE.MeshStandardMaterial({ map: boardTex(cloth ? String(cloth) : "", "#f2efe6", "#15181c", 256, 128, 92), roughness: 0.85, side: THREE.DoubleSide }));
@@ -1913,7 +1925,7 @@ function buildHorse(def, cloth) {
     const hp = new THREE.Object3D(); hp.position.set(0, -J[n + "3"][1], 0); B[n + "3"].add(hp);       // ground point under the hoof
     return { b: [0, 1, 2, 3].map(i => B[n + i]), hind, side, hp, len: J[n + "0"][1], y0: B[n + "0"].position.y };
   });
-  g.userData = { mesh, B, jk, bit, nose, blob, legs, J, look: HG.look, ride: 0, bob: 0, pitch: 0, roll: 0, flex: 0, headSway: 0, tailSway: [0, 0, 0, 0], tailLift: 0,
+  g.userData = { mesh, B, jk, bit, nose, blob, legs, J, look: HG.look, tack: [cl, sd, gr], hg: HG, jg: JK, mc, ride: 0, bob: 0, pitch: 0, roll: 0, flex: 0, headSway: 0, tailSway: [0, 0, 0, 0], tailLift: 0,
     lastFoot: [0, 0, 0, 0], legT: [0, 0, 0, 0], plant: [0, 1, 2, 3].map(() => ({ on: false, x: 0, z: 0 })), accS: 0, rest: 0, settle: 0, reinPull: 0, idleT: Math.random() * 10, whipK: -1, whipCD: 0, lastPh: 0, eyeW: new THREE.Vector3() };
   poseJockey(g.userData, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   return g;
@@ -3101,6 +3113,7 @@ const screens = { menu: $("menuScreen"), select: $("selectScreen"), setup: $("se
 function show(state) {
   // commentary only runs during live racing: pausing, quitting, replays and results all silence it
   if (state !== "racing" && typeof COMM !== "undefined") COMM.silence();
+  if (!String(state).startsWith("c_") && typeof STABLE3D !== "undefined" && STABLE3D.active) STABLE3D.leave();
   ui.state = state;
   for (const k in screens) screens[k].hidden = (k !== state);
   hud.classList.toggle("on", state === "racing" || state === "pause");
@@ -3844,6 +3857,8 @@ function frame(now) {
   let dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   frameN++;
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
+  // Career screens: the 3D racing stable is drawn instead of the racecourse
+  if (typeof STABLE3D !== "undefined" && STABLE3D.active && !race && ui.state.startsWith("c_")) { STABLE3D.frame(dt); return; }
   if (RP.on && ui.state === "replay") { updateReplay(dt); FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.75); renderer.render(scene, camera); return; }
   if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.6); renderer.render(scene, camera); } return; }
   if (race && ui.state === "racing") {
@@ -3894,6 +3909,7 @@ if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude
 else boot();
 </script>
 <script src="mp.js"></script>
+<script src="stable3d.js"></script>
 <script src="career.js"></script>
 
 </body></html>
