@@ -52,18 +52,93 @@ const SPEECH_STUB = () => {
   ok(!(await p.$('#btnChamp')), 'stand-alone Championship button removed (Career is the championship)');
   await p.click('#btnCareer'); await sleep(300);
   const mig = await p.evaluate(() => { const C = CAREER.data; return { v: C.v, n: C.horses.length, names: C.horses.map(h => h.name), tro: C.trophies.length, wins: C.wins, stable: C.stable, season: C.season && C.season.n, div: C.season && C.season.div, hist: C.horses[0].history.map(e => e.dist + '/' + e.tier), xp: C.horses[0].xp, lvl: C.horses[0].lvl, attrs: C.horses[0].attrs.top }; });
-  ok(mig.v === 2 && mig.n === 2 && mig.names.join() === 'Legacy Lad,Second Wind' && mig.tro === 1 && mig.wins === 7 && mig.stable === 'Old Timers Stable' && mig.lvl === 4 && mig.attrs === 70, `v1 save migrated with horses, trophies, wins and progression intact (${JSON.stringify(mig)})`);
+  ok(mig.v === 3 && mig.n === 2 && mig.names.join() === 'Legacy Lad,Second Wind' && mig.tro === 1 && mig.wins === 7 && mig.stable === 'Old Timers Stable' && mig.lvl === 4 && mig.attrs === 70, `v1 save migrated to v3 with horses, trophies, wins and progression intact (${JSON.stringify(mig)})`);
   ok(mig.season === 1 && mig.div === 0 && mig.hist.join() === '1200/1,1200/2', 'a championship season was added and old race history gained distance/grade facts');
   ok(await p.evaluate(() => ui.state === 'c_hub' && /NEXT EVENT|Next event/i.test(document.getElementById('car_hub').textContent) && /Maiden Plate/.test(document.getElementById('car_hub').textContent)), 'dashboard shows the next championship event (Maiden Plate)');
 
-  console.log('\n— create a custom horse');
-  await p.evaluate(() => [...document.querySelectorAll('#car_hub button')].find(b => /Create/.test(b.textContent)).click());
-  ok(await p.evaluate(() => /Stable is full|slots/.test(document.body.textContent) || ui.state === 'c_create'), 'create screen opens (3 slots at 7 career wins)');
+  ok(await p.evaluate(() => Object.keys(CAREER.data.rivals || {}).length === 93 && CAREER.data.world.length === 3), 'old save gains the persistent rival world (93 rivals in 31 stables)');
+  // render one stable frame and sample the pixels of the 3D view (WebGL canvas read straight after drawing)
+  const snap = () => p.evaluate(() => { renderer.render = window.__rr; STABLE3D.frame(0.016); const c = document.createElement('canvas'), W = 320, H = 200; c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(renderer.domElement, 0, 0, W, H); renderer.render = () => {}; return Array.from(g.getImageData(0, 0, W, H).data); });
+  const diff = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 30) n++; return n / (a.length / 4); };
+
+  console.log('\n— the 3D stable and the horse creator');
+  await p.evaluate(() => CAREER._test.openStable()); await sleep(200);
+  const st0 = await p.evaluate(() => STABLE3D.info());
+  ok(st0.active && st0.mode === 'stalls' && st0.stalls.filter(Boolean).length === 2, `stable overview shows the two existing horses in their own boxes (${JSON.stringify(st0.stalls)})`);
+  await p.evaluate(() => document.querySelector('#car_stable [data-new]').click()); await sleep(300);
+  ok(await p.evaluate(() => ui.state === 'c_create' && STABLE3D.info().bay && STABLE3D.info().mode === 'full'), 'Create opens the grooming bay with a horse standing in it');
   await p.fill('#cName', 'Midnight Legend');
-  await p.evaluate(() => { const order = [0, 1, 3, 7, 2, 4, 5, 6]; for (let k = 0; k < 400; k++) { const rows = document.querySelectorAll('#cAttrs .car-arow'); const r = rows[order[k % 8]]; const plus = r.querySelectorAll('.car-step')[1]; if (!plus.disabled) plus.click(); if (document.getElementById('cPool').textContent === '0') break; } });
-  await p.evaluate(() => [...document.querySelectorAll('#car_create button')].find(b => /Confirm/.test(b.textContent)).click()); await sleep(200);
-  const nh = await p.evaluate(() => { const h = CAREER.data.horses.find(x => x.name === 'Midnight Legend'); return h && { r: Math.round(Object.values(h.attrs).reduce((a, b) => a + b) / 8), act: CAREER.data.horses[CAREER.data.active].name }; });
-  ok(nh && nh.r >= 69 && nh.r <= 71 && nh.act === 'Midnight Legend', `new horse starts at a rating of about 70 (${JSON.stringify(nh)})`);
+  const geo0 = await p.evaluate(() => renderer.info.memory.geometries);
+  // A — every appearance change rebuilds the real horse model, and the pixels change
+  const px0 = await snap();
+  const chg = async (fn, label) => { const before = await snap(); await p.evaluate(fn); await sleep(150); const after = await snap(); const d = diff(before, after); ok(d > 0.004, `${label} visibly changes the 3D horse (${(d * 100).toFixed(1)}% of pixels)`); };
+  await chg(() => [...document.querySelectorAll('[data-g="coat"] button')].find(b => /Grey/.test(b.textContent)).click(), 'coat → grey');
+  ok(await p.evaluate(() => { const L = STABLE3D.bayMesh().userData.look; return L.type === 'grey' && L.dapple; }), 'the bay horse now has a dappled grey coat');
+  await chg(() => { STABLE3D.preset('head', true); }, 'head close-up camera');
+  await chg(() => [...document.querySelectorAll('[data-g="face"] button')].find(b => /Blaze/.test(b.textContent)).click(), 'face marking → blaze');
+  ok(await p.evaluate(() => STABLE3D.bayMesh().userData.look.face === 'blaze'), 'the model carries the blaze');
+  await chg(() => document.querySelector('[data-leg="0"] [data-v="3"]').click(), 'near-fore stocking (per-leg sock)');
+  ok(await p.evaluate(() => JSON.stringify(STABLE3D.bayMesh().userData.look.socks) === JSON.stringify(CAREER._test.draft.socks) && CAREER._test.draft.socks[0] === 3), 'socks are set leg by leg on the model');
+  await p.evaluate(() => STABLE3D.preset('full', true));
+  const q0 = await p.evaluate(() => STABLE3D.bayMesh().userData.look.quarters);
+  await chg(() => { const r = document.querySelector('[data-body="build"]'); r.value = 0.85; r.oninput(); CAREER._test.schedulePreview(true); }, 'body build → powerful');
+  const q1 = await p.evaluate(() => STABLE3D.bayMesh().userData.look.quarters);
+  ok(q1 > q0 * 1.04, `the powerful build really enlarges the quarters (${q0.toFixed(3)} → ${q1.toFixed(3)})`);
+  await chg(() => { [...document.querySelectorAll('[data-g="mane"] button')][4].click(); }, 'mane colour → silver');
+  // silks step: rider appears, colours and pattern update
+  await p.evaluate(() => document.querySelector('[data-step="2"]').click()); await sleep(200);
+  ok(await p.evaluate(() => STABLE3D.bayMesh().userData.jk.mesh.visible), 'silks step shows the jockey in the saddle');
+  await chg(() => [...document.querySelectorAll('[data-g="silk"] button')][1].click(), 'primary silk colour');
+  await chg(() => [...document.querySelectorAll('[data-g="pat"] button')].find(b => /Chevrons/.test(b.textContent)).click(), 'silk pattern → chevrons');
+  // B — camera: presets, zoom, drag-orbit, reset
+  const cam = async () => (await p.evaluate(() => STABLE3D.info())).orbit;
+  await p.evaluate(() => STABLE3D.preset('legs')); const cLegs = await cam(); await p.evaluate(() => STABLE3D.zoom(1.5)); const cZoom = await cam();
+  ok(cZoom.dist > cLegs.dist, 'zoom changes the orbit distance');
+  await p.evaluate(() => STABLE3D.zoom(100)); ok((await cam()).dist <= 9.5, 'zoom is limited');
+  await p.mouse.move(300, 400); await p.mouse.down(); await p.mouse.move(420, 380, { steps: 6 }); await p.mouse.up();
+  ok((await cam()).yaw !== cZoom.yaw, 'dragging on the view orbits the camera round the horse');
+  await p.evaluate(() => document.querySelector('.car-cam [title="Reset camera"]').click()); ok(JSON.stringify(await cam()) === JSON.stringify({ yaw: -1.3, dist: 6.6, pitch: 0.12 }), 'reset returns to the full-body view');
+  // G / J — starting budget and potential budget
+  await p.evaluate(() => document.querySelector('[data-step="3"]').click()); await sleep(100);
+  await p.evaluate(() => document.querySelector('[data-tpl="sprint"]').click()); await sleep(100);
+  const b3 = await p.evaluate(() => { const d = CAREER._test.draft, T = CAREER._test; const vals = Object.values(d.attrs); const r = document.querySelector('[data-at="top"]'); r.value = 99; r.oninput();
+    return { sum: vals.reduce((a, b) => a + b, 0), min: Math.min(...vals), max: Math.max(...Object.values(d.attrs)), pool: +document.getElementById('cPool').textContent, base: T.BASE, startPool: T.START_POOL, cap: T.START_CAP, top: d.attrs.top }; });
+  ok(b3.sum === 8 * b3.base + b3.startPool && b3.min >= b3.base && b3.max <= b3.cap && b3.pool === 0 && b3.top <= b3.cap, `starting budget: every attribute ≥ ${b3.base}, ${b3.startPool} points, none above ${b3.cap}; dragging past the budget is refused (rating ${((b3.sum) / 8).toFixed(0)})`);
+  await p.evaluate(() => document.querySelector('[data-step="4"]').click()); await sleep(100);
+  await p.evaluate(() => document.querySelector('[data-ptpl="match"]').click()); await sleep(100);
+  const b4 = await p.evaluate(() => { const d = CAREER._test.draft, T = CAREER._test; const r = document.querySelector('[data-pt="acc"]'); r.value = 99; r.oninput(); let hr = 0, okMin = true, okMax = true; for (const k in d.attrs) { hr += d.hr[k]; if (d.attrs[k] + d.hr[k] < d.attrs[k]) okMin = false; if (d.attrs[k] + d.hr[k] > T.POT_CAP) okMax = false; } return { hr, okMin, okMax, pool: T.POT_POOL, prof: document.getElementById('cProf').textContent }; });
+  ok(b4.hr === b4.pool && b4.okMin && b4.okMax, `potential budget: ${b4.pool} points exactly, every ceiling ≥ current and ≤ 98, extra drags refused`);
+  ok(/sprint/i.test(b4.prof) && /Suitable distance/.test(b4.prof), 'projected profile from the real attributes: ' + b4.prof.replace(/([a-z])([A-Z])/g, '$1 · $2'));
+  await p.evaluate(() => document.querySelector('[data-step="5"]').click()); await sleep(100);
+  await p.evaluate(() => document.querySelector('#cDone').click()); await sleep(300);
+  const nh = await p.evaluate(() => { const h = CAREER.data.horses.find(x => x.name === 'Midnight Legend'); return h && { r: Math.round(Object.values(h.attrs).reduce((a, b) => a + b) / 8), pot: Object.keys(h.pot).reduce((a, k) => a + h.pot[k] - h.attrs[k], 0), potSet: h.potSet, look: h.look, ui: ui.state, act: CAREER.data.horses[CAREER.data.active].name }; });
+  ok(nh && nh.r === 71 && nh.pot === 168 && nh.potSet && nh.ui === 'c_profile' && nh.act === 'Midnight Legend', `new horse saved: rating ${nh && nh.r}, potential headroom ${nh && nh.pot}, profile opened`);
+  ok(nh.look.type === 'grey' && nh.look.face === 'blaze' && nh.look.socks[0] === 3 && nh.look.build === 0.85, 'saved look matches what was built in the creator');
+  // F — no GPU growth from repeated rebuilds
+  await p.evaluate(() => { CAREER._test.openCreate(CAREER.data.horses[2].id); STABLE3D.frame(0.016); });
+  const geoA = await p.evaluate(() => renderer.info.memory.geometries);
+  await p.evaluate(async () => { for (let i = 0; i < 24; i++) { const d = CAREER._test.draft; d.coat = i % 8; d.face = ['none', 'star', 'blaze'][i % 3]; CAREER._test.schedulePreview(true); } });
+  const geo1 = await p.evaluate(() => { STABLE3D.frame(0.016); return renderer.info.memory.geometries; });
+  ok(geo1 - geoA <= 2, `24 appearance rebuilds leave no GPU leak (geometries ${geoA} → ${geo1})`);
+  await p.evaluate(() => { CAREER._test.openStable(); });
+  // E — five-box stable: each horse in its own box, profiles and training stay separate
+  const st1 = await p.evaluate(() => STABLE3D.info());
+  ok(st1.stalls.filter(Boolean).length === 3, 'the new horse moves into its own box (3 of 5 filled)');
+  const tr = await p.evaluate(() => { const C = CAREER.data, i = C.horses.findIndex(h => h.name === 'Midnight Legend'), h = C.horses[i], other = JSON.stringify(C.horses[0].attrs);
+    h.trainPts = 20; CAREER._test.openProfile(i); CAREER._test.openTraining(); const v0 = h.attrs.acc, pts0 = h.trainPts, cost = CAREER._test.upgCost(v0);
+    document.querySelector('[data-up="acc"]').click(); const v1 = h.attrs.acc, pts1 = h.trainPts; const txt = document.getElementById('car_train').textContent;
+    document.getElementById('trUndo').click(); const v2 = h.attrs.acc, pts2 = h.trainPts; document.querySelector('[data-up="acc"]').click();
+    return { v0, v1, v2, pts0, pts1, pts2, cost, other, otherNow: JSON.stringify(C.horses[0].attrs), txt: /Upgrade \d+ → \d+ · \d+ pts? · \+[\d.]+% acceleration/.test(txt) }; });
+  ok(tr.v1 === tr.v0 + 1 && tr.pts1 === tr.pts0 - tr.cost && tr.v2 === tr.v0 && tr.pts2 === tr.pts0 && tr.other === tr.otherNow, `training is immediate (acc ${tr.v0} → ${tr.v1} for ${tr.cost} pts), undo refunds, other horses untouched`);
+  ok(tr.txt, 'each upgrade shows current → next, its cost and its real effect');
+  ok(await p.evaluate(() => { const h = CAREER.data.horses[0]; return !h.potSet && !h.potRedist && /One-time potential redistribution/.test((CAREER._test.openProfile(0), CAREER._test.openTraining(), document.getElementById('car_train').textContent)); }), 'older horses are offered a one-time potential redistribution');
+  // D — persistence
+  await p.reload(); await p.waitForFunction(() => typeof CAREER !== 'undefined'); await p.evaluate(() => { window.__rr = renderer.render.bind(renderer); renderer.render = () => {}; CAREER.open(); });
+  ok(await p.evaluate(() => { const h = CAREER.data.horses.find(x => x.name === 'Midnight Legend'); return h && h.look.type === 'grey' && h.look.face === 'blaze' && h.look.socks[0] === 3 && h.silkPat === 'chevrons' && h.attrs.acc > 0; }), 'after a reload the horse, its look, silks and training are all still there');
+  // trophy room renders real records
+  await p.evaluate(() => CAREER._test.openTrophies()); await sleep(200);
+  ok(await p.evaluate(() => STABLE3D.info().trophies === 1 && /Golden Slipper/.test(document.getElementById('car_trophy').textContent)), 'trophy room shows the career\'s real trophy (Golden Slipper) on the shelves');
+  await p.evaluate(() => CAREER.open());
 
   console.log('\n— Chaos is on in Quick Race…');
   await p.evaluate(() => { settings.chaos = true; store.set('chaos', true); show('menu'); });
@@ -75,6 +150,10 @@ const SPEECH_STUB = () => {
   await p.click('#btnCareer'); await sleep(200);
   await p.click('#hubEnter'); await sleep(200);
   ok(await p.evaluate(() => /Entry requirements/.test(document.getElementById('car_event').textContent) && document.querySelectorAll('#car_event [data-go]').length >= 2), 'event view lists eligible horses with requirements');
+  const fg = await p.evaluate(() => { const rows = [...document.querySelectorAll('#evForm tr[data-rv]')]; const f = SEASON.runners(CAREER.data, CAREER.data.season.cur);
+    const r0 = rows[0], id = r0 && r0.getAttribute('data-rv'), rv = SEASON.rival(CAREER.data, id), cells = r0 ? [...r0.children].map(c => c.textContent) : [];
+    return { n: rows.length, field: f.length, stars: document.querySelectorAll('#evForm td').length && [...document.querySelectorAll('#evForm tr')].filter(r => r.children[0] && r.children[0].textContent === '★').length, rating: +cells[2], real: (() => { const d = f.find(x => x._hid === id); return d ? Math.round(Object.values(d.attrs).reduce((a, b) => a + b, 0) / 8) : -1; })(), saved: rv ? SEASON.rRating(rv) : -1, you: !!document.querySelector('#evForm tr.me') }; });
+  ok(fg.n === fg.field && fg.stars === 3 && fg.rating === fg.real && Math.abs(fg.rating - fg.saved) <= 1 && fg.you, `form guide lists all ${fg.n} rival runners + your horse, marks 3 contenders, and its ratings match the saved rival records`);
   const idx = await p.evaluate(() => CAREER.data.horses.findIndex(h => h.name === 'Midnight Legend'));
   await p.click(`#car_event [data-go="${idx}"]`); await sleep(500);
   const cr = await p.evaluate(() => ({ chaos: race.chaos, cfgChaos: race.cfg.chaos, assist: race.cfg.assist, unl: race.cfg.unlimited, kickChip: !document.getElementById('kickChip').hidden && getComputedStyle(document.getElementById('kickChip')).display !== 'none', keys: document.getElementById('hudKeys').textContent, opp: race.horses.slice(1).map(h => h.def._stable).filter(Boolean).length, field: race.horses.length, name: race.player.def.name, settingsChaos: settings.chaos }));
@@ -82,6 +161,8 @@ const SPEECH_STUB = () => {
   ok(!cr.kickChip && !/P kick/.test(cr.keys), 'no kick HUD chip and no kick key hint');
   ok(cr.assist === false && cr.unl === false, 'no stamina assist or unlimited options in championship racing');
   ok(cr.opp === cr.field - 1 && cr.name === 'Midnight Legend', `all ${cr.opp} rivals are recurring AI stable runners; the player rides Midnight Legend`);
+  ok(await p.evaluate(() => { const L = race.player.mesh.userData.look, h = CAREER.data.horses.find(x => x.name === 'Midnight Legend'); return L.type === 'grey' && L.face === 'blaze' && L.socks[0] === 3 && race.player.def.silkPat === 'chevrons' && race.player.def.silk === h.silk && horseKey(race.player.def) === horseKey(CAREER._test.toDef(h)); }), 'the race horse is the stable horse: same coat, blaze, stocking, silks (same appearance key)');
+  ok(await p.evaluate(() => race.trk.id === 'randwick' && race.route.inChute(0) && VENUES.info().current === 'venue-randwick'), 'the Maiden Plate (Randwick) is run on the Royal Randwick course, from the 1200 m chute');
   await p.waitForFunction(() => race.state === 'running', null, { timeout: 20000 }); await sleep(1500);
   await p.keyboard.press('p'); await sleep(200);
   ok(await p.evaluate(() => !race.player.kickUsed && !race.events.some(e => /kick/.test(e.type)) && !race.horses.some(h => h.fallen && /kicked/.test(h.cause || ''))), 'pressing P does nothing in a championship race');
@@ -179,6 +260,20 @@ const SPEECH_STUB = () => {
   ok(c1 > c0, 'pausing cancels speech');
   ok(await p.evaluate(n => window.__spoken.length === n, n0), 'no speech continues after quitting to the menu');
   await p.evaluate(() => clearInterval(window.__iv));
+
+  console.log('\n— restart and replay keep the commentary clean');
+  await p.evaluate(() => { window.__spoken.length = 0; show('menu'); settings.chaos = false; settings.track = 'randwick'; settings.dist = 1200; });
+  await p.click('#btnQuick'); await p.click('#setupGo');
+  await p.waitForFunction(() => race && race.state === 'running' && race.clock > 4, null, { timeout: 30000 });
+  const sp1 = await p.evaluate(() => window.__spoken.length);
+  await p.evaluate(() => { show('pause'); startRace(Object.assign({}, lastRaceCfg)); });
+  ok(await p.evaluate(() => race.clock === 0 && race.state === 'load'), 'restart begins a fresh race');
+  await p.waitForFunction(() => window.__spoken.length > 0 && /runners/.test(window.__spoken[window.__spoken.length - 1].text), null, { timeout: 8000 }).catch(() => {});
+  ok(await p.evaluate(n => /runners/.test(window.__spoken[window.__spoken.length - 1].text) && /Royal Randwick/.test(window.__spoken[window.__spoken.length - 1].text), sp1), 'after a restart the caller starts over with a fresh intro at Royal Randwick');
+  await p.evaluate(() => { let n = 0; while (race.state !== 'done' && n++ < 120 * 300) race.step(SIM_DT); }); await sleep(4500);
+  const nR = await p.evaluate(() => { if (ui.state !== 'replay' && race && race.rec.n) startReplay('finish', false); return window.__spoken.length; }); await sleep(2500);
+  ok(await p.evaluate(n => ui.state === 'replay' && window.__spoken.length === n, nR), 'no live commentary is spoken during the replay');
+  await p.evaluate(() => { if (ui.state === 'replay') endReplay(); quitToMenu(); settings.track = 'generic'; });
 
   console.log('\n— settings & Chaos still available in Quick Race');
   await p.click('#btnSettings'); await sleep(300);

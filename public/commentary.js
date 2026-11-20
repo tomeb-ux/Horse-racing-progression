@@ -62,8 +62,11 @@ const COMM = (() => {
     // ----- state -----
     snapshot() {
       const r = this.race, H = r.horses;
-      const fin = H.filter(h => h.finished && !h.dnf).sort((a, b) => (a.finishTime || 0) - (b.finishTime || 0));
-      const run = H.filter(h => !h.finished && !h.dnf && !h.fallen).sort((a, b) => b.progress - a.progress);
+      // a horse counts as finished only once its official time is known (online, the time arrives with the server's
+      // finish event — a snapshot's "finished" flag alone must never decide who won)
+      const timed = h => h.finished && !h.dnf && typeof h.finishTime === "number" && h.finishTime > 0;
+      const fin = H.filter(timed).sort((a, b) => a.finishTime - b.finishTime);
+      const run = H.filter(h => !timed(h) && !h.dnf && !h.fallen).sort((a, b) => b.progress - a.progress);
       const ord = fin.concat(run);
       const L = ord[0], L2 = ord[1], L3 = ord[2];
       const rem = L ? r.dist - L.progress : r.dist;
@@ -413,7 +416,13 @@ const COMM = (() => {
     speak(text, prm, onEnd) {
       showCaption(text, prm.level);
       duck(true, prm.level);
-      const finish = () => { if (this.timer) { clearTimeout(this.timer); this.timer = null; } if (this.cur === u) { this.cur = null; duck(false); } onEnd && onEnd(); onEnd = null; };
+      const t0 = performance.now();
+      const finish = () => {
+        // an utterance that "ends" almost at once failed to speak (no voices, engine busy): keep the call's natural pace
+        // so the captions and the scheduler don't race through lines
+        const early = (performance.now() - t0) < est * 350;
+        if (early && !finish.deferred) { finish.deferred = true; if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(finish, est * 1000 - (performance.now() - t0)); return; }
+        if (this.timer) { clearTimeout(this.timer); this.timer = null; } if (this.cur === u) { this.cur = null; duck(false); } onEnd && onEnd(); onEnd = null; };
       const est = 0.8 + text.split(/\s+/).length / (2.7 * prm.rate);
       let u = null;
       if (!synth || !SET.on || SET.vol <= 0) { this.timer = setTimeout(finish, est * 1000); return; }   // captions only
