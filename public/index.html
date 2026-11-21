@@ -3843,7 +3843,7 @@ function startRace(cfg) {
   camMode = settings.cam; cam.shotIdx = -1; BC.shot = null; cam.bfov = 0; $("camLabel").textContent = CAM_NAMES[camMode];
   cfg.hooks = raceHooks; cfg.going = cfg.going || settings.going;
   clearToasts(); lastRank = 0; lbPrev = {}; lbChg = {}; sit.wasBoxed = false; sit.tiring = false; sit.clearT = 0; sit.phase = ""; sit.gl0 = 0; sit.glT = 0; sit.balLv = 0; sit.balCd = 0; for (const k in sit.cd) sit.cd[k] = 0; RP.on = false; $("replayUI").hidden = true;
-  race = new Race(cfg);
+  race = new Race(cfg); gateGroup.visible = true;
   riderInput.effort = race.player.effort;
   buildGates(race.route, race.gateCount);
   buildMarkers(race.route, race.dist);
@@ -4141,6 +4141,7 @@ function frame(now) {
     if (MPC()) { MPC().update(dt); ts = 1; simAcc = 0; }                  // online: the server runs the race; we show it
     else while (simAcc >= SIM_DT && n++ < 24) { race.step(SIM_DT); simAcc -= SIM_DT; }
     if (race.state === "running") updateGateDoors(dt);
+    gateGroup.visible = !(race.state !== "count" && race.state !== "load" && race.leaderProgress > 260);   // the barrier unit is towed away once the field has cleared it
     updateHorseMeshes(dt * ts);
     updateHUD(dt); if (MPC()) MPC().afterHUD();
     if (typeof COMM !== "undefined") COMM.update(race);

@@ -30,7 +30,7 @@ const SPEECH_STUB = () => {
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 1100, height: 700 } });
   if (fs.existsSync(__dirname + '/../public/vendor/three.min.js')) await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
-  await ctx.addInitScript(() => { window.__noPresent = true; localStorage.setItem('ff_crowd', '"off"');   // parade/celebration have their own test (tests/presentation-browser.js) localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); });
+  await ctx.addInitScript(() => { window.__noPresent = true; localStorage.setItem('ff_crowd', '"off"'); /* parade/celebration: tests/presentation-browser.js */ localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); });
   await ctx.addInitScript(SPEECH_STUB);
   // an existing v1 career save (the format before this update): two horses, a trophy and race history
   const V1 = { v: 1, stable: 'Old Timers Stable', active: 1, wins: 7, created: 1700000000000,
