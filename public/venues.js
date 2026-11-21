@@ -365,7 +365,7 @@ const VENUES = (() => {
       spots.push(...standSpotsToWorld(R, R.userData.spots)); G.add(R); G.userData.parade = R; }
     // ---- roses: the outside fence of the straight lined with rose bushes, more around the lawns
     { const roses = [], cols = [0xc8102e, 0xe63950, 0xf28bb0, 0xfff1e6, 0xf6c445, 0xd94f8a];
-      for (let s = lap - 470; s < lap + 140; s += 1.15) { const p = pt(s, W + 2.6, {}); roses.push({ x: p.x, z: p.z, s: 0.8 + rng() * 0.25, rot: Math.atan2(-p.hz, p.hx), flower: cols[(s / 9 | 0) % cols.length] }); }
+      for (let s = lap - 470; s < lap + 140; s += 1.4) { const p = pt(s, W + 2.6, {}); roses.push({ x: p.x, z: p.z, s: 0.8 + rng() * 0.25, rot: Math.atan2(-p.hz, p.hx), flower: cols[(s / 9 | 0) % cols.length] }); }
       for (let i = 0; i < 260; i++) { const s = lap - 200 + rng() * 400, p = pt(s, W + 14 + rng() * 2.5 + (rng() < 0.5 ? 0 : 90), {}); roses.push({ x: p.x, z: p.z, s: 0.7 + rng() * 0.3, flower: cols[(rng() * cols.length) | 0] }); }
       GFX.shrubs(G, roses, 0x34552a, cols); }
     // ---- the Straight Six landmarks and course boards

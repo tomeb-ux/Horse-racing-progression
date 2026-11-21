@@ -190,8 +190,8 @@ const GFX = (() => {
 
   /* ---------- trees ---------- */
   const TREE = {};
-  function blob(r, sx, sy, sz, seed, leaf, dark) {
-    const g = new THREE.SphereGeometry(r, 9, 7), P = g.attributes.position;
+  function blob(r, sx, sy, sz, seed, leaf, dark, lo) {
+    const g = new THREE.SphereGeometry(r, lo ? 6 : 8, lo ? 4 : 6), P = g.attributes.position;
     for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i), n = fbm(x * 0.9 + seed, y * 0.9 + z * 0.7, 1e6, seed | 0, 2); const k = 0.72 + 0.6 * n; P.setXYZ(i, x * k * sx, y * k * sy, z * k * sz); }
     g.computeVertexNormals();
     return paint(g, (C, x, y, z, nx, ny) => { const t = clamp(0.5 + ny * 0.5, 0, 1); C.copy(dark).lerp(leaf, 0.35 + 0.65 * t); const s = hash(Math.round(x * 7), Math.round(y * 7 + z * 13), seed | 0); C.multiplyScalar(0.86 + 0.28 * s); });
@@ -261,11 +261,12 @@ const GFX = (() => {
 
   /* ---------- hedges, flower beds, roses ---------- */
   function shrubs(group, list, leafHex, flowerHexes) {
+    if (q().trees < 1) list = list.filter((t, i) => hash(i, 3, 9) < q().trees + 0.15);
     // list: [{x, z, s, rot}] — a low clipped shrub with (optional) flowers sprinkled over its top
     const leaf = lin(leafHex || 0x3d5e2c), dark = lin(0x1a2a12), rr = rand(list.length + 11);
-    const g = blob(0.6, 1.6, 0.75, 0.9, 4.4, leaf, dark); g.translate(0, 0.45, 0);
+    const g = blob(0.6, 1.6, 0.75, 0.9, 4.4, leaf, dark, true); g.translate(0, 0.45, 0);
     const geos = [g];
-    if (flowerHexes) for (let k = 0; k < 26; k++) { const f = new THREE.IcosahedronGeometry(0.075, 0); const a = rr() * 6.28, d = rr() * 0.75; f.translate(Math.cos(a) * d * 1.5, 0.75 + rr() * 0.22, Math.sin(a) * d * 0.8); paint(f, C => C.setRGB(1, 1, 1)); f.setAttribute("bloom", new THREE.Float32BufferAttribute(new Array(f.attributes.position.count).fill(1), 1)); geos.push(f); }
+    if (flowerHexes) for (let k = 0; k < 12; k++) { const f = new THREE.IcosahedronGeometry(0.085, 0); const a = rr() * 6.28, d = rr() * 0.75; f.translate(Math.cos(a) * d * 1.5, 0.75 + rr() * 0.22, Math.sin(a) * d * 0.8); paint(f, C => C.setRGB(1, 1, 1)); f.setAttribute("bloom", new THREE.Float32BufferAttribute(new Array(f.attributes.position.count).fill(1), 1)); geos.push(f); }
     geos.forEach(x => { if (!x.attributes.bloom) x.setAttribute("bloom", new THREE.Float32BufferAttribute(new Array(x.attributes.position.count).fill(0), 1)); });
     const pos = [], nor = [], col = [], bl = [], idx = []; let base = 0;
     for (const x of geos) { const P = x.attributes.position, N = x.attributes.normal, C = x.attributes.color, B = x.attributes.bloom;
@@ -310,7 +311,21 @@ const GFX = (() => {
   // One instanced mesh. Each vertex carries a body-part id; each instance carries clothing/skin/hair/hat colours and a
   // behaviour vector. The vertex shader poses everyone: seated or standing, head (and a little of the body) turned
   // towards the race, arms raised / clapping / pumping when excited, small jumps at the climax.
-  let CROWD_GEO = null;
+  let CROWD_GEO = null, CROWD_LO = null;
+  // far-away spectators: the same parts as boxes (~60 triangles) — same colours, same animation
+  function personGeoLo() {
+    if (CROWD_LO) return CROWD_LO;
+    const parts = [], add = (g, part) => { g = g.toNonIndexed(); g.setAttribute("part", new THREE.Float32BufferAttribute(new Array(g.attributes.position.count).fill(part), 1)); parts.push(g); };
+    const legs = new THREE.BoxGeometry(0.3, 0.86, 0.16); legs.translate(0, 0.43, 0); add(legs, 0);
+    const torso = new THREE.BoxGeometry(0.38, 0.66, 0.24); torso.translate(0, 1.17, 0); add(torso, 1);
+    [[-0.22, 2], [0.22, 3]].forEach(([x, pt]) => { const a = new THREE.BoxGeometry(0.09, 0.62, 0.09); a.translate(x, 1.42 - 0.31, 0); add(a, pt); });
+    const head = new THREE.BoxGeometry(0.2, 0.24, 0.21); head.translate(0, 1.64, 0); add(head, 4);
+    let n = 0; parts.forEach(g => n += g.attributes.position.count);
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), part = new Float32Array(n); let o = 0;
+    parts.forEach(g => { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); part.set(g.attributes.part.array, o); o += g.attributes.position.count; g.dispose(); });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.BufferAttribute(nor, 3)); geo.setAttribute("part", new THREE.BufferAttribute(part, 1)); geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+    return CROWD_LO = geo;
+  }
   function personGeo() {
     if (CROWD_GEO) return CROWD_GEO;
     const parts = [];
@@ -334,6 +349,7 @@ const GFX = (() => {
     geo.computeBoundingSphere(); geo.boundingSphere.radius = 2.2;
     return CROWD_GEO = geo;
   }
+  const LODS = [];
   const crowdU = { uTime, uExcite: { value: 0 }, uFocus: { value: new THREE.Vector3() }, uRoar: { value: 0 } };
   function crowdMat() {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -422,11 +438,20 @@ const GFX = (() => {
       geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, cy + 1, cz), r + 3); }
     mesh.castShadow = false; mesh.receiveShadow = true; mesh.frustumCulled = !(opts && opts.always); group.add(mesh);
     const full = n;
-    return { mesh, n, set(frac) { mesh.count = Math.max(0, Math.min(full, Math.round(full * frac))); } };
+    let lo = null;
+    if (!(opts && opts.always) && n > 20) {                         // level of detail: the twin draws the same people as boxes
+      const g2 = personGeoLo().clone(); for (const k in A) g2.setAttribute(k, geo.getAttribute(k)); g2.boundingSphere = geo.boundingSphere.clone();
+      lo = new THREE.InstancedMesh(g2, mesh.material, Math.max(1, n)); lo.instanceMatrix = mesh.instanceMatrix; lo.count = mesh.count; lo.receiveShadow = true; lo.visible = false; group.add(lo);
+      LODS.push({ hi: mesh, lo, c: geo.boundingSphere.center, r: geo.boundingSphere.radius });
+    }
+    return { mesh, n, set(frac) { mesh.count = Math.max(0, Math.min(full, Math.round(full * frac))); if (lo) lo.count = mesh.count; } };
   }
   /* ---------- per-frame ---------- */
   function update(dt, excite, focus, roar) {
     uTime.value += dt;
+    // crowd level of detail by distance from the camera (and by how wide the lens is: a long lens sees far people big)
+    if (LODS.length) { const cp = camera.position, zoom = Math.max(1, 45 / (camera.fov || 45)), far = 150 * zoom;
+      for (let i = LODS.length - 1; i >= 0; i--) { const L = LODS[i]; if (!L.hi.parent) { LODS.splice(i, 1); continue; } const d = cp.distanceTo(L.c) - L.r; const near = d < far; L.hi.visible = near; L.lo.visible = !near; } }
     crowdU.uExcite.value += ((excite || 0) - crowdU.uExcite.value) * Math.min(1, dt * 1.5);
     crowdU.uRoar.value += ((roar || 0) - crowdU.uRoar.value) * Math.min(1, dt * 3);
     if (focus) crowdU.uFocus.value.lerp(focus, Math.min(1, dt * 4));
