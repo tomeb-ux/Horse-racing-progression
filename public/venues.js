@@ -84,7 +84,12 @@ const VENUES = (() => {
       }
       const yb = y0 + (rows - 1) * rise, zb = z0 - rows * tread;
       quad([xa, yb, zb + ba], [xb, yb, zb + bb], [xb, y0 - rise, zb + bb], [xa, y0 - rise, zb + ba], [0, 0, -1]);     // back wall
+      quad([xa, y0 - rise, z0 + ba], [xa, y0 - rise, zb + ba], [xb, y0 - rise, zb + bb], [xb, y0 - rise, z0 + bb], [0, -1, 0]);   // underside (a raised tier is seen from below)
     }
+    // end walls: the stepped profile closed at both ends (no looking into the seating volume from the side)
+    for (const [xe, sg] of [[x0 - len / 2, -1], [x0 + len / 2, 1]]) { const be = bend(xe - x0);
+      for (let r = 0; r < rows; r++) { const y = y0 + r * rise, za = z0 - r * tread + be, zr = z0 - rows * tread + be;
+        if (sg > 0) quad([xe, y0 - rise, za], [xe, y0 - rise, zr], [xe, y, zr], [xe, y, za], [1, 0, 0]); else quad([xe, y0 - rise, zr], [xe, y0 - rise, za], [xe, y, za], [xe, y, zr], [-1, 0, 0]); } }
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
     const m = new THREE.Mesh(g, mat || M().concrete); m.receiveShadow = true; m.castShadow = true; S.add(m);
     // seat rows (a strip of moulded seats per row)
@@ -107,11 +112,37 @@ const VENUES = (() => {
     if (bal) { const b = tbox(S, GFX.glassMat(0xd8e4ea, 9), x0, y + 0.55, zFront - 0.05, len, 1.1, 0.06, 2, false); b.material = b.material.clone(); b.material.transparent = true; b.material.opacity = 0.45; box(S, M().steel, x0, y + 1.12, zFront - 0.05, len, 0.06, 0.08, false); }
   }
   // a thin roof surface given as a grid of heights; f(u, v) → [x, y, z] (local)
+  const DS = new Map();
   function sheet(S, mat, f, nu, nv) {
+    if (mat.side !== THREE.DoubleSide) { if (!DS.has(mat)) { const c = mat.clone(); c.side = THREE.DoubleSide; DS.set(mat, c); } mat = DS.get(mat); }   // thin surfaces are seen from both sides
     const pos = [], idx = []; for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) pos.push(...f(i / nu, j / nv));
     for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + 1, c = a + nu + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
     const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; S.add(m); return m;
+  }
+  /* static batching: once a building is complete its meshes are merged per material (one draw call per material rather
+     than one per box, slab, column and pane). Opaque and transparent surfaces never share a batch (each material is its
+     own batch), animated materials (flags) and instanced/skinned meshes are left alone, and shadow flags are kept. */
+  const NOOP_COMPILE = THREE.Material.prototype.onBeforeCompile;
+  function batchStatic(S) {
+    S.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(S.matrixWorld).invert(), groups = new Map();
+    S.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.userData.noBatch || !o.geometry || !o.geometry.attributes.normal || Array.isArray(o.material)) return;
+      if (o.material.onBeforeCompile !== NOOP_COMPILE) return;
+      const key = o.material.uuid + "|" + (o.geometry.attributes.uv ? 1 : 0) + "|" + (o.castShadow ? 1 : 0) + (o.receiveShadow ? 1 : 0);
+      if (!groups.has(key)) groups.set(key, { mat: o.material, list: [], cast: o.castShadow, recv: o.receiveShadow });
+      groups.get(key).list.push({ o, m: new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld) });
+    });
+    let before = 0, after = 0;
+    for (const g of groups.values()) {
+      before += g.list.length; if (g.list.length < 2) { after++; continue; }
+      const geos = g.list.map(({ o, m }) => { const c = o.geometry.clone(); c.applyMatrix4(m); return c; });
+      const mesh = new THREE.Mesh(GFX.merge(geos), g.mat); mesh.castShadow = g.cast; mesh.receiveShadow = g.recv; mesh.name = S.name + " (batched)";
+      for (const { o } of g.list) o.parent.remove(o);
+      S.add(mesh); after++;
+    }
+    S.userData.batch = { before, after };
   }
   // animated flags (cloth wave in the vertex shader)
   let FLAGMAT = {};
@@ -223,6 +254,7 @@ const VENUES = (() => {
     spots.push(...standSpotsToWorld(S, tiers(S, { len: L, z0: -14, y0: 0.6, rows: 18, seat: 0x1f5a3c, occ: 0.82, curve: 4 })));
     box(S, mm.whiteConc, 0, 0.3, -13.6, L, 0.6, 0.8);
     // level 2: corporate glass level with balcony and warm timber soffit; level 3 above, set back
+    tbox(S, mm.whiteConc, 0, 4.1, -37.6, L - 4, 8.2, 15.8, 4);                                  // concourse block under level 2, behind the bowl
     glassLevel(S, { len: L - 4, y: 8.6, h: 4.0, zFront: -26, zGlass: -30, depth: 14, glass: glassA, soffit: mm.timber });
     glassLevel(S, { len: L - 10, y: 12.9, h: 3.9, zFront: -28.5, zGlass: -32, depth: 12, glass: glassB, soffit: mm.timber });
     // upper tier above the glass levels
@@ -249,7 +281,7 @@ const VENUES = (() => {
     }
     // stair cores at the ends (glass + timber)
     for (const x of [-L / 2 - 6, L / 2 + 6]) { tbox(S, mm.timber, x, 14, -34, 10, 28, 18, 3); tbox(S, glassB, x + Math.sign(x) * -0.2, 14, -24.8, 9, 24, 0.2, 4); }
-    G.add(S);
+    batchStatic(S); G.add(S);
     // ---- Theatre of the Horse: a sunken amphitheatre parade ring behind the stand, tiered decks around it
     const ringF = frameAt(trk, lap - 60, W + 3 + 128), R = place(new THREE.Group(), ringF); R.name = "Theatre of the Horse";
     buildParadeRing(R, { rx: 30, ry: 19, sunk: 2.2, tiers: 9, style: "randwick" });
@@ -262,7 +294,7 @@ const VENUES = (() => {
       tbox(O, GFX.glassMat(0xb6c8d4, 13), 0, 4, 0, 34, 7.6, 16, 4);
       sheet(O, M().whiteConc, (u, v) => [-24 + 48 * u, 9.6 + Math.sin(u * Math.PI) * 0.8, -13 + 26 * v], 8, 4);
       for (const x of [-15, 15]) for (const z of [-8, 8]) cyl(O, M().steelWhite, x, 0, z, 0.2, 0.2, 9.6, 8);
-      G.add(O); }
+      batchStatic(O); G.add(O); }
     // ---- the heritage members' stand further up the straight (brick base, cream, cast-iron columns, pitched roof)
     { const H = place(new THREE.Group(), frameAt(trk, lap - 300, W + 10));
       box(H, M().concrete, 0, 0.05, -4, 96, 0.1, 9, false);
@@ -273,7 +305,7 @@ const VENUES = (() => {
       sheet(H, green, (u, v) => [-45 + 90 * u, 10.2 + 3.8 * (1 - Math.abs(v - 0.65) / 0.65), -24 + 18 * v], 4, 8);
       for (let x = -36; x <= 36; x += 18) { const g = new THREE.Mesh(new THREE.ConeGeometry(2.6, 2.4, 4), green); g.position.set(x, 14.6, -20); g.rotation.y = Math.PI / 4; H.add(g); }
       flag(H, -42, 14, -21, 0x0f3b2a); flag(H, 42, 14, -21, 0xc9a646);
-      G.add(H); }
+      batchStatic(H); G.add(H); }
     // the lawn stand past the post and marquees on the lawns
     { const O = place(new THREE.Group(), frameAt(trk, 55, W + 8));
       spots.push(...standSpotsToWorld(O, tiers(O, { len: 64, z0: -6, y0: 0.6, rows: 8, seat: 0x1f5a3c, occ: 0.6 })));
@@ -319,24 +351,47 @@ const VENUES = (() => {
     const W = trk.W, lap = trk.lap, pt = trk.point, rng = GFX.rand(2312);
     const C = course(G, trk, { turfTint: 0xa2bc98, infieldTint: 0xafc298, groundTint: 0xb2b68a, chuteGapBefore: 40 });
     const spots = [], mm = M();
-    // ---- the Club Stand (nearest the post): five levels whose floor edges are wrapped in white "petal" bands
+    // ---- the Club Stand (nearest the post): five glazed levels whose floor edges are wrapped in white "petal" bands,
+    //      standing on a solid two-storey podium (concourse, bars, lifts) behind the lower seating bowl, with stair/lift
+    //      cores at both ends and a line of columns carrying the floors down to the podium.
+    //      (Before this was repaired the levels floated: nothing filled the space under the first floor behind the
+    //      seating, the slabs were one-sided sheets — invisible from below — and a 0.5 m slit between every floor's glass
+    //      and the next slab looked straight through the building at the trees.)
     { const S = place(new THREE.Group(), frameAt(trk, lap - 40, W + 3)); S.name = "Club Stand";
-      const L = 150, glassC = GFX.glassMat(0xa8bccb, 21);
+      const L = 150, glassC = GFX.glassMat(0xa8bccb, 21), slab = mm.whiteConcDS, FL = 4.6, Y0 = 7.2, NL = 5;
+      const zBack = -34;                                                  // the rear face of the building
       box(S, mm.concrete, 0, 0.05, -6, L + 60, 0.1, 12, false);
       spots.push(...standSpotsToWorld(S, (() => { const a = []; for (let i = 0; i < 900; i++) a.push({ x: (rng() - 0.5) * (L + 50), y: 0.1, z: -1.2 - Math.pow(rng(), 1.4) * 10, seated: false, keen: rng() }); return a; })()));
       spots.push(...standSpotsToWorld(S, tiers(S, { len: L - 10, z0: -13, y0: 0.6, rows: 10, seat: 0x7a1f2b, occ: 0.8 })));
-      // floors: a wavy (petal-scalloped) white precast band at each slab edge, glass recessed behind
-      for (let lv = 0; lv < 5; lv++) {
-        const y = 7.2 + lv * 4.6, zf = -18 - lv * 0.6;
-        sheet(S, mm.whiteConc, (u, v) => { const x = -L / 2 + L * u, sc = Math.abs(Math.sin(u * Math.PI * 14)) * 1.4; return [x, y - 0.9 + 1.4 * v, zf + sc + 0.4 * (1 - v)]; }, 140, 2);
-        sheet(S, mm.whiteConc, (u, v) => { const x = -L / 2 + L * u, sc = Math.abs(Math.sin(u * Math.PI * 14)) * 1.4; return [x, y - 0.9, zf + sc - 14 * v]; }, 140, 1);
-        tbox(S, glassC, 0, y + 1.6, zf - 2.5, L - 4, 3.2, 0.18, 10);
-        box(S, mm.whiteConc, 0, y + 1.6, zf - 9, L - 6, 3.2, 12, false);
+      // podium: from the ground to the first floor, filling the whole footprint behind the seating bowl
+      const tierTop = 0.6 + 9 * 0.42, zPod = -13 - 10 * 0.85 - 0.1, podTop = Y0 - 0.9;
+      tbox(S, mm.whiteConc, 0, podTop / 2, (zPod + zBack) / 2, L - 2, podTop, zPod - zBack, 4);
+      // the concourse above the back row: a glazed shopfront between the top of the seating and the first-floor slab
+      tbox(S, glassC, 0, (tierTop + podTop) / 2 + 0.1, zPod + 0.12, L - 12, podTop - tierTop - 0.2, 0.12, 10, false);
+      tbox(S, mm.timber, 0, podTop - 0.06, zPod + 1.2, L - 10, 0.12, 2.6, 2, false);                         // timber soffit over the concourse
+      // stair and lift cores at both ends, full height (they close the building's ends and carry the roof)
+      const roofY = Y0 + NL * FL - 0.9;
+      for (const sx of [-1, 1]) { tbox(S, mm.whiteConc, sx * (L / 2 - 3.5), roofY / 2, (-18.5 + zBack) / 2, 7, roofY, -18.5 - zBack, 4); excludeLocal(S, sx * (L / 2 - 3.5) - 3.6, sx * (L / 2 - 3.5) + 3.6, zBack, -18.4); }
+      for (let lv = 0; lv < NL; lv++) {
+        const y = Y0 + lv * FL, zf = -18 - lv * 0.6;
+        // the petal band and the floor slab (double-sided: the underside of each cantilever is seen from the lawn)
+        sheet(S, slab, (u, v) => { const x = -L / 2 + L * u, sc = Math.abs(Math.sin(u * Math.PI * 14)) * 1.4; return [x, y - 0.9 + 1.4 * v, zf + sc + 0.4 * (1 - v)]; }, 140, 2);
+        sheet(S, slab, (u, v) => { const x = -L / 2 + L * u, sc = Math.abs(Math.sin(u * Math.PI * 14)) * 1.4; return [x, y - 0.9, zf + sc - 14 * v]; }, 140, 1);
+        tbox(S, slab, 0, y - 0.9 - 0.25, (zf - 2.6 + zBack) / 2, L - 7, 0.5, zf - 2.6 - zBack, 4, false);   // structural slab back to the rear wall
+        // the glazed wall: full storey height (no slit under the next floor), with an opaque spandrel at the top
+        tbox(S, glassC, 0, y + 1.6, zf - 2.5, L - 7, 3.2, 0.18, 10);
+        tbox(S, mm.dark, 0, y + 3.2 + 0.25, zf - 2.45, L - 7, 0.5, 0.2, 4, false);
+        // the floor behind the glass: lit interior volume from slab to slab
+        box(S, mm.whiteConc, 0, y + 1.4, (zf - 3 + zBack) / 2, L - 8, FL, zf - 3 - zBack, false);
       }
+      // columns: a line along the back of the seating carrying each floor down to the podium (one merged mesh)
+      { const cols = []; for (let x = -L / 2 + 12.5; x < L / 2 - 8; x += 12.5) { const c = new THREE.CylinderGeometry(0.42, 0.48, roofY - tierTop, 10); c.translate(x, tierTop + (roofY - tierTop) / 2, zPod + 1.7); cols.push(c); }
+        const m = new THREE.Mesh(GFX.merge(cols), mm.whiteConc); m.castShadow = true; m.receiveShadow = true; S.add(m); }
       // rooftop garden: canopies, planters and small trees
-      const ry = 7.2 + 5 * 4.6 - 0.9; box(S, mm.concrete, 0, ry, -26, L - 6, 0.3, 16);
+      const ry = roofY; box(S, mm.concrete, 0, ry, -26, L - 6, 0.3, 16);
       for (let x = -L / 2 + 14; x < L / 2 - 10; x += 22) { sheet(S, mm.membrane, (u, v) => { const a = u * Math.PI * 2, r = 5 * v; return [x + Math.cos(a) * r, ry + 4.2 - 0.9 * v * v, -24 + Math.sin(a) * r * 0.7]; }, 16, 3); cyl(S, mm.steelWhite, x, ry, -24, 0.12, 0.12, 4.2, 8); }
-      G.add(S);
+      excludeLocal(S, -L / 2, L / 2, zBack, zPod);                          // nobody stands inside the building
+      batchStatic(S); G.add(S);
       G.userData.clubStand = S; }
     // ---- the Grandstand and the Hill Stand: big curved metal roofs on arched trusses
     for (const [s, Lg, name, rows] of [[lap - 205, 175, "Grandstand", 22], [lap - 380, 120, "Hill Stand", 16]]) {
@@ -354,7 +409,8 @@ const VENUES = (() => {
         cyl(S, mm.steelWhite, x, 0, back - 7, 0.45, 0.3, ry, 10);
       }
       flag(S, -Lg / 2, ry + 4, back - 8, 0xc8102e); flag(S, Lg / 2, ry + 4, back - 8, 0x0b2a4a);
-      G.add(S);
+      excludeLocal(S, -Lg / 2, Lg / 2, back - 12, back);                                  // the concrete block behind the seating
+      batchStatic(S); G.add(S);
     }
     // ---- the hill behind the stands (a terraced lawn), the mounting yard / parade ring next to the Club Stand
     { const f = frameAt(trk, lap - 390, W + 70), Hh = place(new THREE.Group(), f);
@@ -465,9 +521,35 @@ const VENUES = (() => {
       const crn = new THREE.Mesh(new THREE.BoxGeometry(40.5, 34, 34.5), std(0xd4af37, 0.3, 0.9)); crn.position.y = 290 - 17; T.add(crn); G.add(T);
     }
   }
+  /* ---------- where spectators may stand ----------
+     Crowd spots come from the stands (seat rows, terraces), lawns and aprons. Before a crowd is built every spot is
+     checked against (1) the racing surface — the course and every chute, rail to rail plus a metre — and (2) the
+     no-crowd zones the buildings register (building interiors, lift cores). Anything on the track or inside a structure
+     is dropped. (Barrier staff are not part of the crowd: the gate builder places them on the ground beside the unit.) */
+  let EXCL = [];
+  function excludeLocal(S, x0, x1, z0, z1) {
+    S.updateMatrixWorld(true); const c = _v.set((x0 + x1) / 2, 0, (z0 + z1) / 2).applyMatrix4(S.matrixWorld), r = S.rotation.y;
+    EXCL.push({ x: c.x, z: c.z, ux: Math.cos(r), uz: -Math.sin(r), vx: Math.sin(r), vz: Math.cos(r), hx: Math.abs(x1 - x0) / 2, hz: Math.abs(z1 - z0) / 2 });
+  }
+  function surfaceGrid(trk) {
+    const cell = 2, set = new Set(), W = trk.W, mark = p => set.add(Math.floor(p.x / cell) + "," + Math.floor(p.z / cell));
+    for (let s = 0; s < trk.lap; s += 1) for (let off = -1; off <= W + 1; off += 1) mark(trk.point(s, off, Q));
+    for (const c of Object.values(trk.chutes || {})) { const len = c.len || 430; for (let d = 0; d < len; d += 1) for (let off = -1; off <= W + 1; off += 1) mark({ x: c.x - c.hx * d + c.nx * off, z: c.z - c.hz * d + c.nz * off }); }
+    return (x, z) => set.has(Math.floor(x / cell) + "," + Math.floor(z / cell));
+  }
+  function validSpots(spots, trk) {
+    const onTrack = surfaceGrid(trk); let track = 0, bld = 0;
+    const out = spots.filter(sp => {
+      if (onTrack(sp.x, sp.z)) { track++; return false; }
+      for (const e of EXCL) { const dx = sp.x - e.x, dz = sp.z - e.z; if (Math.abs(dx * e.ux + dz * e.uz) < e.hx && Math.abs(dx * e.vx + dz * e.vz) < e.hz) { bld++; return false; } }
+      return true; });
+    VENUES.lastPlacement = { total: spots.length, kept: out.length, onTrack: track, inBuildings: bld };
+    return out;
+  }
   function buildCrowd(G, spots, trk, rng, seed, fancy) {
     const Qf = GFX.q().crowd, setting = settings.crowd === "off" ? 0 : settings.crowd === "light" ? 0.45 : 1;
-    const keepFrac = Qf * setting; if (!keepFrac || !spots.length) return null;
+    const keepFrac = Qf * setting; spots = validSpots(spots, trk); EXCL = []; G.userData.placement = VENUES.lastPlacement;
+    if (!keepFrac || !spots.length) return null;
     // keep the most visible spectators first (apron + lower bowl were added first), drop a uniform share of the rest
     const out = []; spots.forEach((s, i) => { if (i < 600 || GFX.hash(i, seed, 5) < keepFrac) out.push(s); });
     const cr = GFX.crowd(G, out, { seed: 31 + seed, fancy: fancy || 0 });

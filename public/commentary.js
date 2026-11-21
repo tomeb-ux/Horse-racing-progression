@@ -131,7 +131,7 @@ const COMM = (() => {
           : m.name ? [`${m.name} over ${distW(r.dist)} metres here at ${venue}, ${numW(n)} runners, and they're loading up.`, `${numW(n)} runners for ${raceRef(m.name)} at ${venue}, over ${distW(r.dist)} metres.`]
           : [`${numW(n)} runners over ${distW(r.dist)} metres here at ${venue}, and they're going in.`, `Welcome to ${venue}, ${numW(n)} runners over ${distW(r.dist)} metres, and they're loading now.`];
         const text = this.pick("intro", lines);
-        this.push("intro", 5, 4, () => ({ text: cap1(text) }));
+        this.push("intro", 5, 4, () => ({ text: cap1(text), clip: { kind: "intro", race: m.name || "" } }));
       }
       // keep the start clear: nothing is said in the final moments before the gates open (the rider is listening)
       if (r.state === "count" && r.countT <= 0.8) { this.q = []; if (this.cur) this.cancel("gates"); this.nextOK = Infinity; }
@@ -157,7 +157,8 @@ const COMM = (() => {
             const q = this.lastSnap; if (q.L !== L) return null;
             if (this.lastCalledLeader === L) return null;
             const tight = q.gap12 < 0.5 * SIMG.LEN_M;
-            return { text: this.pick("leadlate", tight ? [`${nmShort(L)} gets the nose in front!`, `${nmShort(L)} just edges ahead!`, `and now ${nmShort(L)} has got there!`] : [`${nmShort(L)} hits the front!`, `${nmShort(L)} sweeps to the lead!`, `and ${nmShort(L)} has taken over!`]), claim: L, who: [L] };
+            const clip = { kind: "lead", leader: L, tight };
+            return { clip, text: this.pick("leadlate", tight ? [`${nmShort(L)} gets the nose in front!`, `${nmShort(L)} just edges ahead!`, `and now ${nmShort(L)} has got there!`] : [`${nmShort(L)} hits the front!`, `${nmShort(L)} sweeps to the lead!`, `and ${nmShort(L)} has taken over!`]), claim: L, who: [L] };
           }, { interrupt: true });
         }
       } else this.cand = null;
@@ -175,9 +176,9 @@ const COMM = (() => {
         this.push("fall", 8, 3, () => {
           const F = (this.fallGroup || []).splice(0); if (!F.length) return null;
           F.sort((a, b) => ((b === Pp) - (a === Pp)) || ((b.fallT || 0) - (a.fallT || 0)));
-          if (F.length === 1) return { text: this.pick("fall", F[0] === Pp ? [`Oh no, ${nmFull(F[0])} has gone down!`, `${nmFull(F[0])} has fallen!`] : [`Oh, there's a fall, ${nmFull(F[0])} is down!`, `${nmFull(F[0])} has gone down!`]), who: F };
+          if (F.length === 1) return { clip: { kind: "fall" }, text: this.pick("fall", F[0] === Pp ? [`Oh no, ${nmFull(F[0])} has gone down!`, `${nmFull(F[0])} has fallen!`] : [`Oh, there's a fall, ${nmFull(F[0])} is down!`, `${nmFull(F[0])} has gone down!`]), who: F };
           const names = F.slice(0, 3).map(nmFull);
-          return { text: F.length > 3 ? `There's a big fall, ${names.join(", ")}, and ${numW(F.length - 3)} more are down!` : `There's a fall, ${names.length === 2 ? names.join(" and ") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1]} are down!`, who: F };
+          return { clip: { kind: "fall" }, text: F.length > 3 ? `There's a big fall, ${names.join(", ")}, and ${numW(F.length - 3)} more are down!` : `There's a fall, ${names.length === 2 ? names.join(" and ") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1]} are down!`, who: F };
         }, { interrupt: true });
       }
       if (!this.winCalled && s.fin.length) this.finish(s);
@@ -206,7 +207,7 @@ const COMM = (() => {
       const P = this.player(); if (!P || P.dnf || P.finished || this.mentioned(P, quick ? 6 : 12)) return null;
       const rk = s.ranks.get(P); if (!rk || rk === 1) return null;
       const trap = this.takeNews("trap", n => n.h === P);
-      if (trap) return this.pick("ptrap", P.laneF < 1.6 ? [`${nmShort(P)} is pocketed on the rail`, `there's no room for ${nmShort(P)} along the inside`] : [`${nmShort(P)} is looking for a run`, `${nmShort(P)} is held up behind runners`]);
+      if (trap) { this._trapped = P; return this.pick("ptrap", P.laneF < 1.6 ? [`${nmShort(P)} is pocketed on the rail`, `there's no room for ${nmShort(P)} along the inside`] : [`${nmShort(P)} is looking for a run`, `${nmShort(P)} is held up behind runners`]); }
       const tired = (P.S != null && P.S < 28) || (P.F != null && P.F > 48), easy = (P.S == null || P.S > 50) && (P.F == null || P.F < 25);
       if (quick) return P.v > s.L.v + 0.4 ? `${nmShort(P)} is flying home` : `${nmShort(P)} is ${ordW(rk)}`;
       return tired ? this.pick("ptired", [`${nmShort(P)} is under pressure ${this.posPhrase(rk, s.n)}`, `${nmShort(P)} is being pushed along ${this.posPhrase(rk, s.n)}`])
@@ -215,7 +216,7 @@ const COMM = (() => {
     }
     moverClause(s) {
       const mv = this.takeNews("mover", n => !n.h.dnf && !n.h.finished && s.ranks.get(n.h) > 1); if (!mv) return null;
-      const h = mv.h, tag = this.laneTag(h, s.L);
+      const h = mv.h, tag = this.laneTag(h, s.L); this._mover = h; this._moverWide = h.laneF > s.L.laneF + 1.6 || h.laneF > 4.5;
       return this.pick("mover", [`${nmShort(h)} is improving ${tag || "through the field"}`, `${nmShort(h)} is starting to make ground${tag ? " " + tag : ""}`, `${nmShort(h)} moves up ${tag || "into it"}`]);
     }
     // the classic call through the field, leader to last, in one breath
@@ -239,6 +240,7 @@ const COMM = (() => {
       if (!ms.length) return null;
       const m = ms[ms.length - 1]; ms.forEach(x => this.markers[x].said = true);
       if (this.now - this.markers[m].t > 2.5) return null;          // too late to mention it
+      this._marker = m;
       return { 600: "six hundred to go", 400: "four hundred to go", 300: "three hundred metres out", 200: "two hundred to go", 100: "a hundred to go", 50: "fifty metres" }[m];
     }
     rivalryClause(s) {
@@ -251,19 +253,22 @@ const COMM = (() => {
     }
     nextLine(s) {
       const st = this.stage(s), now = this.now, m = this.meta, D = this.race.dist, P = this.player();
+      // a structured hint of what each line says (leader, movers, markers…), so a voice made of recordings
+      // (ElevenLabs Mode A) can say the same thing with the right recorded phrases and names
+      const same0 = this.lastCalledLeader === s.L; this._mover = null; this._trapped = null; this._marker = null;
       if (st === "early") {
         if (!this.flags.awayCall) {
           this.flags.awayCall = true;
           const slow = this.race.horses.find(h => (h.startCat === "MISSED") && !h.dnf) || this.race.horses.find(h => h.startCat === "SLOW" && !h.dnf);
           const jump = m.major ? this.pick("away", [`And they're away in ${raceRef(m.name)}`, `${m.name} is underway`]) : this.pick("away", [`And they're away`, `They jump`, `And they're off and racing`]);
-          return { text: flow([jump, slow ? `${nmShort(slow)} ${slow.startCat === "MISSED" ? "missed the kick" : "was slow to begin"}` : null]) + "!", who: slow ? [slow] : [], cat: "away", gap: 0.4 };
+          return { text: flow([jump, slow ? `${nmShort(slow)} ${slow.startCat === "MISSED" ? "missed the kick" : "was slow to begin"}` : null]) + "!", who: slow ? [slow] : [], cat: "away", gap: 0.4, clip: { kind: "away" } };
         }
         if (!this.flags.early && s.L.progress > Math.min(150, D * 0.12)) {
           this.flags.early = true;
           const B = s.L2, rel = B && (B.laneF > s.L.laneF + 0.7 ? "on its outside" : B.laneF < s.L.laneF - 0.7 ? "on the inside" : "right behind");
           const sw = this.pick("early", [`${nmFull(s.L)} is quickest to find the front`, `${nmFull(s.L)} goes straight to the lead`, `${nmFull(s.L)} begins best and leads`]);
           this.lastCalledLeader = s.L;
-          return { text: flow([sw, B ? `${nmShort(B)} ${rel}` : null, this.playerClause(s)]) + ".", claim: s.L, who: [s.L, B], cat: "early", gap: 1.0 };
+          return { text: flow([sw, B ? `${nmShort(B)} ${rel}` : null, this.playerClause(s)]) + ".", claim: s.L, who: [s.L, B], cat: "early", gap: 1.0, clip: { kind: "early", leader: s.L } };
         }
         return null;
       }
@@ -271,14 +276,15 @@ const COMM = (() => {
         const last = this.said.order;
         if (!this.flags.order1 || (now - (last || 0) > 26 && D >= 2000 && s.rem > 900)) {
           this.flags.order1 = true; this.said.order = now; this.lastCalledLeader = s.L;
-          return { text: cap1(this.orderCall(s)) + ".", claim: s.L, who: [s.L], cat: "order", gap: 1.6 };
+          return { text: cap1(this.orderCall(s)) + ".", claim: s.L, who: [s.L], cat: "order", gap: 1.6, clip: { kind: "order", leader: s.L, same: same0 } };
         }
         const parts = [this.leaderClause(s), this.moverClause(s), this.playerClause(s)];
         if (parts.filter(Boolean).length < 2 && !this.flags.bunch && s.run.length >= 6 && s.L.progress - s.ord[Math.min(7, s.ord.length - 1)].progress < 11) { this.flags.bunch = true; parts.push("they're well bunched up"); }
         if (parts.filter(Boolean).length < 2 && s.L2) parts.push(`${nmShort(s.L2)} ${this.laneTag(s.L2, s.L) || "second"}`);
         this.lastCalledLeader = s.L;
         if (D >= 1400 && !this.flags.half && s.L.progress >= D / 2) { this.flags.half = true; parts.unshift("past halfway"); }
-        return { text: cap1(flow(parts)) + ".", claim: s.L, who: [s.L, s.L2, P], cat: "mid", gap: this.I < 1.6 ? 2.2 + this.rng() * 1.6 : 1.2 };
+        return { text: cap1(flow(parts)) + ".", claim: s.L, who: [s.L, s.L2, P], cat: "mid", gap: this.I < 1.6 ? 2.2 + this.rng() * 1.6 : 1.2,
+          clip: { kind: "mid", leader: s.L, same: same0, mover: this._mover, moverWide: this._moverWide, trapped: this._trapped, gapL: s.gap12 / SIMG.LEN_M, long: D >= 1600 } };
       }
       if (st === "turn") {
         const first = !this.flags.turn; this.flags.turn = true;
@@ -286,11 +292,12 @@ const COMM = (() => {
         const open = first ? this.pick("turn", [`Coming to the turn${venue && m.major ? " at " + venue : ""}`, `They're approaching the home turn`, `Down to the home turn now`]) : this.markerPhrase(s);
         const parts = [open, this.leaderClause(s), c && c !== s.L ? this.pick("tc", [`${nmShort(c)} is winding up ${this.laneTag(c, s.L) || "behind them"}`, `${nmShort(c)} is starting to make a move`, `here comes ${nmShort(c)} ${this.laneTag(c, s.L) || ""}`.trim()]) : this.moverClause(s), this.playerClause(s, true)];
         this.lastCalledLeader = s.L; if (c) this.mention.set(c, now);
-        return { text: cap1(flow(parts.slice(0, 3).concat(parts[3] && parts.filter(Boolean).length < 4 ? [parts[3]] : []))) + (this.I >= 3 ? "!" : "."), claim: s.L, who: [s.L, c, P], cat: first ? "turn" : "turn2", gap: this.I < 2.6 ? 0.9 : 0.35 };
+        return { text: cap1(flow(parts.slice(0, 3).concat(parts[3] && parts.filter(Boolean).length < 4 ? [parts[3]] : []))) + (this.I >= 3 ? "!" : "."), claim: s.L, who: [s.L, c, P], cat: first ? "turn" : "turn2", gap: this.I < 2.6 ? 0.9 : 0.35,
+          clip: { kind: first ? "turn" : "turn2", leader: s.L, same: same0, closer: c && c !== s.L ? c : null, marker: this._marker } };
       }
       // the straight and the finish: short linked bursts, one straight after another
       const mk = this.markerPhrase(s), gL = s.gap12 / SIMG.LEN_M, A = s.L, B = s.L2;
-      const parts = [];
+      const parts = [], firstStraight = !this.flags.straight; let closerH = null;
       if (!this.flags.straight) {
         this.flags.straight = true;
         if (this.race.route && this.race.route.straightRace) parts.push(m.major ? `Down the Flemington straight in ${raceRef(m.name)}, the business end now` : this.pick("str0s", [`Into the last furlongs of the straight course`, `They're down to the business end of the Straight Six`, `Into the final stages down the straight`]));
@@ -305,13 +312,14 @@ const COMM = (() => {
         parts.push(closing > 0.25 ? this.pick("schase", [`${nmShort(B)} is coming at it`, `${nmShort(B)} charging after it`, `here comes ${nmShort(B)}`]) : closing < -0.25 ? `${nmShort(B)} can't close the gap` : `${nmShort(B)} chasing`);
       }
       if (s.near >= 2 && gL < 1.5) parts.push(`${numW(s.near + 1)} of them across the track`);
-      else { const c = this.closer(s, 6); if (c && c !== A && c !== B && !this.mentioned(c, 4)) parts.push(`${nmShort(c)} ${this.laneTag(c, A) || "finishing strongly"}`); }
+      else { const c = this.closer(s, 6); if (c && c !== A && c !== B && !this.mentioned(c, 4)) { closerH = c; parts.push(`${nmShort(c)} ${this.laneTag(c, A) || "finishing strongly"}`); } }
       const rv = this.rivalryClause(s); if (rv) parts.push(rv);
       if (parts.length < 3 && st !== "final") { const pc = this.playerClause(s, true); if (pc) parts.push(pc); }
       this.lastCalledLeader = A;
       const short = st === "final" ? parts.slice(0, 3) : parts.slice(0, 4);
       const cat = mk === "two hundred to go" ? "m200" : mk === "four hundred to go" ? "m400" : st === "final" ? "final" : "straight";
-      return { text: cap1(flow(short)) + (this.I >= 3.4 ? "!" : "."), claim: A, who: [A, B], cat, gap: this.I >= 4.4 ? 0.04 : this.I >= 3.4 ? 0.15 : 0.45 };
+      return { text: cap1(flow(short)) + (this.I >= 3.4 ? "!" : "."), claim: A, who: [A, B], cat, gap: this.I >= 4.4 ? 0.04 : this.I >= 3.4 ? 0.15 : 0.45,
+        clip: { kind: "straight", first: firstStraight, marker: this._marker, leader: A, same: prevLead === A, gapL: gL, second: B, closing: !!(B && B.v - A.v > 0.25), bunched: s.near >= 2, closer: closerH, final: st === "final" } };
     }
     // the finish: never names a winner before the timing has decided it
     finish(s) {
@@ -323,7 +331,7 @@ const COMM = (() => {
         this.winGap = gapM;
         if (gapM < 0.75) {
           this.photo = true;
-          this.push("photo", 10, 2.5, () => ({ text: this.pick("photo", [`They hit the line together, it's a photo!`, `Locked together on the line, it's a photo finish!`]) }), { interrupt: true });
+          this.push("photo", 10, 2.5, () => ({ text: this.pick("photo", [`They hit the line together, it's a photo!`, `Locked together on the line, it's a photo finish!`]), clip: { kind: "photo", tight: gapM < 0.3 } }), { interrupt: true });
           return;
         }
       }
@@ -339,7 +347,7 @@ const COMM = (() => {
         else if (gL < 1.5) t = this.pick("winc", [`${nm} just holds on${what ? " to win " + what : ""}!`, `${nm} by ${lengthsW(this.winGap)}!`]);
         else t = what ? this.pick("winm", [`And ${nm} wins ${what}!`, `${nm} has won ${what}!`]) : this.pick("win", [`And ${nm} wins!`, `${nm} is the winner!`]);
         if (m.major && (this.photo || gL < 1)) t += ` What a finish to ${what}!`;
-        return { text: t, claim: Wn, who: [Wn], final: true };
+        return { text: t, claim: Wn, who: [Wn], final: true, clip: { kind: "win", winner: Wn, photo: !!this.photo, gapL: gL } };
       }, { interrupt: true });
     }
     // ----- the scheduler -----
@@ -373,7 +381,7 @@ const COMM = (() => {
       if (out.claim && !out.final) this.lastCalledLeader = out.claim;
       if (this.log) this.log({ t: now, text: out.text, cat, I: +I.toFixed(2), rem: s ? +s.rem.toFixed(1) : null, claim: out.claim || null, leaderNow: s ? s.L : null, final: !!out.final });
       const gap = out.gap != null ? out.gap : gapAfter(this.I);
-      this.sp.speak(out.text, voiceParams(I), () => { if (this.cur === cur) { this.cur = null; this.nextOK = this.now + gap; if (cur.final) this.finalPending = false; } });
+      this.sp.speak(out.text, voiceParams(I), () => { if (this.cur === cur) { this.cur = null; this.nextOK = this.now + gap; if (cur.final) this.finalPending = false; } }, { clip: out.clip || null, cat, I });
       if (out.final) this.done = this.winCalled;
     }
     cancel() { const c = this.cur; this.cur = null; this.sp.cancel(); if (c && c.final) this.finalPending = false; }
@@ -454,7 +462,22 @@ const COMM = (() => {
   // the enhanced (neural) voice when it is installed and ready; otherwise the browser's own voices
   function neural() { return typeof VOICE !== "undefined" ? VOICE.speaker() : null; }
   let warned = false;
+  // ElevenLabs (recorded / enhanced): the player's chosen voice, built from recordings + the live engine's line plan
+  function elevenSpeaker() {
+    return { speak: (text, prm, onEnd, info) => { showCaption(text, prm.level); duck(true, prm.level); ELEVEN.speak(text, prm, () => { duck(false); onEnd && onEnd(); }, info); },
+      cancel: () => { ELEVEN.cancel(); duck(false); hideCaption(); } };
+  }
+  const elevenOn = () => typeof ELEVEN !== "undefined" && ELEVEN.active();      // (still loading → caption-only until ready, never a silent fallback)
+  // a name the recordings don't have, said by the local system voice (no caption: the line's caption is already up)
+  let localU = null;
+  function sayLocal(text, level, done) {
+    if (!synth) { setTimeout(done, 300); return; }
+    let fired = false; const fin = () => { if (fired) return; fired = true; clearTimeout(tm); done && done(); };
+    const tm = setTimeout(fin, 2500);
+    try { const u = new SpeechSynthesisUtterance(text); const v = chooseVoice(); if (v) { u.voice = v; u.lang = v.lang; } u.rate = 1.08; u.pitch = 1.04; u.volume = clampN(SET.vol, 0, 1); u.onend = fin; u.onerror = fin; localU = u; synth.speak(u); } catch (e) { fin(); }
+  }
   function activeSpeaker() {
+    if (elevenOn() && SET.on && SET.vol > 0) return elevenSpeaker();
     const nv = neural();
     if (!nv && typeof VOICE !== "undefined" && SET.on && !warned) { const why = VOICE.liveIssue && VOICE.liveIssue(); if (why && why !== "still measuring") { warned = true; try { toast("Enhanced voice " + why + " — using the standard voice (Settings → Voice test)", "info", 3.5); } catch (e) {} } }
     if (!nv || !SET.on || SET.vol <= 0) return browserSpeaker;
@@ -475,7 +498,11 @@ const COMM = (() => {
     currentVoice() { const v = chooseVoice(); return v ? v.name + " (" + v.lang + ")" : (synth ? "System default" : "Not available in this browser"); },
     // must run inside a user gesture once: some browsers only allow speech after the player has interacted
     prime() { if (primed || !synth) return; primed = true; try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch (e) {} },
-    begin(race, cfg) { this.silence(); if (!race) return; booth = new Booth(race, metaFor(cfg), activeSpeaker(), { log: inBrowser && window.__commLog ? (e => window.__commLog.push(Object.assign({}, e, { claim: e.claim ? e.claim.def.name : null, leaderNow: e.leaderNow ? e.leaderNow.def.name : null }))) : null }); },
+    begin(race, cfg) { this.silence(); if (!race) return;
+      if (typeof ELEVEN !== "undefined" && ELEVEN.active()) ELEVEN.prepare(race).catch(() => {});      // decode + fetch names now, not mid-race
+      // the speaker is chosen per line (the recordings may finish loading, or the mode change, after the race starts)
+      let curSp = null; const dyn = { speak: (t, prm, end, info) => { curSp = activeSpeaker(); curSp.speak(t, prm, end, info); }, cancel: () => { if (curSp) curSp.cancel(); } };
+      booth = new Booth(race, metaFor(cfg), dyn, { log: inBrowser && window.__commLog ? (e => window.__commLog.push(Object.assign({}, e, { claim: e.claim ? e.claim.def.name : null, leaderNow: e.leaderNow ? e.leaderNow.def.name : null }))) : null }); },
     update(race) {
       if (!booth || booth.race !== race) return;
       if (!SET.on && !SET.captions) return;
@@ -483,7 +510,9 @@ const COMM = (() => {
     },
     // how long the results screen should wait so the winner call isn't cut off (ms)
     holdMs() { return booth && (booth.finalPending || (booth.firstFinT && !booth.winCalled)) ? 2600 : 0; },
-    silence() { if (booth) booth.stop(); booth = null; browserSpeaker.cancel(); const nv = neural(); if (nv) nv.cancel(); hideCaption(); },
+    silence() { if (booth) booth.stop(); booth = null; browserSpeaker.cancel(); const nv = neural(); if (nv) nv.cancel(); if (typeof ELEVEN !== "undefined") ELEVEN.cancel(); hideCaption(); },
+    sayLocal, cancelLocal() { try { if (localU && synth) synth.cancel(); } catch (e) {} localU = null; },
+    get engineName() { return elevenOn() && SET.on ? (ELEVEN.settings.mode === "eleven_plus" ? "ElevenLabs enhanced" : "ElevenLabs recorded") : neural() ? "Local neural voice" : SET.on ? "Local system voice" : "Off"; },
     test() { this.sample("Into the straight, and here they come! It's going to be close!", 4.2); },
     // speak one line with whatever engine is active (the voice test screen); returns timing info for neural engines
     async sample(text, level) { this.prime(); browserSpeaker.cancel(); const nv = neural(); if (nv) nv.cancel();

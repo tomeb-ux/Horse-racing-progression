@@ -1,7 +1,14 @@
 # Final Furlong
 
 A 3D horse-racing game for the browser (three.js). Single-player runs anywhere, including from one HTML file.
-**Private online races** let 2–6 friends ride against each other, with AI runners filling the rest of the field. They need the small Node
+
+> **Multiplayer is temporarily disabled** while single-player is being polished. All the online code (`public/mp.js`,
+> `server/rooms.js`, `server/race-server.js`, `server/protocol.js`) is kept unchanged; the menu button is hidden and
+> shared `?join=` links are ignored. Developers can switch it back on for a session with `?mp=1` in the page URL, or
+> permanently with `FF_FEATURES.multiplayer = true` in `public/index.html`. The sections below about online races
+> describe that parked code.
+
+**Private online races** (parked) let 2–6 friends ride against each other, with AI runners filling the rest of the field. They need the small Node
 server in this project, because the server runs the race.
 
 ```
@@ -10,6 +17,9 @@ public/            what the browser loads
   sim.js           the race simulation — shared by the browser (single-player) and the server (online races)
   season.js        career core: divisions, calendar, persistent rivals, points, standings, qualification, form guide, XP
   commentary.js    live spoken race call (continuous call composer, scheduler, speech synthesis)
+  eleven.js        ElevenLabs commentary: recorded library playback, clip planner, optional server-generated names
+  assets/audio/commentary/   150 clips in your ElevenLabs voice + manifest.json (category, phrase, file, duration…)
+  gfx.js           graphics kit: AUTO quality, LOD + chunked instancing, sky/IBL, turf, trees, rails, GPU crowd
   venues.js        real racecourse scenery (Royal Randwick) built from the track engine's geometry
   stable3d.js      the 3D racing stable: grooming bay, five boxes, trophy room, orbit camera
   career.js        Career Mode screens (creator, stable, training, rivals, championship) and the bridge to the race engine
@@ -20,6 +30,7 @@ server/
   rooms.js         private rooms: codes, seats, horses, ready/start, reconnect, cleanup
   race-server.js   the authoritative race: fixed-step simulation, inputs, starts, snapshots, results, replay
   protocol.js      codes, tokens, validation of everything a client sends
+  tts.js           optional ElevenLabs endpoint (/api/tts): key from the environment, disk cache, limits
 tests/             simulation tests, headless protocol test, browser end-to-end and spectate tests, latency proxy
 tools/build-single.js   builds dist/final-furlong-single.html (single-player, one file, no server)
 Dockerfile, render.yaml  deployment configs
@@ -59,6 +70,50 @@ original course.
 Royal Randwick and Flemington are built from their real course geometry (see `HANDOFF.md` for the figures and which
 are estimates). Flemington has the Straight Six and the Melbourne Cup route. Settings → Graphics quality (High /
 Medium / Low), Parade ring (Feature races / Every race / Off), Winner presentation (On / Off).
+
+## Graphics: AUTO quality and the performance overlay
+Settings → Graphics quality: **Auto (recommended, default)** · High (fixed) · Medium · Low. AUTO starts from the High
+look and, only if frames are *consistently* slow, steps down in this order: distant crowd detail → distant trees/roses →
+shadow map 2048 → scenery detail → shadow map 1024 → render scale 1.75 → 1.5 → 1.25 → 1.0 (far horses a touch simpler
+only at the last step). It steps back up when there is headroom. Decisions use 1.5 s medians (spikes ignored), need
+two bad windows (one when badly slow) or eight good ones, and wait 3–6 s after each change; a level that failed is not
+retried for 60 s (then 120 s…). The level is remembered. Graphics never touch the simulation.
+Press **F8** in a race for the performance overlay (FPS, frame times and 1% low, JS and simulation ms per frame, draw
+calls, triangles, horse LOD, spectators drawn by detail level, shadow map, render size, preset and AUTO state).
+F9 is still the collider view.
+
+## ElevenLabs commentary (your voice)
+Settings → Race commentary voice:
+* **ElevenLabs · recorded** (default) — 150 clips made with your ElevenLabs voice *mw_e-sports-commentator_The Aussie
+  Companion* (voice ID `OQt0mf8rKBYkweCSQ9d4`): starts, settling, mid-race, home turn, 600/400/200/100 m, photo finishes,
+  winners, lead-ins, and 115 horse names (the Quick Race field + the career rival pool). They ship with the game — no
+  API key, no internet, no credits. The live commentary engine still decides what to say from the race; the clip
+  planner voices each line with recorded phrases + the right names. Lines it can't voice stay as captions; names that
+  aren't recorded (your own horses, generated rival names) are said by the local voice (or captions only — your choice).
+* **ElevenLabs · enhanced** — the same, plus the game server generates the missing names *with your voice* before each
+  race (cached on the server and in the browser, so each name is paid for once). Optional "live lines" (off by default)
+  asks for a few calm mid-race lines in full and drops any that arrive late. Needs the API key on the server (below).
+* **Local voice** — your computer's voices or the optional local neural voices (Kokoro / Piper). **Off** — no speech.
+Use **Commentary test** (six situations + "compare with the local voice"); it shows which backend actually spoke.
+
+### Enabling "ElevenLabs · enhanced" (server-side key — never in the browser)
+1. In ElevenLabs: Profile → API keys → create a key (you can restrict it to Text to Speech).
+2. On Render: your service → Environment → add `ELEVENLABS_API_KEY` = your key (and optionally the others below) →
+   Save (Render redeploys). Locally: `ELEVENLABS_API_KEY=… node server/index.js`. Never commit the key.
+3. Settings → Race commentary voice → ElevenLabs · enhanced shows "Enhanced: connected" when it works.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ELEVENLABS_API_KEY` | *(none)* | required for Enhanced mode; without it the endpoint answers `not-configured` and the game uses the recordings |
+| `ELEVENLABS_VOICE_ID` | `OQt0mf8rKBYkweCSQ9d4` | the voice |
+| `ELEVENLABS_MODEL` | `eleven_v3` | falls back to `eleven_multilingual_v2` automatically if the API refuses the model |
+| `ELEVENLABS_DAILY_CHARS` | `2000` | server-wide daily character cap (about 130 horse names) |
+| `ELEVENLABS_CACHE_MB` | `50` | disk cache size (oldest clips evicted) |
+
+Cost: one credit per character on your plan. The bundled library cost 3,694 credits to make (once). In Enhanced mode a
+new horse name costs ~15–30 credits the first time and nothing afterwards; live lines (if switched on) ~60–120 each, at
+most 8 per race. Limits: 20 requests/minute per player, the daily cap, 120 characters per request, 8 s timeout.
+The recorded library is regenerated/split with `tools/commentary-library.py` (no API calls; the prompts are in it).
 
 ## Enhanced commentary voice (optional)
 Settings → Commentary voice engine: *Standard* (your system's voices), *Enhanced · Kokoro* (most natural; one-time
@@ -144,7 +199,8 @@ Cloud Run supports WebSockets, but cap the instance count at 1 (see “One serve
 | `HOST` | `0.0.0.0` | Interface to bind |
 | `ALLOWED_ORIGINS` | *(empty)* | Extra comma-separated web origins allowed to open a WebSocket, e.g. `https://mygame.example.com`. The page's own host is always allowed. Only needed if the page is served from a different domain than the server. |
 
-There are no secrets or API keys anywhere. The browser code contains nothing private.
+The only secret is the optional `ELEVENLABS_API_KEY` (see "ElevenLabs commentary"), which stays on the server.
+The browser code contains nothing private.
 
 ### One server process
 Rooms live in the server's memory. Run **one instance** (the default on Render/Railway/Fly free tiers). With

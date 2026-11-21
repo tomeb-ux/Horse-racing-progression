@@ -397,6 +397,7 @@ const MP = (() => {
   function open() { show("mp"); renderLobby(); if (!serverURL()) setStatus(ERR["no-server"], true); }
   // a shared link (?join=CODE) opens the join screen with the code filled in; a reload rejoins our room
   setTimeout(() => {
+    if (typeof FF_FEATURES !== "undefined" && !FF_FEATURES.multiplayer) return;   // multiplayer parked: no auto-join / rejoin
     const q = new URLSearchParams(location.search).get("join");
     let ss = null; try { ss = JSON.parse(sessionStorage.getItem(SS_KEY) || "null"); } catch (e) {}
     if (ss && ss.code && ss.token && Date.now() - ss.t < 2 * 3600 * 1000 && serverURL()) { M.code = ss.code; M.token = ss.token; M.inRoom = true; show("mp"); connect(() => send({ type: "rejoin", code: ss.code, token: ss.token })); }

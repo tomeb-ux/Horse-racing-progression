@@ -10,3 +10,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # optional — "ElevenLabs · enhanced" commentary. Render asks for the value; it is never stored in this repository.
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        value: OQt0mf8rKBYkweCSQ9d4

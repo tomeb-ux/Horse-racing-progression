@@ -1,5 +1,26 @@
 # Final Furlong — change log
 
+## Update: steering fix, smoother racing, Flemington grandstand repair, your ElevenLabs commentator
+- **Multiplayer temporarily disabled** (menu button hidden; all online code kept — `?mp=1` re-enables it for testing).
+- **Steering at Royal Randwick**: the horse, rider and HUD were drawn as if every course were left-handed. At a
+  right-handed course D moved the horse outwards (correct — the outside rail is on your left there) while the horse
+  leaned and turned its head towards the rail, horses leaned OUT of bends, and the radar showed the rail on the wrong
+  side. All presentation is now rail-relative on both kinds of course (A = towards the rail, D = wider); the radar
+  mirrors on right-handed courses; a start hint explains it. Simulation unchanged. 70 steering checks.
+- **Flemington Club Stand repaired**: a real podium/concourse under the floors, full-height floors (no see-through
+  slits), double-sided slabs, end cores and a column line; the same see-through causes fixed in every stand (thin roofs,
+  open seating ends and undersides). No spectators on the barrier: staff stand on the ground; crowd spots are checked
+  against the racing surface and building interiors.
+- **Performance**: rail posts, trees, roses and spectators are culled in cells with detail by on-screen size; new
+  simple spectators (≈130/56/24 triangles); three horse/rider detail levels; tighter shadow volume; buildings batched
+  per material; HUD blur off during races; the original course's CPU-animated crowd replaced. **AUTO graphics**
+  (default) with hysteresis and cooldowns; **F8** performance overlay.
+- **ElevenLabs commentary** in your voice (ID OQt0mf8rKBYkweCSQ9d4): 150 recorded clips (starts, stages, markers, photo
+  finishes, winners, lead-ins, 115 horse names) played by a clip planner that follows the live race call; optional
+  server-side "enhanced" mode generates missing names with your voice before the race (key in an environment variable,
+  cached, rate- and budget-limited). Commentary test with six situations, backend shown, comparison with the local
+  voice. Modes: ElevenLabs recorded · ElevenLabs enhanced · Local voice · Off.
+
 ## Update: Flemington, rebuilt racecourses, realistic horses and jockeys, race-day presentation, neural commentary voice
 - **Flemington** (left-handed, 2312 m, 450 m straight, pear shape, sweeping home turn from the 1200 m) with the real
   **Straight Six** (1000–1200 m races run dead straight: no bend loading, no ground lost for width, no "final bend")

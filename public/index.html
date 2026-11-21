@@ -174,6 +174,9 @@ kbd{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);bord
 #prox i.block{background:var(--bad);}
 #prox i.near{background:rgba(232,182,74,0.75);}
 #prox i.fast{background:var(--warn);animation:pulse .7s ease-in-out infinite;}
+#prox.rh .grid{transform:scaleX(-1);}
+#prox.rh .cap{flex-direction:row-reverse;}
+#perfOv{position:fixed;left:8px;top:8px;z-index:60;margin:0;padding:8px 10px;background:rgba(6,10,8,0.82);color:#cfe8d4;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;border-radius:6px;pointer-events:none;white-space:pre;}
 #prox .cap{display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg-dim);margin-top:4px;}
 @media (max-width:640px){#prox{bottom:auto;top:110px;right:10px;}}
 /* replay */
@@ -225,6 +228,10 @@ kbd{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);bord
 @keyframes msgpop{0%{transform:translateX(-50%) scale(1.5);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
 /* contextual toasts */
 #toasts{position:absolute;top:34%;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;}
+/* over the moving 3D view a backdrop blur must be recomputed for every panel on every frame (very costly at Retina
+   resolution): while a race, replay or presentation is on screen the panels use a slightly denser plain background */
+body.live3d .panel, body.live3d .toast, body.live3d #prUI *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+body.live3d .panel{background:rgba(10,16,13,0.84);}
 .toast{font-family:var(--font-d);font-weight:800;font-size:15px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 16px;border-radius:999px;background:rgba(10,16,13,0.72);border:1px solid var(--panel-line);backdrop-filter:blur(6px);animation:toastin .3s ease-out;transition:opacity .4s,transform .4s;}
 .toast.out{opacity:0;transform:translateY(-10px);}
 .toast.good{color:var(--good);border-color:rgba(95,201,126,0.5);} .toast.bad{color:var(--bad);border-color:rgba(226,91,74,0.5);}
@@ -288,7 +295,7 @@ body.touch #touchUI{display:flex;}
       <div class="menu-btns">
         <button class="btn primary" id="btnQuick">Quick Race</button>
         <button class="btn" id="btnCareer">Career Mode</button>
-        <button class="btn" id="btnMP">Multiplayer</button>
+        <button class="btn" id="btnMP" hidden>Multiplayer</button>
         <button class="btn" id="btnSelect">Select Horse</button>
         <button class="btn" id="btnSettings">Settings</button>
         <button class="btn" id="btnHow">How to Play</button>
@@ -357,17 +364,19 @@ body.touch #touchUI{display:flex;}
         <div style="font-size:11px;color:var(--fg-dim);max-width:420px;text-align:center;">Stumbles only: bad riding (sharp steering in a bend, snatching up, forcing gaps, heavy contact) can make a horse stumble. Full incidents: keep riding dangerously after the warnings and a horse can fall — out of the race. Same rules for every runner.</div>
         <div style="font-size:11px;color:var(--fg-dim);max-width:420px;text-align:center;">Optional accessibility setting: your horse uses 15% less energy and tires more slowly. Rival horses are never changed. Off by default.</div>
         <div class="opt-label">Auto replay after each race</div><div class="opt-row" id="optReplay"></div>
-        <div class="opt-label">Race commentary</div><div class="opt-row" id="optComm"></div>
+        <div class="opt-label">Race commentary voice</div><div class="opt-row" id="optComm" style="flex-wrap:wrap;justify-content:center"></div>
+        <div id="optElevenStatus" style="font-size:12px;color:var(--fg-dim);max-width:480px;text-align:center;line-height:1.45"></div>
+        <div class="opt-row" id="optElevenOpts" style="flex-wrap:wrap;justify-content:center"></div>
         <div class="opt-label">Commentary volume</div><div class="opt-row" id="optCommVol"></div>
         <div class="opt-label">Commentary captions</div><div class="opt-row" id="optCommCap"></div>
-        <div class="opt-label">Commentator voice</div>
+        <div class="opt-label">Local voice (Local mode, and names the recordings don't have)</div>
         <div class="opt-row"><select id="optCommVoice" style="max-width:min(420px,90vw);background:rgba(18,26,21,0.9);color:var(--fg);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;font-family:var(--font-b);font-size:13px"></select><button class="chip" id="optCommTest">Test voice</button></div>
-        <div class="opt-label">Commentary voice engine</div><div class="opt-row" id="optVoiceEng"></div>
+        <div class="opt-label">Local voice engine</div><div class="opt-row" id="optVoiceEng"></div>
         <div class="opt-row" id="optVoicePickRow"><select id="optVoicePick" style="max-width:min(420px,90vw);background:rgba(18,26,21,0.9);color:var(--fg);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;font-family:var(--font-b);font-size:13px"></select></div>
         <div id="optVoiceStatus" style="font-size:12px;color:var(--fg-dim);max-width:460px;text-align:center;line-height:1.45"></div>
         <div class="opt-row" id="optVoiceDl"></div>
         <div class="opt-label">Speaking pace</div><div class="opt-row" id="optVoiceRate"></div>
-        <div class="opt-label">Commentary voice test</div><div class="opt-row" id="optVoiceTest" style="flex-wrap:wrap;justify-content:center"></div>
+        <div class="opt-label">Commentary test — hear the voice before you race</div><div class="opt-row" id="optVoiceTest" style="flex-wrap:wrap;justify-content:center"></div>
         <div id="optVoiceInfo" style="font-size:12px;color:var(--fg-dim);max-width:460px;text-align:center;min-height:16px"></div>
         <div style="font-size:11px;color:var(--fg-dim);max-width:440px;text-align:center;" id="optCommNote">Spoken with your browser's built-in voices. An Australian voice is chosen automatically when your system has one (on a Mac: Lee or Karen — Enhanced/Premium versions can be downloaded in System Settings → Accessibility → Spoken Content).</div>
       </div>
@@ -387,12 +396,13 @@ body.touch #touchUI{display:flex;}
           <tr><td><kbd>E</kbd></td><td><b>Settle</b> (hold): the horse relaxes and travels more efficiently, and stops pulling — but it won't quicken until you wake it up, and it gets less from urging and driving. Calm stayers settle quickly; hot sprinters slowly. Only works at a sensible pace.</td></tr>
           <tr><td><kbd>Q</kbd></td><td><b>Check</b> (hold): take a firm hold to slow quickly — to avoid running up a horse's heels, drop in behind one, or wait for a gap. Momentum lost costs energy to regain, and a hot horse resents being checked too much.</td></tr>
           <tr><td><kbd>R</kbd></td><td>Look behind (hold) — you keep full control while looking.</td></tr>
-          <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td><b>Steer</b> (hold) towards the rail / wider; release to hold your line anywhere across the track. You fit between two horses only if the gap is wide enough — pick it early. Fast lateral moves at speed cost a little energy.</td></tr>
+          <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td><b>Steer</b> (hold) towards the rail / wider; release to hold your line anywhere across the track. You fit between two horses only if the gap is wide enough — pick it early. Fast lateral moves at speed cost a little energy. The keys are rail-relative: on a left-handed course (Flemington) the rail is on your left; on a right-handed course (Royal Randwick) it is on your right, so A steers right and D steers left there — the radar shows the rail on the side it really is.</td></tr>
           <tr><td><kbd>Space</kbd></td><td>Before the gates: hold/release to keep the marker in the green; then press the instant the gates open. Mid-race: <b>urge</b> — a short push that costs energy and sours the horse if overused. Final 450 m: tap to the stride rhythm.</td></tr>
           <tr><td><kbd>Shift</kbd></td><td><b>Drive</b>: commit to a hard, energy-hungry riding style for the finish.</td></tr>
           <tr><td><kbd>C</kbd></td><td>Camera: chase / jockey / broadcast</td></tr>
           <tr><td><kbd>Tab</kbd></td><td>Detailed race stats</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
+          <tr><td><kbd>F8</kbd></td><td>Performance overlay: frame rate, frame times, draw calls, detail levels, AUTO graphics state</td></tr>
         </table>
         <p><b>Travelling well.</b> Every horse has a hidden efficiency zone — the lighter band on the effort bar. Inside it the horse cruises; above it stamina drains sharply and <b>fatigue</b> builds. Fatigue never recovers mid-race: it lowers top speed, dulls acceleration and blunts your finish. The zone shrinks as the horse tires. Stayers hold a higher zone than sprinters, which is why a sprinter must be nursed over a long trip.</p>
         <p><b>Sprint reserve</b> is the finishing burst. Hard effort, urging and driving unlock it, but it only improves how well the horse accesses what it has left — an exhausted horse cannot sprint, however hard you ride.</p>
@@ -409,6 +419,7 @@ body.touch #touchUI{display:flex;}
   </div>
 
   <!-- HUD -->
+  <pre id="perfOv" hidden></pre>
   <div id="hud">
     <div id="speedlines"></div>
     <div id="vignette"></div>
@@ -551,6 +562,8 @@ body.touch #touchUI{display:flex;}
    bot jockeys · race controller · balance tests) · renderer & world ·
    horse models & gait · particles · cameras · audio · HUD · menus · loop.
    ===================================================================== */
+/* feature switches: multiplayer is parked for now (see the note by btnMP) */
+const FF_FEATURES = { multiplayer: /[?&]mp=1\b/.test(location.search) };
 /* the simulation core lives in sim.js (shared with the multiplayer server) */
 
 
@@ -564,7 +577,7 @@ const settings = {
   shadows: store.get("shadows", true),
   parade: ["majors", "always", "off"].includes(store.get("parade", "majors")) ? store.get("parade", "majors") : "majors",
   celebrate: store.get("celebrate", true),
-  quality: ["high", "medium", "low"].includes(store.get("quality", "high")) ? store.get("quality", "high") : "high",
+  quality: ["auto", "high", "medium", "low"].includes(store.get("quality", "auto")) ? store.get("quality", "auto") : "auto",
   crowd: store.get("crowd", "full"),
   scenery: store.get("scenery", "high"),
   chaos: store.get("chaos", false),
@@ -850,18 +863,30 @@ cloudTex.wrapS = cloudTex.wrapT = THREE.ClampToEdgeWrapping;
   const reserve = (x0, z0, x1, z1) => reserved.push([Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)]);
   const isFree = (x, z, pad) => { for (const r of reserved) if (x > r[0] - pad && x < r[2] + pad && z > r[1] - pad && z < r[3] + pad) return false; return true; };
   // one draw call for many copies of a part. item: { x, y, z, ry, rx, rz, sx, sy, sz, c, q }
+  // instanced scenery, large sets split into ~320 m cells: each cell gets bounds covering its own instances so the camera (and the
+  // shadow camera) only draw the cells in view — one InstancedMesh for a whole course has bounds at the origin in r128
   function inst(geo, mat, items, opts) {
     if (!items.length) return null;
-    const im = new THREE.InstancedMesh(geo, mat, items.length);
-    items.forEach((e, i) => {
-      D.position.set(e.x, e.y || 0, e.z);
-      if (e.q) D.quaternion.copy(e.q); else D.rotation.set(e.rx || 0, e.ry || 0, e.rz || 0);
-      D.scale.set(e.sx || 1, e.sy || 1, e.sz || 1); D.updateMatrix(); im.setMatrixAt(i, D.matrix);
-      if (e.c != null) im.setColorAt(i, C.setHex(e.c));
-    });
-    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    if (opts && opts.shadow) im.castShadow = true;
-    im.receiveShadow = true; world.add(im); return im;
+    geo.computeBoundingSphere(); const gr = geo.boundingSphere.radius + geo.boundingSphere.center.length();
+    const cs = items.length > 120 ? 320 : 1e9, cells = new Map(); for (const e of items) { const k = Math.floor(e.x / cs) + "," + Math.floor(e.z / cs); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(e); }
+    let first = null;
+    for (const list of cells.values()) {
+      const im = new THREE.InstancedMesh(geo, mat, list.length); let cx = 0, cy = 0, cz = 0, sm = 1;
+      list.forEach((e, i) => {
+        D.position.set(e.x, e.y || 0, e.z);
+        if (e.q) D.quaternion.copy(e.q); else D.rotation.set(e.rx || 0, e.ry || 0, e.rz || 0);
+        D.scale.set(e.sx || 1, e.sy || 1, e.sz || 1); D.updateMatrix(); im.setMatrixAt(i, D.matrix);
+        if (e.c != null) im.setColorAt(i, C.setHex(e.c));
+        cx += e.x; cy += e.y || 0; cz += e.z; sm = Math.max(sm, e.sx || 1, e.sy || 1, e.sz || 1);
+      });
+      cx /= list.length; cy /= list.length; cz /= list.length; let r = 0; for (const e of list) r = Math.max(r, Math.hypot(e.x - cx, (e.y || 0) - cy, e.z - cz));
+      const g2 = new THREE.BufferGeometry(); for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]); if (geo.index) g2.setIndex(geo.index);
+      g2.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, cy, cz), r + gr * sm); im.geometry = g2;
+      im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      if (opts && opts.shadow) im.castShadow = true;
+      im.receiveShadow = true; world.add(im); first = first || im;
+    }
+    return first;
   }
   // a beam between two points (for trusses, cables, braces): unit-height geometry stretched along its length
   function beam(a, b, r) {
@@ -985,21 +1010,9 @@ cloudTex.wrapS = cloudTex.wrapT = THREE.ClampToEdgeWrapping;
   const lawnCount = settings.crowd === "off" ? 0 : Math.round(crowdCount * (SCN === 2 ? 0.42 : SCN === 1 ? 0.25 : 0.12));
   const total = crowdCount + lawnCount;
   if (total) {
-    const body = new THREE.CylinderGeometry(0.17, 0.21, 0.95, 6, 1, true);
-    const head = new THREE.SphereGeometry(0.13, 6, 4); head.translate(0, 0.62, 0);
-    const hat = new THREE.CylinderGeometry(0.1, 0.12, 0.12, 6); hat.translate(0, 0.78, 0);
-    const brim = new THREE.CylinderGeometry(0.2, 0.2, 0.015, 8, 1, true); brim.translate(0, 0.72, 0);
-    const legs = new THREE.CylinderGeometry(0.15, 0.12, 0.85, 5, 1, true); legs.translate(0, -0.9, 0);
-    const mk = g => new THREE.InstancedMesh(g, new THREE.MeshLambertMaterial({ color: 0xffffff }), total);
-    const inst0 = mk(body), headI = mk(head), hatI = mk(hat), brimI = mk(brim), legI = mk(legs);
-    const skins = [0xf1c8a8, 0xd9a582, 0xb07a52, 0x8a5a3a, 0x5e3c28, 0xe8b896], hats = [0xe9dcb0, 0x1d1d1f, 0xf2f2ee, 0x6b4a2e, 0x2c3e5a, 0xd23a5a];
-    const legCols = [0x23262b, 0x3a3f4a, 0xd8d2c4, 0x1d2a3a];
-    const hasHat = new Uint8Array(total), zero = new THREE.Matrix4().makeScale(0, 0, 0);
-    const dummy = crowdAnim.dummy; const col = new THREE.Color();
-    // race-day dress: suits, bright dresses, fascinator colours
-    const palette = [0x23262b, 0x2f3d55, 0xd23a5a, 0x3fae8f, 0xe8c35a, 0xf2f2ee, 0x7c5a8a, 0xc96f3b, 0x5a6b3a, 0x2c6e8a, 0xf2a7b8, 0x9b2f5c, 0x404040, 0x1d3557];
-    const base = new Float32Array(total * 4);
-    const fx = FINISH_D - T.L / 2;
+    // spectators: the same seats and rail/lawn spots as before, drawn by the shared GPU crowd (gfx.js: three detail
+    // levels, culled in cells, animated in the vertex shader) instead of five CPU-animated full-course instanced meshes
+    const spots = [], fx = FINISH_D - T.L / 2;
     for (let i = 0; i < total; i++) {
       let x, y, z, standing = i >= crowdCount;
       if (!standing) {
@@ -1007,29 +1020,16 @@ cloudTex.wrapS = cloudTex.wrapT = THREE.ClampToEdgeWrapping;
         const row = Math.floor(Math.random() * bank.rows);
         x = bank.x0 + Math.random() * (bank.x1 - bank.x0);
         if (bank !== seatBanks[2] && Math.random() < 0.35) x = clamp(fx + (Math.random() - 0.5) * 140, bank.x0, bank.x1);
-        y = bank.y(row) + 0.45; z = bank.z(row);
+        y = bank.y(row); z = bank.z(row);
       } else {
         const rail = Math.random() < 0.6;
         if (rail) { x = Math.random() < 0.55 ? fx + (Math.random() - 0.5) * 110 : -225 + Math.random() * 450; z = 148.7 + Math.random() * 2.6; if (Math.abs(x - fx - 8) < 4) x += 9; }
         else { x = -225 + Math.random() * 450; z = 158.5 + Math.random() * 4.4; }
-        y = 1.2;
+        y = 0;
       }
-      const s = standing ? 0.84 + Math.random() * 0.14 : 0.9 + Math.random() * 0.22;
-      base[i * 4] = x; base[i * 4 + 1] = y; base[i * 4 + 2] = z; base[i * 4 + 3] = s;
-      dummy.position.set(x, y, z); dummy.rotation.set(0, (Math.random() - 0.5) * 0.5, 0); dummy.scale.set(s, s, s);
-      dummy.updateMatrix(); inst0.setMatrixAt(i, dummy.matrix); headI.setMatrixAt(i, dummy.matrix);
-      legI.setMatrixAt(i, standing ? dummy.matrix : zero);
-      hasHat[i] = Math.random() < (standing ? 0.4 : 0.3) ? 1 : 0;
-      const hc = col.setHex(hats[i % hats.length]);
-      if (hasHat[i]) { hatI.setMatrixAt(i, dummy.matrix); brimI.setMatrixAt(i, dummy.matrix); } else { hatI.setMatrixAt(i, zero); brimI.setMatrixAt(i, zero); }
-      hatI.setColorAt(i, hc); brimI.setColorAt(i, hc);
-      headI.setColorAt(i, col.setHex(skins[Math.floor(Math.random() * skins.length)]));
-      legI.setColorAt(i, col.setHex(legCols[i % legCols.length]));
-      inst0.setColorAt(i, col.setHex(palette[(Math.random() * palette.length) | 0]).offsetHSL(0, 0, (Math.random() - 0.5) * 0.12));
+      spots.push({ x, y, z, rot: Math.PI + (Math.random() - 0.5) * 0.5, seated: !standing, keen: Math.random() });
     }
-    [inst0, headI, hatI, brimI, legI].forEach(m => { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; world.add(m); });
-    crowdAnim.inst = inst0; crowdAnim.base = base; crowdAnim.count = total; crowdAnim.extra = [headI]; crowdAnim.hats = [hatI, brimI]; crowdAnim.hasHat = hasHat;
-    crowdAnim.legs = legI; crowdAnim.standFrom = crowdCount;
+    crowdAnim.pending = { spots, parent: world };
   }
   inst(new THREE.BoxGeometry(1, 1, 1), seatMat, seats);
 
@@ -1303,8 +1303,15 @@ function buildGates(route, n) {
     const num = mk(G.num, numMat, xc, H + 0.6, D / 2 + 0.28); num.castShadow = false;
   }
   gateGroup.add(unit);
-  // barrier attendants standing on the walkway and beside the stalls
-  if (typeof GFX !== "undefined") { const sp = []; for (let i = 0; i < Math.min(8, n); i++) { const x = x0 + (i * 1.6 + 0.8) * LANE_W, v = new THREE.Vector3(x, H + 0.35, (i % 2 ? 0.7 : -0.7)).applyMatrix4(unit.updateMatrixWorld() || unit.matrixWorld); sp.push({ x: v.x, y: v.y, z: v.z, rot: unit.rotation.y + (i % 2 ? 0 : Math.PI), keen: 0.2 }); } GFX.crowd(gateGroup, sp, { seed: 5 }); }
+  // barrier staff: on the GROUND behind the stalls (where they load the horses) and at each end of the unit, in uniform —
+  // never on top of the barrier (nobody stands on the walkway during a start)
+  if (typeof GFX !== "undefined") {
+    const sp = [], wm = unit.updateMatrixWorld() || unit.matrixWorld, put = (x, z, face) => { const v = new THREE.Vector3(x, 0, z).applyMatrix4(wm); sp.push({ x: v.x, y: 0, z: v.z, rot: unit.rotation.y + face, keen: 0.15 }); };
+    const k = Math.min(6, Math.max(2, Math.round(n / 3)));
+    for (let i = 0; i < k; i++) put(x0 + (i + 0.5) * width / k + (i % 2 ? 0.4 : -0.4), -D / 2 - 1.3 - (i % 2) * 0.5, 0);
+    for (const sx of [-1, 1]) put(sx * (width / 2 + 1.4), 0.6, -sx * Math.PI / 2);
+    GFX.crowd(gateGroup, sp, { seed: 5, always: true, noHats: true, shirts: [0x1d3a6b, 0x203f75], pants: [0x2a2d33, 0x1f2227] });
+  }
 }
 // gate doors: both halves spring open (≈0.25 s) the moment the race state turns to "running"
 function updateGateDoors(dt) { for (const dp of gateDoors) { const sg = dp.userData.sign || 1; dp.rotation.y = sg * Math.min(1.75, Math.abs(dp.rotation.y) + dt * 7.5); } }
@@ -1486,7 +1493,11 @@ function subRings(rings, sub) {
   }
   out.push(rings[n - 1]); return out;
 }
+// level of detail for the procedural horse and rider: the same lofts with fewer segments around (LOFT_Q) and fewer
+// interpolated rings along — identical shape, colours, markings, skin weights and skeleton, just coarser
+let LOFT_Q = 1;
 function horseLoft(G, rings, radial, weightFn, colorFn, opts) {
+  if (LOFT_Q < 1) { radial = Math.max(4, Math.round(radial * LOFT_Q)); if (opts && opts.sub) opts = Object.assign({}, opts, { sub: LOFT_Q < 0.4 ? 0 : Math.max(2, Math.round(opts.sub * LOFT_Q)) }); }
   if (opts && opts.sub) rings = subRings(rings, opts.sub);
   const n = rings.length, pos = [], col = [], si = [], sw = [], idx = [];
   for (let k = 0; k < n; k++) {
@@ -1535,8 +1546,14 @@ function gLine(x, y, ax, ay, bx, by, r) {
   const qx = ax + dx * t - x, qy = ay + dy * t - y; return Math.exp(-(qx * qx + qy * qy) / (r * r)) * Math.sin(Math.PI * clamp(t * 0.9 + 0.05, 0, 1));
 }
 const horseGeoCache = {};
-function buildHorseGeometry(def) {
-  if (!def._preview && horseGeoCache[horseKey(def)]) return horseGeoCache[horseKey(def)];
+const LOD_Q = [1, 0.5, 0.26];                      // segment scale per detail level (0 near · 1 middle distance · 2 far)
+function buildHorseGeometry(def, lod) {
+  lod = lod || 0; const ck = horseKey(def) + (lod ? "#" + lod : "");
+  if (!def._preview && horseGeoCache[ck]) return horseGeoCache[ck];
+  const q0 = LOFT_Q; LOFT_Q = LOD_Q[lod];
+  try { return buildHorseGeometryQ(def, ck); } finally { LOFT_Q = q0; }
+}
+function buildHorseGeometryQ(def, ck) {
   const L = horseLook(def), Jf = horseJoints(L), G = { pos: [], nor: [], col: [], si: [], sw: [], idx: [], parts: [] };
   const J = {}; for (const n in Jf) J[n] = [HORSE_SHIFTED[n] || n === "neck1" ? (n === "neck1" ? 0.84 : Jf[n][0] - HORSE_NECK_SHIFT) : Jf[n][0] / HORSE_BX, Jf[n][1], Jf[n][2]];
   const part = mode => G.parts.push([G.pos.length / 3, mode]);
@@ -1764,7 +1781,7 @@ function buildHorseGeometry(def) {
   g.computeBoundingSphere(); g.boundingSphere.radius += 0.8;
   g.userData.shared = true;
   const out = { geo: g, look: L, joints: Jf, eyes };
-  if (!def._preview) horseGeoCache[horseKey(def)] = out;
+  if (!def._preview) horseGeoCache[ck] = out;
   return out;
 }
 
@@ -1897,8 +1914,13 @@ function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
   return o;
 }
 const jockeyGeoCache = {};
-function buildJockeyGeometry(def) {
-  if (!def._preview && jockeyGeoCache[horseKey(def)]) return jockeyGeoCache[horseKey(def)];
+function buildJockeyGeometry(def, lod) {
+  lod = lod || 0; const ck = horseKey(def) + (lod ? "#" + lod : "");
+  if (!def._preview && jockeyGeoCache[ck]) return jockeyGeoCache[ck];
+  const q0 = LOFT_Q; LOFT_Q = LOD_Q[lod];
+  try { return buildJockeyGeometryQ(def, ck); } finally { LOFT_Q = q0; }
+}
+function buildJockeyGeometryQ(def, ck) {
   _jkX.curv = 0; _jkX.acc = 0; _jkX.fat = 0;
   const bp = jockeyPoints(jockeyPointSet(), 0, 1, 0, 0, 0, 0, 0, -1);
   const G = { pos: [], nor: [], col: [], si: [], sw: [], idx: [] };
@@ -1919,7 +1941,7 @@ function buildJockeyGeometry(def) {
   const seg = (name, rings, colorOverride, n, radial) => {
     const [ka, kb] = JK_SEG[name], A = bp[ka], Bv = bp[kb], len = A.distanceTo(Bv); dir.subVectors(Bv, A).normalize();
     const me = JKI[name], par = JK_PARENT[name] ? JKI[JK_PARENT[name]] : null;
-    const R = subRings(rings.map(r => { const d = r[0] < 2 ? r[0] * len : r[0] - 10; return { d, c: [A.x + dir.x * d, A.y + dir.y * d + 1.30, A.z + dir.z * d], top: r[1], bot: r[2], wid: r[3], col: r[4], n: n || 2.1 }; }), name === "head" ? 2 : 4);   // fine rings keep the silk patterns crisp
+    const R = subRings(rings.map(r => { const d = r[0] < 2 ? r[0] * len : r[0] - 10; return { d, c: [A.x + dir.x * d, A.y + dir.y * d + 1.30, A.z + dir.z * d], top: r[1], bot: r[2], wid: r[3], col: r[4], n: n || 2.1 }; }), LOFT_Q < 1 ? (LOFT_Q < 0.4 ? 1 : 2) : name === "head" ? 2 : 4);   // fine rings keep the silk patterns crisp
     horseLoft(G, R, radial || 22, (c, k) => { const d = R[k].d; if (par == null || d > 0.06) return [[me, 1]]; const w = clamp(0.5 + d / 0.12, 0.5, 1); return [[me, w], [par, 1 - w]]; },
       (k, sn, cs, x, y, z) => colorOverride ? colorOverride(k, sn, cs, R[k], x, y, z, len) : C[R[k].col]);
   };
@@ -1998,11 +2020,11 @@ function buildJockeyGeometry(def) {
   g.setAttribute("color", new THREE.Float32BufferAttribute(G.col, 3));
   g.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(G.si, 4)); g.setAttribute("skinWeight", new THREE.Float32BufferAttribute(G.sw, 4));
   { const cl = new Float32Array(G.pos.length / 3); (G.clothSpans || []).forEach(([a, b]) => cl.fill(1, a, b)); g.setAttribute("hair", new THREE.BufferAttribute(cl, 1)); }
-  g.setIndex(G.idx); g.computeBoundingSphere(); g.boundingSphere.radius += 0.6; g.userData.shared = true;
+  g.setIndex(G.idx); g.computeBoundingSphere(); g.boundingSphere.radius += 5; g.userData.shared = true;   // generous: an unseated rider lands clear of the horse
   // rest direction of each bone (bind pose), for posing by direction
   const rest = {}; for (const n in JK_SEG) rest[n] = new THREE.Vector3().subVectors(bp[JK_SEG[n][1]], bp[JK_SEG[n][0]]).normalize();
   const out = { geo: g, bind: bp, rest };
-  if (!def._preview) jockeyGeoCache[horseKey(def)] = out;
+  if (!def._preview) jockeyGeoCache[ck] = out;
   return out;
 }
 const horseMatCache = {};
@@ -2036,7 +2058,7 @@ function buildHorse(def, cloth) {
   const jb = JK_BONES.map(n => { const b = new THREE.Bone(); b.name = "jk_" + n; return b; });
   body.add(jb[0]);
   for (const n in JK_SEG) { const bo = jb[JKI[n]]; bo.position.copy(JK.bind[JK_SEG[n][0]]); jb[0].add(bo); }
-  const jmesh = new THREE.SkinnedMesh(JK.geo, JOCKEY_MAT); jmesh.castShadow = true; jmesh.frustumCulled = false;   // an unseated rider can land well clear of the horse
+  const jmesh = new THREE.SkinnedMesh(JK.geo, JOCKEY_MAT); jmesh.castShadow = true; jmesh.frustumCulled = true;    // culled with generous bounds (below)
   g.add(jmesh); g.updateMatrixWorld(true); jmesh.bind(new THREE.Skeleton(jb));
   const P = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; body.add(m); return m; };
   const jk = { mesh: jmesh, bones: jb, rest: JK.rest, pts: jockeyPointSet(),
@@ -2359,10 +2381,14 @@ function plantHooves(g, u, stance) {
 }
 function animateHorse(g, ph, speedN, eAct, fat, ride, curv, dt, h, lat, acc, mom, rest, settle) {
   const u = g.userData, B = u.B;
-  lat = lat || 0; acc = acc || 0; mom = mom || 0; rest = rest || 0; settle = settle || 0; dt = Math.min(dt || 0, 0.05);
+  // the skeleton's +z is the horse's right. Rail-relative inputs (curv: bend towards the inside rail; lat: lanes/s outwards;
+  // fallDir: +1 = outwards) become body-relative through sideS = +1 when the outside is on the horse's right (left-handed
+  // courses) and -1 when it is on the horse's left (right-handed courses such as Royal Randwick).
+  const sS = u.sideS || 1;
+  curv = (curv || 0) * sS; lat = (lat || 0) * sS; acc = acc || 0; mom = mom || 0; rest = rest || 0; settle = settle || 0; dt = Math.min(dt || 0, 0.05);
   u.rest += (rest - u.rest) * Math.min(1, dt * 6); u.settle += (settle - u.settle) * Math.min(1, dt * 3);
   const L = u.look;
-  if (h && h.fallT > 0) { animateFall(g, u, h.fallT, h.fallDir || 1, ph, dt, h); return; }
+  if (h && h.fallT > 0) { animateFall(g, u, h.fallT, (h.fallDir || 1) * sS, ph, dt, h); return; }
   if (u.fallVis) restoreFromFall(u);
   if (speedN < 0.03) {                                         // standing: breathing, looking about, tail swish
     u.idleT += dt || 0.016; const t = u.idleT;
@@ -2456,7 +2482,7 @@ function poseJockey(u, s, ride, phase, pump, f, lat, rest, settle, dt) {
   u.lastPh = phase;
   const o = jockeyPoints(J.pts, u.bob, ride, phase, pump, lat, rest, settle, u.whipK);
   if (u.kickK != null && u.kickK >= 0) {   // chaos-mode kick: the leg on that side lashes out sideways and back in (≈0.45 s)
-    u.kickK += dt / 0.45; const k = Math.sin(Math.PI * Math.min(1, u.kickK)), sd = u.kickSide || 1;
+    u.kickK += dt / 0.45; const k = Math.sin(Math.PI * Math.min(1, u.kickK)), sd = (u.kickSide || 1) * (u.sideS || 1);
     const ft = (o.ftL.z * sd > o.ftR.z * sd) ? o.ftL : o.ftR, kn = ft === o.ftL ? o.kneL : o.kneR;
     ft.z += sd * 0.75 * k; ft.y += 0.25 * k; ft.x += 0.15 * k; kn.z += sd * 0.35 * k; kn.y += 0.08 * k;
     if (u.kickK >= 1) u.kickK = -1;
@@ -2487,7 +2513,7 @@ function spawnHorseMeshes(race) {
   horseMeshes.length = 0;
   race.horses.forEach(h => {
     const m = buildHorse(h.def, h.cloth);
-    world.add(m); horseMeshes.push(m); h.mesh = m;
+    world.add(m); horseMeshes.push(m); h.mesh = m; ensureHorseLODs(h);
     h.rideN = 0; h.curv = 0;
     m.userData.onWhip = () => { if (race.state !== "running") return; if (h.isPlayer) audio.whip(); else if (race.player && Math.abs(h.progress - race.player.progress) < 8) audio.whip(0.4); };
     // footfall hook: turf clods + hoofbeat audio for the player and nearby rivals
@@ -2503,16 +2529,35 @@ function spawnHorseMeshes(race) {
   });
 }
 const rideState = rideLevel;
+/* horse + rider level of detail (presentation only): three versions of the same horse and rider (same skeleton, coat,
+   markings, silks), chosen by how tall the pair appears on screen. ≈ near > 170 px · middle 60–170 px · far < 60 px. */
+function ensureHorseLODs(h) {
+  const m = h.mesh; if (!m || m.userData.lods || h.def._preview) return;
+  const u = m.userData;
+  u.lods = { h: [u.mesh.geometry, buildHorseGeometry(h.def, 1).geo, buildHorseGeometry(h.def, 2).geo], j: [u.jk.mesh.geometry, buildJockeyGeometry(h.def, 1).geo, buildJockeyGeometry(h.def, 2).geo], cur: 0, eyes: u.B.head.children.filter(c => c.isMesh) };
+}
+const HLOD = { count: [0, 0, 0] };
+function horseLOD(m) {
+  const L = m.userData.lods; if (!L) return;
+  const k = renderer.domElement.height / (2 * Math.tan((camera.fov || 50) * Math.PI / 360)), d = Math.max(0.5, camera.position.distanceTo(m.position));
+  const px = 2.6 * k / d, b = typeof GFX !== "undefined" ? GFX.horseBias : 1, t0 = 170 * b, t1 = 60 * b;
+  let lv = px > t0 ? 0 : px > t1 ? 1 : 2;
+  if (lv !== L.cur) { const t = lv < L.cur ? (L.cur === 2 ? t1 : t0) : (lv === 2 ? t1 : t0); if (Math.abs(px - t) < t * 0.12) lv = L.cur; }   // hysteresis
+  if (lv !== L.cur) { m.userData.mesh.geometry = L.h[lv]; m.userData.jk.mesh.geometry = L.j[lv]; L.eyes.forEach(e => e.visible = lv < 2); L.cur = lv; }
+}
 const _pp = {};
 // place a horse mesh from (recorded or live) state. The sim position is the nose, so the body sits NOSE_OFF behind it.
 function placeHorseMesh(h, prog, laneF, latV, v, dt) {
   const m = h.mesh; if (!m) return;
+  horseLOD(m);
   race.route.point(prog - NOSE_OFF, laneOff(laneF), _pp);
   m.position.set(_pp.x, 0, _pp.z);
   const yaw = Math.atan2(_pp.hx, _pp.hz) - Math.PI / 2;
+  // which way is "outwards" for this horse's body: +1 = its right (left-handed course), -1 = its left (right-handed course)
+  const sS = (_pp.hx * _pp.nz - _pp.hz * _pp.nx) < 0 ? -1 : 1; m.userData.sideS = sS; h.sideS = sS;
   const drift = Math.atan2(latV * LANE_W, Math.max(2, v));           // heading follows the diagonal of a lane change
   h.yawD = h.yawD == null || dt == null ? drift : h.yawD + (drift - h.yawD) * Math.min(1, dt * 7);
-  m.rotation.y = yaw + h.yawD;
+  m.rotation.y = yaw - sS * h.yawD;                                   // nose turns towards the side it is moving to
   const kk = race.route.kIn(prog), curvT = kk > 1e-6 ? Math.min(0.35, (v * v) * kk / (1 + kk * laneOff(laneF)) / 9.81 * 0.9) : 0;
   h.curv = h.curv == null || dt == null ? curvT : h.curv + (curvT - h.curv) * Math.min(1, dt * 3);
   h.latS = h.latS == null || dt == null ? latV : h.latS + (latV - h.latS) * Math.min(1, dt * 5);
@@ -2705,7 +2750,7 @@ function updateCamera(dt) {
   const rx = -camLook.z + camPos.z, rz = camLook.x - camPos.x, rl = Math.hypot(rx, rz) || 1;  // right vector (xz)
   camera.position.set(camPos.x + rx / rl * (sway + vib), camPos.y + bob + vib, camPos.z + rz / rl * (sway + vib));
   camera.lookAt(camLook);
-  if (racing && camMode === 1) camera.rotateZ(-(p.curv || 0) * 0.5);
+  if (racing && camMode === 1) camera.rotateZ(-(p.curv || 0) * 0.5 * (p.sideS || 1));
   // speed-based FOV: noticeably different at 45 / 55 / 65 km/h; narrower when parading
   const kmh = p ? p.v * 3.6 : 0;
   const momF = racing && p && race.dist - p.progress < RHYTHM_AT ? p.mom : 0;
@@ -2948,6 +2993,7 @@ addEventListener("keydown", e => {
   if (keys[k]) return;
   keys[k] = true;
   audio.ensure();
+  if (e.key === "F8") { e.preventDefault(); PERF.on = !PERF.on; $("perfOv").hidden = !PERF.on; PERF.t = 0; return; }   // performance overlay (F9 = collider view)
   if (k === "escape") { handleEsc(); return; }
   if (k === "c" && ui.state === "racing") { camMode = (camMode + 1) % 3; cam.shotIdx = -1; $("camLabel").textContent = CAM_NAMES[camMode]; }
   if (ui.state === "replay" && HL.on) { if (k === " ") hlNext(); else if (k === "enter") endHighlights(); return; }
@@ -2965,7 +3011,8 @@ addEventListener("keydown", e => {
   if (e.key === "F9") { DBG.on = !DBG.on; DBG.marks = []; DBG.seenEv = race ? race.events.length : 0; toast("Collider view " + (DBG.on ? "ON (developer)" : "off"), "info", 1); }
 });
 // CHAOS MODE: P — the jockey's ONE kick of the race, aimed at the horse right alongside.
-// Hold A (or ←) to kick left, D (or →) to kick right; with neither held, whichever side has a horse in reach.
+// Hold A (or ←) to kick towards the inside rail, D (or →) towards the outside — the same rail-relative sides as steering;
+// with neither held, whichever side has a horse in reach.
 function kickPressed() {
   if (ui.state !== "racing" || !race || !race.chaos || race.state !== "running") return;
   const side = (keys.a || keys.arrowleft) ? -1 : (keys.d || keys.arrowright) ? 1 : 0;
@@ -3082,6 +3129,7 @@ function drawMinimapBase() {
 let hudTick = 0, lastRank = 0, rankFlashT = 0, lbPrev = {}, lbChg = {};
 // nearby-horse radar: ahead / alongside inside / alongside outside / behind, from the actual traffic model
 const proxEls = [0, 1, 2, 3, 5, 6, 7, 8].reduce((o, i) => (o[i] = document.getElementById("px" + i), o), {});
+const proxBox = document.getElementById("prox");
 const PROX_RANK = { "": 0, on: 1, near: 2, fast: 3, block: 4 };
 function updateProx(p) {
   const st = { 0: "", 1: "", 2: "", 3: "", 5: "", 6: "", 7: "", 8: "" };
@@ -3098,6 +3146,7 @@ function updateProx(p) {
     if (PROX_RANK[k] > PROX_RANK[st[i]]) st[i] = k;
   }
   for (const i in proxEls) proxEls[i].className = st[i];
+  proxBox.classList.toggle("rh", (p.sideS || 1) < 0);           // right-handed course: the rail is on the rider's right
 }
 function updateMeters() {
   const p = race.player;
@@ -3303,6 +3352,7 @@ function show(state) {
   if (state !== "racing" && typeof COMM !== "undefined") COMM.silence();
   if (!String(state).startsWith("c_") && typeof STABLE3D !== "undefined" && STABLE3D.active) STABLE3D.leave();
   ui.state = state;
+  document.body.classList.toggle("live3d", state === "racing" || state === "replay" || state === "parade" || state === "celebrate");
   for (const k in screens) screens[k].hidden = (k !== state);
   hud.classList.toggle("on", state === "racing" || state === "pause");
   $("replayUI").hidden = state !== "replay";
@@ -3346,7 +3396,12 @@ buildHorseGrid();
 function buildCommSettings() {
   if (typeof COMM === "undefined") return;
   const S = COMM.settings;
-  chipRow($("optComm"), [true, false], S.on, v => COMM.set("on", v), v => v ? "On" : "Off");
+  // four modes: ElevenLabs recorded (A) · ElevenLabs enhanced (B, needs the server's API key) · local voice (C) · off (D)
+  const E = typeof ELEVEN !== "undefined" ? ELEVEN : null, mode = !S.on ? "off" : E ? E.settings.mode : "local";
+  const modes = E ? ["eleven", "eleven_plus", "local", "off"] : ["local", "off"];
+  chipRow($("optComm"), modes, mode, v => { if (v === "off") COMM.set("on", false); else { COMM.set("on", true); if (E) E.set("mode", v); } buildCommSettings(); },
+    v => ({ eleven: "ElevenLabs · recorded", eleven_plus: "ElevenLabs · enhanced", local: "Local voice", off: "Off" })[v]);
+  buildElevenStatus(mode);
   chipRow($("optCommVol"), [0.25, 0.5, 0.75, 1], [0.25, 0.5, 0.75, 1].reduce((b, x) => Math.abs(x - S.vol) < Math.abs(b - S.vol) ? x : b, 1), v => COMM.set("vol", v), v => Math.round(v * 100) + "%");
   chipRow($("optCommCap"), [true, false], S.captions, v => COMM.set("captions", v), v => v ? "On" : "Off");
   const sel = $("optCommVoice"), list = COMM.voiceList();
@@ -3365,12 +3420,32 @@ function voiceSampleHorse() {
   try { if (typeof CAREER !== "undefined" && CAREER.data && CAREER.data.horses && CAREER.data.horses.length) { const h = CAREER.data.horses[CAREER.data.active || 0] || CAREER.data.horses[0]; return h.say || h.name; } } catch (e) {}
   return ROSTER[settings.playerHorse].name;
 }
+// the commentary test: six situations, each as ElevenLabs recordings (+ the right names) and as the same words for the
+// local voice — the label always says which backend actually spoke (fallback audio is never called ElevenLabs)
 const VOICE_SAMPLES = [
-  ["1 · Calm racing", 1.3, () => "They're away and racing. Desert Comet is quickest to find the front, Midnight Legend settles in third along the rail, and Quiet Thunder is back towards the tail of the field."],
-  ["2 · Home turn", 2.8, () => "Coming to the home turn, Desert Comet still leads them, Midnight Legend has worked into third, and Quiet Thunder is beginning to make ground out wider!"],
-  ["3 · Close finish", 4.6, () => "Two hundred to go! Desert Comet and Midnight Legend, locked together! Quiet Thunder flying down the outside! It's going to be close!"],
-  ["4 · Your horse", 3.4, () => `And here's ${voiceSampleHorse()}, making a long run down the middle of the track!`],
+  ["1 · Race start", 2.2, ["start/away_1"], null, () => "And they're away and racing!"],
+  ["2 · Mid-race", 1.3, ["middle/tempo_1", "transitions/still_leads"], () => "Quiet Thunder", () => "It's a steady tempo up front. Still out in front, Quiet Thunder."],
+  ["3 · Home turn", 2.8, ["home-turn/approach", "transitions/big_run"], () => "Desert Comet", () => "They're approaching the home turn! Here comes a big run from Desert Comet!"],
+  ["4 · Close finish", 4.6, ["final-200/two_2", "final-100/hundred_1", "transitions/new_leader"], () => "Tempted", () => "Two hundred to run, and it's on! A hundred to go, they're locked together! And there's a new leader, Tempted!"],
+  ["5 · Your horse", 3.4, ["transitions/big_run"], () => voiceSampleHorse(), () => `Here comes a big run from ${voiceSampleHorse()}!`],
+  ["6 · Winner", 4.2, ["winners/winner_is"], () => "Bay Majesty", () => "And the winner is, Bay Majesty! What a finish!", ["photo-finish/what_a_finish"]],
 ];
+let lastVoiceTest = null;
+function buildElevenStatus(mode) {
+  const el = $("optElevenStatus"), row = $("optElevenOpts"); if (!el) return; row.innerHTML = "";
+  if (typeof ELEVEN === "undefined") { el.textContent = ""; return; }
+  const E = ELEVEN;
+  if (mode === "off") { el.textContent = "No spoken commentary (captions can stay on)."; return; }
+  if (mode === "local") { el.textContent = "Your computer's own voices (or the optional local neural voices below). Free, offline, no ElevenLabs."; return; }
+  E.loadLibrary().then(() => {
+    const base = E.ready ? `<b style="color:var(--fg)">Your ElevenLabs voice “${E.VOICE_NAME}” (ID ${E.VOICE_ID})</b> — ${E.clipCount} recorded clips (${E.nameCount} horse names) stored with the game. No internet, API key or credits needed during a race. <span style="opacity:.75">Voice by ElevenLabs (elevenlabs.io).</span>` : `ElevenLabs recordings unavailable: ${E.error}. The local voice is used.`;
+    if (mode === "eleven") { el.innerHTML = base + " Names the recordings don't have are " + (E.settings.nameFallback === "local" ? "said by the local voice." : "left to the captions."); }
+    else { el.innerHTML = base + " Checking the game server…";
+      E.serverStatus(true).then(st => { el.innerHTML = base + (st && st.configured ? ` <b style="color:var(--fg)">Enhanced: connected</b> — missing names are generated with your voice before each race and cached (${st.remainingToday} characters left in today's server limit; model ${st.model}).` : ` <b style="color:var(--warn)">Enhanced is not active</b> (${st ? (st.reason || "no API key on the server") : "no game server"}) — the recordings and local voice are used. To enable it, set ELEVENLABS_API_KEY on the server (see README → “ElevenLabs commentary”).`); }); }
+  });
+  chipRow(row, ["local", "skip"], E.settings.nameFallback, v => E.set("nameFallback", v), v => v === "local" ? "Unrecorded names: local voice" : "Unrecorded names: captions only");
+  if (mode === "eleven_plus") { const b = document.createElement("button"); b.className = "chip" + (E.settings.liveLines ? " sel" : ""); b.textContent = "Live lines (uses credits): " + (E.settings.liveLines ? "on" : "off"); b.onclick = () => { E.set("liveLines", !E.settings.liveLines); buildElevenStatus(mode); }; row.appendChild(b); }
+}
 function buildVoiceLab() {
   if (typeof VOICE === "undefined" || !$("optVoiceEng")) return;
   const V = VOICE, S = V.settings, sup = V.supported();
@@ -3403,10 +3478,17 @@ function buildVoiceLab() {
     });
   }
   const tw = $("optVoiceTest"); tw.innerHTML = "";
-  VOICE_SAMPLES.forEach(([label, I, fn]) => { const b = document.createElement("button"); b.className = "chip"; b.textContent = label; tw.appendChild(b);
-    b.onclick = async () => { audio.ensure && audio.ensure(); $("optVoiceInfo").textContent = "Generating…"; const t0 = performance.now(); const r = await COMM.sample(fn(), I);
-      $("optVoiceInfo").textContent = r && r.firstMs != null ? `${r.engine}: speech started after ${Math.round(r.firstMs)} ms · generating at ${r.rtf ? (1 / r.rtf).toFixed(1) + "× real time" : "—"}${r.rtf && r.rtf > 0.9 ? " — too slow to call a live race on this computer; try Fast · Piper" : ""}` : (r ? r.engine : "Standard voice"); };
+  const localInfo = r => r && r.firstMs != null ? `${r.engine}: speech started after ${Math.round(r.firstMs)} ms · generating at ${r.rtf ? (1 / r.rtf).toFixed(1) + "× real time" : "—"}${r.rtf && r.rtf > 0.9 ? " — too slow to call a live race on this computer; try Fast · Piper" : ""}` : (r ? r.engine : "Standard voice");
+  VOICE_SAMPLES.forEach(([label, I, ids, nameFn, textFn, tail]) => { const b = document.createElement("button"); b.className = "chip"; b.textContent = label; tw.appendChild(b);
+    b.onclick = async () => {
+      audio.ensure && audio.ensure(); COMM.prime(); lastVoiceTest = { I, textFn };
+      const info = $("optVoiceInfo"), el = typeof ELEVEN !== "undefined" && COMM.settings.on && (ELEVEN.settings.mode === "eleven" || ELEVEN.settings.mode === "eleven_plus");
+      if (el) { info.textContent = "Loading…"; const r = await ELEVEN.test(ids, { name: nameFn ? nameFn() : null, tail });
+        info.textContent = r.backend === "unavailable" ? "ElevenLabs recordings unavailable (" + r.detail + ")" : `Backend: ${r.backend} · started after ${Math.round(r.firstMs)} ms${r.missingName ? ` · “${nameFn()}” isn't in the recordings${ELEVEN.settings.mode === "eleven_plus" ? "" : " (Enhanced mode can generate it with your voice)"}` : ""}`; return; }
+      info.textContent = "Generating…"; info.textContent = localInfo(await COMM.sample(textFn(), I)); };
   });
+  const cmp = document.createElement("button"); cmp.className = "chip"; cmp.textContent = "Compare: same words, local voice"; tw.appendChild(cmp);
+  cmp.onclick = async () => { if (!lastVoiceTest) { $("optVoiceInfo").textContent = "Play a test first, then compare."; return; } if (typeof ELEVEN !== "undefined") ELEVEN.cancel(); $("optVoiceInfo").textContent = localInfo(await COMM.sample(lastVoiceTest.textFn(), lastVoiceTest.I)) + " (local — not ElevenLabs)"; };
 }
 
 /* Option chips */
@@ -3434,7 +3516,7 @@ function buildSettings() {
   chipRow($("optShadow"), [true, false], settings.shadows, v => { settings.shadows = v; store.set("shadows", v); renderer.shadowMap.enabled = v; sun.castShadow = v; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }, v => v ? "On" : "Off");
   chipRow($("optParade"), ["majors", "always", "off"], settings.parade, v => { settings.parade = v; store.set("parade", v); }, v => ({ majors: "Feature races", always: "Every race", off: "Off" })[v]);
   chipRow($("optCeleb"), [true, false], settings.celebrate, v => { settings.celebrate = v; store.set("celebrate", v); }, v => v ? "On" : "Off");
-  chipRow($("optQuality"), ["high", "medium", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ high: "High", medium: "Medium", low: "Low (integrated graphics)" })[v]);
+  chipRow($("optQuality"), ["auto", "high", "medium", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ auto: "Auto (recommended)", high: "High (fixed)", medium: "Medium", low: "Low (integrated graphics)" })[v]);
   chipRow($("optCrowd"), ["full", "light", "off"], settings.crowd, v => { settings.crowd = v; store.set("crowd", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optScenery"), ["high", "medium", "low"], settings.scenery, v => { settings.scenery = v; store.set("scenery", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optFx"), [true, false], settings.fx, v => { settings.fx = v; store.set("fx", v); }, v => v ? "On" : "Off");
@@ -3857,11 +3939,14 @@ function startRace(cfg) {
   $("hDist").textContent = race.dist + " m " + DIST_LABEL[race.dist];
   $("hGoing").textContent = race.going.label + " going";
   showMsg(race.chaos ? "CHAOS MODE — one kick per race: P knocks over the horse beside you" : "Loading the gates…", 2.6);
-  $("hudKeys").textContent = "W/S effort · E settle · Q check · Space urge · Shift drive" + (race.chaos ? " · P kick" : "");
+  $("hudKeys").textContent = (race.trk.cw ? "A rail (right) · D wider (left) · " : "") + "W/S effort · E settle · Q check · Space urge · Shift drive" + (race.chaos ? " · P kick" : "");
+  // a right-handed course: the inside rail is on the rider's right, so "towards the rail" (A) is to the right on screen
+  if (race.trk.cw && !race.player.bot) toast("RIGHT-HANDED COURSE · A = towards the rail (on your right) · D = wider (to your left)", "info", 5);
   const sp = race.route.point(0, race.trk.W / 2, {});
   camPos.set(sp.x - sp.hx * 20 + sp.nx * 14, 6, sp.z - sp.hz * 20 + sp.nz * 14);
   camLook.set(sp.x, 1.5, sp.z);
   simAcc = 0;
+  if (typeof GFX !== "undefined") GFX.autoReset(3);                   // the first seconds compile shaders and upload: not judged
   if (typeof PRESENT !== "undefined" && PRESENT.wantParade(cfg)) PRESENT.parade(race);   // optional, skippable
 }
 
@@ -4078,7 +4163,11 @@ $("pauseQuit").onclick = quitToMenu;
 $("resAgain").onclick = () => startRace(Object.assign({}, lastRaceCfg));
 $("resMenu").onclick = () => { if (typeof MP !== "undefined" && MP.inRoom) MP.leave(); quitToMenu(); };
 $("resLobby").onclick = () => MP.backToLobby();
-$("btnMP").onclick = () => MP.open();
+// MULTIPLAYER IS TEMPORARILY DISABLED while single-player is polished. The online code (mp.js, server/ rooms, protocol,
+// race server) is preserved unchanged; the menu entry is hidden and shared ?join= links are ignored. Developers can
+// re-enable it for one session with ?mp=1, or permanently by setting FF_FEATURES.multiplayer = true.
+$("btnMP").hidden = !FF_FEATURES.multiplayer;
+$("btnMP").onclick = () => { if (FF_FEATURES.multiplayer) MP.open(); };
 $("resReplay").onclick = () => startReplay("finish", false);
 $("resHl").onclick = () => startHighlights(false);
 $("resFall").onclick = () => startHighlights(true);
@@ -4113,10 +4202,41 @@ function gfxFocus() { if (typeof PRESENT !== "undefined" && PRESENT.mode) return
 
 /* ---------- Main loop: fixed simulation step, free-running render ---------- */
 let simAcc = 0, lastT = performance.now();
+/* ---------- performance diagnostics (F8) + AUTO graphics feed ----------
+   Frame interval (real, from the browser's frame clock), JavaScript time per frame, simulation time per frame, the
+   main pass's draw calls/triangles, horse/rider LOD in use, spectators drawn by detail level, shadow map, render size,
+   preset and AUTO state. Hidden by default; when shown it refreshes 4× a second. */
+const PERF = { on: false, t: 0, ft: new Float32Array(300), fi: 0, fn: 0, simA: 0, jsA: 0, sim: 0 };
+const _pfF = new THREE.Frustum(), _pfM = new THREE.Matrix4();
+function perfFrame(rawDt, jsMs) {
+  PERF.ft[PERF.fi] = rawDt * 1000; PERF.fi = (PERF.fi + 1) % 300; PERF.fn = Math.min(300, PERF.fn + 1);
+  PERF.simA += (PERF.sim - PERF.simA) * 0.1; PERF.jsA += (jsMs - PERF.jsA) * 0.1;
+  if (!PERF.on || (PERF.t -= rawDt) > 0) return; PERF.t = 0.25;
+  const n = PERF.fn, a = Array.from(PERF.ft.subarray(0, n)).sort((x, y) => x - y), last = []; for (let i = 1; i <= Math.min(60, n); i++) last.push(PERF.ft[(PERF.fi - i + 300) % 300]);
+  const avg = last.reduce((x, y) => x + y, 0) / Math.max(1, last.length), p99 = a[Math.min(n - 1, Math.floor(n * 0.99))] || 0, med = a[n >> 1] || 0;
+  const hl = [0, 0, 0]; if (race) for (const h of race.horses) { const L = h.mesh && h.mesh.userData.lods; if (L) hl[L.cur]++; }
+  const cr = [0, 0, 0]; let crowdAll = 0;
+  if (typeof GFX !== "undefined") { _pfM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); _pfF.setFromProjectionMatrix(_pfM);
+    for (const L of GFX.LODS) { if (L.kind !== "crowd") continue; const m = L.lv[L.cur]; let vis = true; for (let o = m; o; o = o.parent) if (!o.visible) { vis = false; break; } if (!vis) continue; crowdAll += m.count; if (_pfF.intersectsSphere(m.geometry.boundingSphere)) cr[L.cur] += m.count; } }
+  const R = typeof GFX !== "undefined" ? GFX.runtimeParams() : { pr: 1 }, A = typeof GFX !== "undefined" ? GFX.AUTO : null, cv = renderer.domElement;
+  const lines = [
+    `FPS ${(1000 / avg).toFixed(0)}   frame ${avg.toFixed(1)} ms (median ${med.toFixed(1)})   1% low ${(1000 / Math.max(1, p99)).toFixed(0)} fps (p99 ${p99.toFixed(1)} ms)`,
+    `JS ${PERF.jsA.toFixed(2)} ms/frame   simulation ${PERF.simA.toFixed(2)} ms/frame`,
+    `draw calls ${renderer.info.render.calls}   triangles ${(renderer.info.render.triangles / 1e6).toFixed(2)} M   geometries ${renderer.info.memory.geometries}   textures ${renderer.info.memory.textures}`,
+    `horses: near ${hl[0]} · mid ${hl[1]} · far ${hl[2]}${race ? "  (" + race.horses.length + " runners)" : ""}`,
+    `crowd drawn: ${cr[0] + cr[1] + cr[2]} (near ${cr[0]} · mid ${cr[1]} · far ${cr[2]}) of ${crowdAll}`,
+    `shadows ${renderer.shadowMap.enabled ? sun.shadow.mapSize.x + "²" : "off"}   render ${cv.width}×${cv.height} @ ${renderer.getPixelRatio().toFixed(2)}×`,
+    `preset ${settings.quality.toUpperCase()}${A && settings.quality === "auto" ? `   AUTO level ${A.level}/${GFX.AUTO_STEPS.length - 1}: ${GFX.AUTO_STEPS[A.level].note}${A.last ? "\n  last change: " + A.last : ""}${A.hold > 0 ? "  (settling)" : ""}` : "   (fixed — AUTO off)"}`,
+  ];
+  $("perfOv").textContent = lines.join("\n");
+}
 function frame(now) {
   requestAnimationFrame(frame);
-  let dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  const rawDt = (now - lastT) / 1000, tF0 = performance.now();
+  let dt = Math.min(0.1, rawDt); lastT = now;
   frameN++;
+  PERF.sim = 0;
+  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode));
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
   // Career screens: the 3D racing stable is drawn instead of the racecourse
   if (typeof STABLE3D !== "undefined" && STABLE3D.active && !race && ui.state.startsWith("c_")) { STABLE3D.frame(dt); return; }
@@ -4124,10 +4244,10 @@ function frame(now) {
   if (typeof PRESENT !== "undefined" && PRESENT.mode) {
     PRESENT.frame(dt); HORSE_U.uTime.value += dt; FX.update(dt); updateVenue(dt); if (typeof VENUES !== "undefined") VENUES.update(dt);
     if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), PRESENT.mode === "celebrate" ? 1 : 0);
-    renderer.render(scene, camera); return;
+    renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return;
   }
-  if (RP.on && ui.state === "replay") { updateReplay(dt); FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); renderer.render(scene, camera); return; }
-  if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.6); renderer.render(scene, camera); } return; }
+  if (RP.on && ui.state === "replay") { updateReplay(dt); FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return; }
+  if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.6); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); } return; }
   if (race && ui.state === "racing") {
     handlePlayerInput(dt);
     // photo-finish slow motion: presentation only, the simulation itself is untouched
@@ -4139,7 +4259,7 @@ function frame(now) {
     simAcc += dt * ts;
     let n = 0;
     if (MPC()) { MPC().update(dt); ts = 1; simAcc = 0; }                  // online: the server runs the race; we show it
-    else while (simAcc >= SIM_DT && n++ < 24) { race.step(SIM_DT); simAcc -= SIM_DT; }
+    else { const ts0 = performance.now(); while (simAcc >= SIM_DT && n++ < 24) { race.step(SIM_DT); simAcc -= SIM_DT; } PERF.sim = performance.now() - ts0; }
     if (race.state === "running") updateGateDoors(dt);
     gateGroup.visible = !(race.state !== "count" && race.state !== "load" && race.leaderProgress > 260);   // the barrier unit is towed away once the field has cleared it
     updateHorseMeshes(dt * ts);
@@ -4163,6 +4283,7 @@ function frame(now) {
   updateVenue(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
+  perfFrame(rawDt, performance.now() - tF0);
 }
 
 window.runBalanceTests = runBalanceTests;
@@ -4179,6 +4300,7 @@ function boot() {
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot);
 else boot();
 </script>
+<script src="eleven.js"></script>
 <script src="gfx.js"></script>
 <script src="mp.js"></script>
 <script src="venues.js"></script>

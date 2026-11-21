@@ -30,7 +30,7 @@ const SPEECH_STUB = () => {
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 1100, height: 700 } });
   if (fs.existsSync(__dirname + '/../public/vendor/three.min.js')) await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
-  await ctx.addInitScript(() => { window.__noPresent = true; localStorage.setItem('ff_crowd', '"off"'); /* parade/celebration: tests/presentation-browser.js */ localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); });
+  await ctx.addInitScript(() => { window.__noPresent = true; localStorage.setItem('ff_crowd', '"off"'); /* parade/celebration: tests/presentation-browser.js */ localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); /* this suite checks the LOCAL speech pipeline (stubbed speechSynthesis); the ElevenLabs path: tests/eleven-*.js */ if (!localStorage.getItem('ff_eleven')) localStorage.setItem('ff_eleven', JSON.stringify({ mode: 'local' })); });
   await ctx.addInitScript(SPEECH_STUB);
   // an existing v1 career save (the format before this update): two horses, a trophy and race history
   const V1 = { v: 1, stable: 'Old Timers Stable', active: 1, wins: 7, created: 1700000000000,
@@ -278,7 +278,8 @@ const SPEECH_STUB = () => {
   console.log('\n— settings & Chaos still available in Quick Race');
   await p.click('#btnSettings'); await sleep(300);
   const st = await p.evaluate(() => ({ chips: document.querySelectorAll('#optComm .chip').length, vol: [...document.querySelectorAll('#optCommVol .chip')].map(c => c.textContent).join(','), voices: [...document.querySelectorAll('#optCommVoice option')].map(o => o.textContent) }));
-  ok(st.chips === 2 && st.vol === '25%,50%,75%,100%' && st.voices.length === 4 && /Karen/.test(st.voices[0]) && !st.voices.some(v => /Thomas/.test(v)), 'commentary on/off, volume and English voice list in Settings: ' + st.voices.join(' / '));
+  const modes = await p.evaluate(() => [...document.querySelectorAll('#optComm .chip')].map(c => c.textContent).join(' | '));
+  ok(st.chips === 4 && /ElevenLabs · recorded/.test(modes) && /Local voice/.test(modes) && /Off/.test(modes) && st.vol === '25%,50%,75%,100%' && st.voices.length === 4 && /Karen/.test(st.voices[0]) && !st.voices.some(v => /Thomas/.test(v)), 'commentary modes (' + modes + '), volume and English voice list in Settings: ' + st.voices.join(' / '));
   await p.evaluate(() => { [...document.querySelectorAll('#optComm .chip')].find(c => c.textContent === 'Off').click(); window.__spoken.length = 0; });
   ok(await p.evaluate(() => JSON.parse(localStorage.getItem('ff_commentary')).on === false), 'commentary setting is remembered');
   await p.evaluate(() => { settings.chaos = true; store.set('chaos', true); settings.dist = 1000; show('menu'); });

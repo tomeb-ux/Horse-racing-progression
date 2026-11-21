@@ -1,7 +1,9 @@
 # Final Furlong — project handoff
 
 Paste this file's contents into a new Claude Code chat to continue work. All the code is in this project folder (`ffmp/`).
-Detailed notes of the last updates: `docs/WORKLOG-P2.md`, `docs/WORKLOG-P3.md`. Asset/licence manifest: `ASSETS.md`.
+Detailed notes of the last updates: `docs/WORKLOG-P2.md`, `docs/WORKLOG-P3.md`, `docs/WORKLOG-P4.md`.
+
+**Current direction (user): single-player only. Multiplayer is parked (hidden, code kept: `FF_FEATURES.multiplayer`, `?mp=1`) — do not spend time keeping online in sync with new features.** Asset/licence manifest: `ASSETS.md`.
 
 ## What it is
 A browser-based 3D horse-racing game (Three.js r128) with a realistic skill-based racing engine. Single-player ships as one
@@ -12,8 +14,10 @@ self-contained HTML file; an optional Node server adds online multiplayer. Proce
 - `public/sim.js` — shared race simulation **and the track engine** (`TRACKS.generic` analytic oval; `TRACK_DEFS` + `buildTableTrack` for real courses; `getTrack(id)`; each `Race` has `race.trk` and `race.route` — use `race.route.point(progress, off, out)`, `kIn`, `scale`, `bendAcc`, `loopD`, `inChute`). Loads in the browser AND as a Node module (server + tests) — keep both working.
 - `public/season.js` — career core (pure): divisions/calendar, **persistent rivals** (`C.rivals`, `C.world[div]` stables), optional fields, background divisions, standings/tie-breakers, commit/skip/close season, qualification, form guide, head-to-head (`C.h2h`), XP/upgrade costs, save migration (v1/v2 → v3).
 - `public/commentary.js` — live race call: `Booth` (DOM-free; continuous call composer `nextLine` + scheduler), browser speech layer (`COMM`).
-- `public/gfx.js` — graphics kit: quality presets, IBL sky/environment, turf shader, procedural trees, GPU-animated crowd, rails, PBR materials.
+- `public/gfx.js` — graphics kit: AUTO quality controller (`GFX.AUTO`, `autoTick`), screen-size LOD + chunked instancing (`GFX.chunked`, `GFX.LODS`), quality presets, IBL sky/environment, turf shader, procedural trees, GPU-animated crowd, rails, PBR materials.
 - `public/venues.js` — Royal Randwick and Flemington scenery built from the track geometry (`VENUES.use(trk, cfg)`, `VENUES.parade()`).
+- `public/eleven.js` — ElevenLabs commentary (`ELEVEN`): recorded library (`public/assets/audio/commentary/` + manifest), clip planner (`plan(clip)` — the Booth attaches a `clip` hint to every line), Web Audio playback, Mode B names via `server/tts.js` (`/api/tts`, key in `ELEVENLABS_API_KEY`).
+- Horse/rider LOD: `buildHorseGeometry(def, lod)` / `buildJockeyGeometry(def, lod)` (LOFT_Q), switched in `horseLOD()`; presentation is rail-relative via `mesh.userData.sideS` (+1 left-handed, −1 right-handed course).
 - `public/presentation.js` — parade ring (pre-race, skippable), winner presentation, walking gait (`PRESENT`).
 - `public/voice-core.js` + `public/voice.js` — enhanced commentary voice: Kokoro/Piper in a Web Worker via ONNX Runtime Web,
   Cache Storage downloads (checksum), streaming speaker with lookahead + stale-line dropping (`VOICE`). `tools/fetch-voices.js`
@@ -22,7 +26,7 @@ self-contained HTML file; an optional Node server adds online multiplayer. Proce
 - `public/career.js` — Career UI: hub, creator (5 steps), stable/profile/training, rivals, form guide, events, championship screens, results bridge.
 - `public/mp.js` — online client. `server/` — authoritative server (race-server.js, rooms.js, protocol.js, index.js).
 - `tools/build-single.js` — inlines sim, season, commentary, mp, venues, stable3d, career into `dist/final-furlong-single.html`.
-- Script order in index.html: sim.js → season.js → commentary.js → voice-core.js → voice.js → (main inline) → gfx.js → mp.js → venues.js → presentation.js → stable3d.js → career.js.
+- Script order in index.html: sim.js → season.js → commentary.js → voice-core.js → voice.js → (main inline) → eleven.js → gfx.js → mp.js → venues.js → presentation.js → stable3d.js → career.js.
 
 ## Published artifact (single-player)
 `https://claude.ai/artifact/RUnGGeTzSHw7XxG5iESe6G` — publish from `/home/user/ffmp-extract/final-furlong.html` (a copy of

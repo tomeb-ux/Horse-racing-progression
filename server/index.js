@@ -6,14 +6,16 @@ const { performance } = require('perf_hooks');
 const { WebSocketServer } = require('ws');
 const { RoomManager } = require('./rooms');
 const P = require('./protocol');
+const TTS = require('./tts');            // optional ElevenLabs commentary endpoint (key stays on the server)
 
 const PORT = +(process.env.PORT || 8080), HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC = path.join(__dirname, '..', 'public');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.wasm': 'application/wasm', '.onnx': 'application/octet-stream', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.wasm': 'application/wasm', '.onnx': 'application/octet-stream', '.css': 'text/css', '.json': 'application/json', '.mp3': 'audio/mpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('ok'); return; }
+  if (url.pathname === '/api/tts' || url.pathname === '/api/tts/status') { TTS.handle(req, res, url).catch(() => { try { res.writeHead(500); res.end(); } catch (e) {} }); return; }
   let rel = decodeURIComponent(url.pathname); if (rel.endsWith('/')) rel += 'index.html';
   const file = path.normalize(path.join(PUBLIC, rel));
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); res.end(); return; }
