@@ -435,13 +435,18 @@ const VENUES = (() => {
   }
   // low-rise suburbs: houses with pitched roofs (instanced walls + roofs)
   function suburbs(G, trk, s0, s1, off0, off1, n, rng, roofHex) {
-    const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), std(0xe8e0d0, 0.85), n), roofG = new THREE.ConeGeometry(0.75, 1, 4); roofG.rotateY(Math.PI / 4);
+    const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ map: houseTex(), roughness: 0.85 }), n), roofG = new THREE.ConeGeometry(0.75, 1, 4); roofG.rotateY(Math.PI / 4);
     const roofs = new THREE.InstancedMesh(roofG, std(roofHex, 0.75), n), dm = new THREE.Object3D(), c = new THREE.Color();
     for (let i = 0; i < n; i++) { const s = s0 + (s1 - s0) * rng(), p = trk.point(s, off0 + (off1 - off0) * rng(), {}); const w = 9 + rng() * 6, d = 11 + rng() * 6, h = 3.2 + rng() * 2.8, rot = Math.atan2(-p.hz, p.hx);
-      dm.position.set(p.x, h / 2, p.z); dm.rotation.set(0, rot, 0); dm.scale.set(w, h, d); dm.updateMatrix(); walls.setMatrixAt(i, dm.matrix); walls.setColorAt(i, c.setHSL(0.09, 0.15 + rng() * 0.2, 0.7 + rng() * 0.2));
+      dm.position.set(p.x, h / 2, p.z); dm.rotation.set(0, rot, 0); dm.scale.set(w, h, d); dm.updateMatrix(); walls.setMatrixAt(i, dm.matrix); walls.setColorAt(i, rng() < 0.45 ? c.setHSL(0.03, 0.45, 0.42 + rng() * 0.1) : c.setHSL(0.09, 0.15 + rng() * 0.2, 0.62 + rng() * 0.2));
       dm.position.set(p.x, h + 1.4, p.z); dm.scale.set(w * 1.05, 2.8, d * 1.05); dm.updateMatrix(); roofs.setMatrixAt(i, dm.matrix); roofs.setColorAt(i, c.setHSL(0.04, 0.4 + rng() * 0.2, 0.32 + rng() * 0.12)); }
     [walls, roofs].forEach(m => { m.castShadow = false; m.receiveShadow = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; G.add(m); });
   }
+  // house walls: rendered/brick wall with windows and a door (tinted per instance)
+  let HOUSE = null;
+  function houseTex() { if (HOUSE) return HOUSE; HOUSE = canvasTex(128, 64, (g, w, h) => { g.fillStyle = "#e6dfd2"; g.fillRect(0, 0, w, h); g.fillStyle = "rgba(0,0,0,0.06)"; for (let y = 0; y < h; y += 4) g.fillRect(0, y, w, 1);
+      g.fillStyle = "#3b4652"; for (const x of [14, 50, 92]) g.fillRect(x, 18, 18, 20); g.fillStyle = "#f4f1ea"; for (const x of [14, 50, 92]) { g.fillRect(x + 8, 18, 2, 20); g.fillRect(x, 27, 18, 2); } g.fillStyle = "#5a3a2a"; g.fillRect(72, 30, 12, 34); });
+    HOUSE.wrapS = HOUSE.wrapT = THREE.ClampToEdgeWrapping; return HOUSE; }
   // distant city skyline (towers with a glass-and-mullion texture), optionally a needle tower or a gold-crowned tower
   function skyline(G, cx, cz, a0, span, r0, r1, n, rng, o) {
     const tex = GFX.glassMat(0x9fb2c2, 31), inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), tex, n), dm = new THREE.Object3D(), c = new THREE.Color();

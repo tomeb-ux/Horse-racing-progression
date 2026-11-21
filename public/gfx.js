@@ -444,7 +444,7 @@ const GFX = (() => {
     M.roofMetal = new THREE.MeshStandardMaterial({ color: 0xe9ebec, roughness: 0.4, metalness: 0.55, side: THREE.DoubleSide });
     M.asphalt = new THREE.MeshStandardMaterial({ map: M.concreteTex, color: 0x6c6f70, roughness: 0.95 });
     M.gravel = new THREE.MeshStandardMaterial({ map: M.concreteTex, color: 0xc7b796, roughness: 1 });
-    M.sand = new THREE.MeshStandardMaterial({ map: M.concreteTex, color: 0xd2b07a, roughness: 1 });
+    M.sand = new THREE.MeshStandardMaterial({ map: M.concreteTex, color: 0x9c8462, roughness: 1 });
     M.water = new THREE.MeshStandardMaterial({ color: 0x3d5a5a, roughness: 0.08, metalness: 0.4 });
     M.brick = new THREE.MeshStandardMaterial({ map: tex(256, 128, d => { for (let y = 0; y < 128; y++) for (let x = 0; x < 256; x++) { const row = Math.floor(y / 8), xx = (x + (row % 2) * 8) % 16, mortar = (y % 8 < 1 || xx < 1), v = fbm(x / 8, y / 8, 32, row, 2), k = (y * 256 + x) * 4; d[k] = mortar ? 200 : 150 + 50 * v; d[k + 1] = mortar ? 195 : 72 + 22 * v; d[k + 2] = mortar ? 185 : 52 + 16 * v; d[k + 3] = 255; } }), roughness: 0.9 });
     M.terracotta = new THREE.MeshStandardMaterial({ color: 0xa85a3c, roughness: 0.75 });
