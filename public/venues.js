@@ -360,7 +360,7 @@ const VENUES = (() => {
     { const f = frameAt(trk, lap - 390, W + 70), Hh = place(new THREE.Group(), f);
       const hill = sheet(Hh, GFX.turfMaterial("lawn", 0xb2c497), (u, v) => [-250 + 500 * u, Math.max(0, Math.sin(v * Math.PI * 0.5)) * 14 * Math.sin(u * Math.PI), -10 - 90 * v], 24, 8); hill.castShadow = false;
       G.add(Hh); }
-    { const R = place(new THREE.Group(), frameAt(trk, lap - 20, W + 3 + 115)); R.name = "Mounting yard";
+    { const R = place(new THREE.Group(), frameAt(trk, lap - 20, W + 3 + 92)); R.name = "Mounting yard";
       buildParadeRing(R, { rx: 26, ry: 16, sunk: 0, tiers: 4, style: "flemington" });
       spots.push(...standSpotsToWorld(R, R.userData.spots)); G.add(R); G.userData.parade = R; }
     // ---- roses: the outside fence of the straight lined with rose bushes, more around the lawns
@@ -383,7 +383,7 @@ const VENUES = (() => {
     const trees = [];
     for (let s = trk.marks.topTurn - 200; s < trk.marks.back_end + 200; s += 9) { for (const off of [W + 120 + rng() * 22, W + 195 + rng() * 40]) { const p = pt(s, off, {}); trees.push({ x: p.x, z: p.z, s: 0.95 + rng() * 0.6, sp: "gum" }); } }
     for (let k = 0; k < 2400 && trees.length < 260; k++) { const x = C.cx + (rng() - 0.5) * 1100, z = C.cz + (rng() - 0.5) * 520; if (!C.inside(x, z)) continue; let ok = true; for (let s = 0; s < lap; s += 15) { const p = pt(s, -20, Q); if ((p.x - x) ** 2 + (p.z - z) ** 2 < 38 * 38) { ok = false; break; } } if (!ok) continue; trees.push({ x, z, s: 0.8 + rng() * 0.6, sp: rng() < 0.55 ? "plane" : rng() < 0.6 ? "gum" : "cypress" }); }
-    for (let s = lap - 520; s < lap + 200; s += 16) { const p = pt(s, W + 230 + rng() * 30, {}); trees.push({ x: p.x, z: p.z, s: 1 + rng() * 0.4, sp: rng() < 0.25 ? "palm" : "plane" }); }
+    for (let s = lap - 520; s < lap + 200; s += 16) { const p = pt(s, W + 250 + rng() * 30, {}); trees.push({ x: p.x, z: p.z, s: 1 + rng() * 0.4, sp: rng() < 0.25 ? "palm" : "plane" }); }
     GFX.plantTrees(G, trees);
     suburbs(G, trk, trk.marks.homeTurn - 200, trk.marks.homeTurn_end + 100, W + 260, W + 480, 160, rng, 0x8e6a5a);
     skyline(G, C.cx, C.cz, 0.35, 0.7, 4000, 4700, 70, rng, { crown: true });

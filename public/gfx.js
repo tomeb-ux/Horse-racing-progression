@@ -315,18 +315,17 @@ const GFX = (() => {
     if (CROWD_GEO) return CROWD_GEO;
     const parts = [];
     const add = (g, part) => { const n = g.attributes.position.count; g.setAttribute("part", new THREE.Float32BufferAttribute(new Array(n).fill(part), 1)); if (g.index) g = g.toNonIndexed(); parts.push(g); };
-    // legs (0): two slightly tapered prisms with a knee ring, hips at 0.86
+    // legs (0): two 4-sided prisms with a knee ring, hips at 0.86; the shoe is the bottom ring (part 7)
     [-0.085, 0.085].forEach(x => { const g = new THREE.CylinderGeometry(0.07, 0.055, 0.86, 4, 2, true); g.translate(x, 0.43, 0); add(g, 0); });
-    // shoes (7)
-    [-0.085, 0.085].forEach(x => { const g = new THREE.BoxGeometry(0.1, 0.07, 0.24); g.translate(x, 0.035, 0.05); add(g, 7); });
-    // torso (1): lathe from hips to shoulders, broader at the shoulders
-    { const pts = [[0, 0.82], [0.17, 0.84], [0.165, 1.08], [0.2, 1.32], [0.19, 1.43], [0.1, 1.49], [0, 1.5]].map(([r, y]) => new THREE.Vector2(r, y)); const g = new THREE.LatheGeometry(pts, 6); g.scale(1, 1, 0.68); add(g, 1); }
-    // arms (2 left, 3 right) from the shoulder pivot (±0.2, 1.42); hands (12, 13) in skin
-    [[-0.22, 2], [0.22, 3]].forEach(([x, part]) => { const g = new THREE.CylinderGeometry(0.05, 0.042, 0.6, 4, 1, true); g.translate(x, 1.42 - 0.3, 0); add(g, part); const h = new THREE.BoxGeometry(0.07, 0.1, 0.07); h.translate(x, 1.42 - 0.64, 0); add(h, part + 10); });
-    // neck + head (4 skin), hair cap (5), hat brim + crown (6)
-    { const n = new THREE.CylinderGeometry(0.05, 0.055, 0.1, 5, 1, true); n.translate(0, 1.54, 0); add(n, 4); const h = new THREE.SphereGeometry(0.11, 7, 5); h.scale(0.92, 1.1, 1); h.translate(0, 1.67, 0.01); add(h, 4);
-      const hair = new THREE.SphereGeometry(0.118, 7, 4, 0, Math.PI * 2, 0, 1.45); hair.scale(0.95, 1.05, 1.02); hair.translate(0, 1.685, -0.012); add(hair, 5);
-      const brim = new THREE.CylinderGeometry(0.2, 0.2, 0.015, 8, 1); brim.translate(0, 1.76, 0); add(brim, 6); const cr = new THREE.CylinderGeometry(0.1, 0.115, 0.1, 7, 1); cr.translate(0, 1.81, 0); add(cr, 6); }
+    [-0.085, 0.085].forEach(x => { const g = new THREE.BoxGeometry(0.1, 0.07, 0.22); g.translate(x, 0.035, 0.05); add(g, 7); });
+    // torso (1): lathe from hips to shoulders
+    { const pts = [[0, 0.82], [0.17, 0.84], [0.165, 1.08], [0.2, 1.34], [0.12, 1.48], [0, 1.5]].map(([r, y]) => new THREE.Vector2(r, y)); const g = new THREE.LatheGeometry(pts, 5); g.scale(1, 1, 0.68); add(g, 1); }
+    // arms (2 left, 3 right) from the shoulder pivot (±0.2, 1.42); the lowest ring is the hand (12, 13 → skin)
+    [[-0.22, 2], [0.22, 3]].forEach(([x, part]) => { const g = new THREE.CylinderGeometry(0.05, 0.042, 0.56, 4, 1, true); g.translate(x, 1.42 - 0.28, 0); add(g, part); const h = new THREE.CylinderGeometry(0.042, 0.035, 0.1, 4, 1); h.translate(x, 1.42 - 0.61, 0); add(h, part + 10); });
+    // head (4 skin), hair cap (5), hat brim + crown (6)
+    { const h = new THREE.SphereGeometry(0.11, 6, 4); h.scale(0.92, 1.12, 1); h.translate(0, 1.64, 0.01); add(h, 4);
+      const hair = new THREE.SphereGeometry(0.118, 6, 3, 0, Math.PI * 2, 0, 1.45); hair.scale(0.95, 1.05, 1.02); hair.translate(0, 1.655, -0.012); add(hair, 5);
+      const brim = new THREE.CylinderGeometry(0.2, 0.2, 0.015, 7, 1, true); brim.translate(0, 1.74, 0); add(brim, 6); const cr = new THREE.CylinderGeometry(0.1, 0.115, 0.1, 6, 1); cr.translate(0, 1.79, 0); add(cr, 6); }
     // merge (non-indexed)
     let n = 0; parts.forEach(g => n += g.attributes.position.count);
     const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), part = new Float32Array(n), col = new Float32Array(n * 3).fill(1); let o = 0;
@@ -398,6 +397,11 @@ const GFX = (() => {
   const SKINS = [0xf1c8a8, 0xe4b48f, 0xd9a582, 0xb07a52, 0x8a5a3a, 0x5e3c28, 0xf5d3b8];
   const HAIR = [0x1a1410, 0x3b2a1c, 0x6b4a2a, 0xb08850, 0x8a8580, 0xd8c08a, 0x2a1a12];
   function crowd(group, spots, opts) {
+    if (spots.length > 1500 && !(opts && opts.noChunk)) {                 // big crowds: one instanced mesh per ~110 m cell
+      const cells = {}; for (const s of spots) { const k = Math.floor(s.x / 110) + "," + Math.floor(s.z / 110); (cells[k] = cells[k] || []).push(s); }
+      const parts = Object.values(cells).map((c, i) => crowd(group, c, Object.assign({}, opts, { noChunk: true, seed: ((opts && opts.seed) || 7) + i * 13 })));
+      return { mesh: parts[0] && parts[0].mesh, parts, n: spots.length, set(frac) { parts.forEach(p => p.set(frac)); } };
+    }
     const geo = personGeo().clone(), n = spots.length, mesh = new THREE.InstancedMesh(geo, crowdMat(), Math.max(1, n));
     const r = rand((opts && opts.seed) || 77), dm = new THREE.Object3D(), c = new THREE.Color();
     const A = { iShirt: new Float32Array(n * 3), iPants: new Float32Array(n * 3), iSkin: new Float32Array(n * 3), iHair: new Float32Array(n * 4), iBeh: new Float32Array(n * 4) };
@@ -413,7 +417,10 @@ const GFX = (() => {
       A.iBeh.set([r(), s.seated ? 1 : 0, s.keen != null ? s.keen : 0.3 + r() * 0.7, r()], i * 4);
     });
     for (const k in A) geo.setAttribute(k, new THREE.InstancedBufferAttribute(A[k], k === "iHair" || k === "iBeh" ? 4 : 3));
-    mesh.castShadow = false; mesh.receiveShadow = true; mesh.frustumCulled = false; group.add(mesh);
+    // bounds that cover every spectator in this mesh, so the whole block is culled when it is off-screen
+    { let cx = 0, cy = 0, cz = 0; spots.forEach(s => { cx += s.x; cy += s.y || 0; cz += s.z; }); const k = Math.max(1, n); cx /= k; cy /= k; cz /= k; let r = 0; spots.forEach(s => { r = Math.max(r, Math.hypot(s.x - cx, (s.y || 0) - cy, s.z - cz)); });
+      geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, cy + 1, cz), r + 3); }
+    mesh.castShadow = false; mesh.receiveShadow = true; mesh.frustumCulled = !(opts && opts.always); group.add(mesh);
     const full = n;
     return { mesh, n, set(frac) { mesh.count = Math.max(0, Math.min(full, Math.round(full * frac))); } };
   }

@@ -344,6 +344,8 @@ body.touch #touchUI{display:flex;}
       <div class="setup-box">
         <div class="opt-label">Sound</div><div class="opt-row" id="optSound"></div>
         <div class="opt-label">Graphics quality</div><div class="opt-row" id="optQuality"></div>
+        <div class="opt-label">Parade ring (Randwick &amp; Flemington)</div><div class="opt-row" id="optParade"></div>
+        <div class="opt-label">Winner presentation</div><div class="opt-row" id="optCeleb"></div>
         <div class="opt-label">Shadows</div><div class="opt-row" id="optShadow"></div>
         <div class="opt-label">Crowd density</div><div class="opt-row" id="optCrowd"></div>
         <div class="opt-label">Scenery detail</div><div class="opt-row" id="optScenery"></div>
@@ -551,6 +553,8 @@ const store = {
 const settings = {
   sound: store.get("sound", true),
   shadows: store.get("shadows", true),
+  parade: ["majors", "always", "off"].includes(store.get("parade", "majors")) ? store.get("parade", "majors") : "majors",
+  celebrate: store.get("celebrate", true),
   quality: ["high", "medium", "low"].includes(store.get("quality", "high")) ? store.get("quality", "high") : "high",
   crowd: store.get("crowd", "full"),
   scenery: store.get("scenery", "high"),
@@ -1249,29 +1253,52 @@ function updateCrowd(dt, excite) {
 const gateGroup = new THREE.Group(); world.add(gateGroup);
 let gateDoors = [];
 function buildGates(route, n) {
+  /* Starting barriers: a mobile barrier unit of individual stalls — white tubular frame, padded green partitions, a
+     top beam with the attendants' walkway, wheels at each end, numbered plates, and split front doors that spring open
+     (outwards, both halves) at the exact moment the simulation opens the gates. Rear gates close the stall behind. */
   disposeGroup(gateGroup);
   gateDoors = [];
-  SHARED.gate = SHARED.gate || {
-    side: new THREE.BoxGeometry(0.12, 2.6, 3.4), top: new THREE.BoxGeometry(2.1, 0.5, 3.4), door: new THREE.BoxGeometry(1.9, 2.3, 0.08),
-    back: new THREE.BoxGeometry(1.9, 1.2, 0.08), num: new THREE.PlaneGeometry(0.9, 0.5),
-    frameM: new THREE.MeshLambertMaterial({ color: 0x3a4652 }), doorM: new THREE.MeshLambertMaterial({ color: 0xc9d2da }),
-  };
-  const G = SHARED.gate; Object.values(G).forEach(x => { if (x.userData) x.userData.shared = true; });
-  for (let i = 0; i < n; i++) {
-    const off = laneOff(i), p = route.point(-1.95, off, {});
-    const g = new THREE.Group();
-    g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(p.hx, p.hz);
-    const side1 = new THREE.Mesh(G.side, G.frameM); side1.position.set(-1, 1.3, 0);
-    const side2 = side1.clone(); side2.position.x = 1;
-    const top = new THREE.Mesh(G.top, G.frameM); top.position.set(0, 2.85, 0);
-    const doorPivot = new THREE.Group(); doorPivot.position.set(-0.95, 0, 1.7);
-    const door = new THREE.Mesh(G.door, G.doorM); door.position.set(0.95, 1.35, 0); doorPivot.add(door);
-    const numMat = markerCache["g" + i] || (markerCache["g" + i] = new THREE.MeshLambertMaterial({ map: boardTex(String(i + 1), "#f2f5f1", "#101512", 128, 64, 48) }));
-    const num = new THREE.Mesh(G.num, numMat); num.position.set(0, 3.15, 1.71); top.add(num);
-    g.add(side1, side2, top, doorPivot);
-    gateGroup.add(g); gateDoors.push(doorPivot);
+  if (!SHARED.gate2) {
+    const white = new THREE.MeshStandardMaterial({ color: 0xf1f1ec, roughness: 0.35, metalness: 0.3 }), pad = new THREE.MeshStandardMaterial({ color: 0x1f5a3c, roughness: 0.75 });
+    const mesh = new THREE.MeshStandardMaterial({ color: 0xe9ece8, roughness: 0.45, metalness: 0.4 }), dark = new THREE.MeshStandardMaterial({ color: 0x1b1d20, roughness: 0.8 }), steel = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, roughness: 0.35, metalness: 0.8 });
+    SHARED.gate2 = { white, pad, mesh, dark, steel, post: new THREE.CylinderGeometry(0.045, 0.045, 2.75, 8), rail: new THREE.CylinderGeometry(0.035, 0.035, 1, 6), padG: new THREE.BoxGeometry(0.12, 1.25, 2.8),
+      door: new THREE.BoxGeometry(0.86, 1.95, 0.06), doorBar: new THREE.BoxGeometry(0.86, 0.06, 0.08), num: new THREE.PlaneGeometry(0.75, 0.42), wheel: new THREE.CylinderGeometry(0.55, 0.55, 0.32, 18), beam: new THREE.BoxGeometry(1, 0.32, 0.5), walk: new THREE.BoxGeometry(1, 0.06, 0.9) };
+    for (const k in SHARED.gate2) if (SHARED.gate2[k].isBufferGeometry) SHARED.gate2[k].userData.shared = true;
   }
+  const G = SHARED.gate2, D = 3.2, H = 2.75;
+  const mk = (geo, mat, x, y, z, par) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; (par || unit).add(m); return m; };
+  // the unit sits square across the course at the start; built in the frame of lane 0 (x across, +z = direction of racing)
+  const p0 = route.point(-1.95, laneOff(0), {}), pN = route.point(-1.95, laneOff(n - 1), {});
+  const unit = new THREE.Group(); unit.position.set((p0.x + pN.x) / 2, 0, (p0.z + pN.z) / 2); unit.rotation.y = Math.atan2(p0.hx, p0.hz);
+  const acrossSign = ((pN.x - p0.x) * Math.cos(unit.rotation.y) - (pN.z - p0.z) * Math.sin(unit.rotation.y)) >= 0 ? 1 : -1;
+  const width = n * LANE_W, x0 = -width / 2;
+  for (let i = 0; i <= n; i++) {                                       // partitions between stalls (padded), posts at the corners
+    const x = x0 + i * LANE_W;
+    for (const z of [-D / 2, D / 2]) mk(G.post, G.white, x, H / 2, z);
+    if (i > 0 && i < n) mk(G.padG, G.pad, x, 1.05, 0); else mk(G.padG, G.white, x, 1.05, 0);
+    const top = mk(G.rail, G.white, x, H - 0.05, 0); top.rotation.x = Math.PI / 2; top.scale.y = D;
+  }
+  const beamF = mk(G.beam, G.white, 0, H + 0.12, -D / 2); beamF.scale.x = width + 0.4; const beamB = mk(G.beam, G.white, 0, H + 0.12, D / 2); beamB.scale.x = width + 0.4;
+  const walk = mk(G.walk, G.steel, 0, H + 0.32, 0); walk.scale.set(width + 0.4, 1, 3.4);
+  for (const sx of [-1, 1]) { const w1 = mk(G.wheel, G.dark, sx * (width / 2 + 0.35), 0.55, -0.9); w1.rotation.z = Math.PI / 2; const w2 = mk(G.wheel, G.dark, sx * (width / 2 + 0.35), 0.55, 0.9); w2.rotation.z = Math.PI / 2; }
+  for (let i = 0; i < n; i++) {
+    const xc = x0 + (i + 0.5) * LANE_W, lane = acrossSign > 0 ? i : n - 1 - i;
+    // two front door halves, hinged at the stall's corner posts, opening forwards
+    for (const sd of [-1, 1]) {
+      const piv = new THREE.Group(); piv.position.set(xc + sd * LANE_W / 2, 0, D / 2 + 0.03); unit.add(piv);
+      const dr = mk(G.door, G.mesh, -sd * 0.45, 1.25, 0, piv); for (const y of [0.45, 1.25, 2.05]) mk(G.doorBar, G.white, -sd * 0.45, y, 0.02, piv);
+      piv.userData.sign = sd; gateDoors.push(piv);
+    }
+    const back = mk(G.door, G.mesh, xc, 1.05, -D / 2 - 0.03); back.scale.set(2.05, 0.8, 1);
+    const numMat = markerCache["g" + lane] || (markerCache["g" + lane] = new THREE.MeshStandardMaterial({ map: boardTex(String(lane + 1), "#f7f7f2", "#101512", 128, 72, 54), roughness: 0.6 }));
+    const num = mk(G.num, numMat, xc, H + 0.6, D / 2 + 0.28); num.castShadow = false;
+  }
+  gateGroup.add(unit);
+  // barrier attendants standing on the walkway and beside the stalls
+  if (typeof GFX !== "undefined") { const sp = []; for (let i = 0; i < Math.min(8, n); i++) { const x = x0 + (i * 1.6 + 0.8) * LANE_W, v = new THREE.Vector3(x, H + 0.35, (i % 2 ? 0.7 : -0.7)).applyMatrix4(unit.updateMatrixWorld() || unit.matrixWorld); sp.push({ x: v.x, y: v.y, z: v.z, rot: unit.rotation.y + (i % 2 ? 0 : Math.PI), keen: 0.2 }); } GFX.crowd(gateGroup, sp, { seed: 5 }); }
 }
+// gate doors: both halves spring open (≈0.25 s) the moment the race state turns to "running"
+function updateGateDoors(dt) { for (const dp of gateDoors) { const sg = dp.userData.sign || 1; dp.rotation.y = sg * Math.min(1.75, Math.abs(dp.rotation.y) + dt * 7.5); } }
 
 /* ---------- Turf particles (pooled instanced clods) ---------- */
 const FX = (() => {
@@ -1822,7 +1849,7 @@ const JK_PARENT = { torso: null, head: "torso", uaL: "torso", uaR: "torso", faL:
 function jockeyPointSet() { const o = {}; ["P", "S", "N", "H", "shoL", "shoR", "elbL", "elbR", "hanL", "hanR", "hipL", "hipR", "kneL", "kneR", "ftL", "ftR", "whip", "face"].forEach(k => o[k] = new THREE.Vector3()); return o; }
 const _jkTmp = { pole: new THREE.Vector3(), a: new THREE.Vector3() };
 // where every joint of the rider should be (body-bone space). ride 0..3, rest/settle 0..1, whipK: stroke progress 0..1 (or <0 when idle)
-const _jkX = { curv: 0, acc: 0, fat: 0 };                 // extra riding context for the pose (set by animateHorse)
+const _jkX = { curv: 0, acc: 0, fat: 0, cel: 0 };                 // extra riding context for the pose (set by animateHorse)
 function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
   const r = clamp(ride, 0, 3), w1 = clamp(r, 0, 1), w2 = clamp(r - 1, 0, 1), w3 = clamp(r - 2, 0, 1);
   const X = _jkX, accN = clamp(X.acc / 2.5, 0, 1) * (1 - rest), tf = clamp((X.fat - 0.45) * 2, 0, 1) * w2, cv = clamp(X.curv, -0.4, 0.4);
@@ -1846,6 +1873,9 @@ function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
       const up = Math.sin(Math.min(1, whipK / 0.45) * Math.PI / 2) * (whipK < 0.45 ? 1 : 1 - (whipK - 0.45) / 0.55);
       const down = whipK > 0.45 ? Math.sin((whipK - 0.45) / 0.55 * Math.PI) : 0;
       hx = lerp(hx, o.P.x + 0.12, up * 0.8 + down * 0.6); hy = lerp(hy, o.P.y + 0.28, up) - 0.12 * down; hz = lerp(hz, -0.27, Math.max(up, down));
+    }
+    if (X.cel > 0) {                                                                  // winner's salute: whip hand raised high, the other on the neck
+      if (sd < 0) { hx = lerp(hx, o.S.x + 0.06, X.cel); hy = lerp(hy, o.S.y + 0.62, X.cel); hz = lerp(hz, -0.34, X.cel); } else { hy = lerp(hy, 0.56, X.cel); }
     }
     const han = o["han" + L].set(hx, hy, hz);
     ik2(sho, han, 0.27, 0.25, _jkTmp.pole.set(-0.25, -1, sd * 0.85), o["elb" + L]);
@@ -3343,6 +3373,8 @@ function buildSetup() {
 function buildSettings() {
   chipRow($("optSound"), [true, false], settings.sound, v => { settings.sound = v; store.set("sound", v); if (!v && audio.on) location.reload(); }, v => v ? "On" : "Off");
   chipRow($("optShadow"), [true, false], settings.shadows, v => { settings.shadows = v; store.set("shadows", v); renderer.shadowMap.enabled = v; sun.castShadow = v; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }, v => v ? "On" : "Off");
+  chipRow($("optParade"), ["majors", "always", "off"], settings.parade, v => { settings.parade = v; store.set("parade", v); }, v => ({ majors: "Feature races", always: "Every race", off: "Off" })[v]);
+  chipRow($("optCeleb"), [true, false], settings.celebrate, v => { settings.celebrate = v; store.set("celebrate", v); }, v => v ? "On" : "Off");
   chipRow($("optQuality"), ["high", "medium", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ high: "High", medium: "Medium", low: "Low (integrated graphics)" })[v]);
   chipRow($("optCrowd"), ["full", "light", "off"], settings.crowd, v => { settings.crowd = v; store.set("crowd", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optScenery"), ["high", "medium", "low"], settings.scenery, v => { settings.scenery = v; store.set("scenery", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
@@ -3771,6 +3803,7 @@ function startRace(cfg) {
   camPos.set(sp.x - sp.hx * 20 + sp.nx * 14, 6, sp.z - sp.hz * 20 + sp.nz * 14);
   camLook.set(sp.x, 1.5, sp.z);
   simAcc = 0;
+  if (typeof PRESENT !== "undefined" && PRESENT.wantParade(cfg)) PRESENT.parade(race);   // optional, skippable
 }
 
 /* Post-race analysis from telemetry */
@@ -3924,7 +3957,8 @@ function finishRace(r) {
   // let the commentator finish the winner call before the replay / results take over
   setTimeout(() => {
     if (race !== r || r.state !== "done" || ui.state !== "racing") return;
-    if (settings.autoReplay && r.rec.n) startReplay(close ? "photo" : "finish", true); else show("results");
+    const next = () => { if (race !== r) return; if (settings.autoReplay && r.rec.n) startReplay(close ? "photo" : "finish", true); else show("results"); };
+    if (typeof PRESENT !== "undefined" && settings.celebrate !== false && PRESENT.wantCelebration(r)) PRESENT.celebrate(r, next); else next();
   }, 900 + (typeof COMM !== "undefined" ? COMM.holdMs() : 0));
 }
 raceHooks.done = () => finishRace(race);
@@ -4007,6 +4041,7 @@ function handleEsc() {
 // crowd behaviour inputs (visual only): how excited the stands are, and where the action is
 const _gfxF = new THREE.Vector3();
 function gfxExcite() {
+  if (typeof PRESENT !== "undefined" && PRESENT.mode) return PRESENT.mode === "celebrate" ? 1.05 : 0.22;
   if (!race) return 0;
   if (ui.state === "replay") return 0.7;
   if (race.state === "count" || race.state === "load") return 0.18;
@@ -4015,7 +4050,7 @@ function gfxExcite() {
   const rem = race.dist - L.progress, B = race.order[1], close = B ? clamp(1 - (L.progress - B.progress) / 6, 0, 1) : 0;
   return clamp(0.22 + 0.5 * clamp(1 - rem / 600, 0, 1) + 0.35 * close * clamp(1 - rem / 300, 0, 1), 0, 1.1);
 }
-function gfxFocus() { const L = race && race.order && race.order[0]; if (L && L.pos) return _gfxF.set(L.pos.x, 0, L.pos.z); return _gfxF.copy(camera.position); }
+function gfxFocus() { if (typeof PRESENT !== "undefined" && PRESENT.mode) return _gfxF.set(camera.position.x, 0, camera.position.z).lerp(camLook, 0); const L = race && race.order && race.order[0]; if (L && L.pos) return _gfxF.set(L.pos.x, 0, L.pos.z); return _gfxF.copy(camera.position); }
 
 /* ---------- Main loop: fixed simulation step, free-running render ---------- */
 let simAcc = 0, lastT = performance.now();
@@ -4026,6 +4061,12 @@ function frame(now) {
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
   // Career screens: the 3D racing stable is drawn instead of the racecourse
   if (typeof STABLE3D !== "undefined" && STABLE3D.active && !race && ui.state.startsWith("c_")) { STABLE3D.frame(dt); return; }
+  // race-day presentation (parade ring / winner presentation): its own camera, the race itself is paused
+  if (typeof PRESENT !== "undefined" && PRESENT.mode) {
+    PRESENT.frame(dt); HORSE_U.uTime.value += dt; FX.update(dt); updateVenue(dt); if (typeof VENUES !== "undefined") VENUES.update(dt);
+    if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), PRESENT.mode === "celebrate" ? 1 : 0);
+    renderer.render(scene, camera); return;
+  }
   if (RP.on && ui.state === "replay") { updateReplay(dt); FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); renderer.render(scene, camera); return; }
   if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.6); renderer.render(scene, camera); } return; }
   if (race && ui.state === "racing") {
@@ -4040,7 +4081,7 @@ function frame(now) {
     let n = 0;
     if (MPC()) { MPC().update(dt); ts = 1; simAcc = 0; }                  // online: the server runs the race; we show it
     else while (simAcc >= SIM_DT && n++ < 24) { race.step(SIM_DT); simAcc -= SIM_DT; }
-    if (race.state === "running") gateDoors.forEach(dp => { dp.rotation.y = Math.min(1.9, dp.rotation.y + dt * 7); });
+    if (race.state === "running") updateGateDoors(dt);
     updateHorseMeshes(dt * ts);
     updateHUD(dt); if (MPC()) MPC().afterHUD();
     if (typeof COMM !== "undefined") COMM.update(race);
@@ -4081,6 +4122,7 @@ else boot();
 <script src="gfx.js"></script>
 <script src="mp.js"></script>
 <script src="venues.js"></script>
+<script src="presentation.js"></script>
 <script src="stable3d.js"></script>
 <script src="career.js"></script>
 

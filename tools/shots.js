@@ -25,6 +25,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const cfg = Object.assign(quickCfg(), { distance: s.dist || 1200, field: s.field || 12, track: s.track || 'generic', chaos: false, incidents: 'off', allBots: true, seed: s.seed || 7 }, s.cfg || {});
       if (s.meta) cfg.meta = s.meta;
       startRace(cfg);
+      if (s.skipParade && typeof PRESENT !== 'undefined' && PRESENT.mode) PRESENT.finish();
       if (s.at != null) {
         race.state = 'count'; race.openGates && race.openGates();
         let n = 0; const lead = () => Math.max(...race.horses.map(h => h.progress));
@@ -47,7 +48,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     }, s);
     await sleep(s.settle || 2500);
     const info = await p.evaluate(() => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures }));
-    await p.screenshot({ path: path.join(out, s.name + '.png') });
+    await p.screenshot({ path: path.join(out, s.name + '.png'), timeout: 120000 });
     console.log(s.name, JSON.stringify(info), (Date.now() - t0) + 'ms', errs.length ? 'ERR ' + errs.join(' | ') : '');
     await ctx.close();
   }
