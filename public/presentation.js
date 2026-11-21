@@ -114,7 +114,7 @@ const PRESENT = (() => {
     S.shots.push({ k: "wide2", d: 2.6 });
     S.si = -1; S.ui.hidden = false;
     show("parade");
-    S.done = () => { if (race === r) show("racing"); };
+    S.done = () => { if (race !== r) return; show("racing"); if (typeof COMM !== "undefined") COMM.begin(r, r.cfg); };   // the parade silenced the caller: start the race call afresh
     return true;
   }
   const _q = new THREE.Vector3(), _q2 = new THREE.Vector3();

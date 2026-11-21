@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body style="margin:0">
 <title>Final Furlong</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;900&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;900&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: fullscreen 3D canvas, DOM overlay for HUD + menus. Single committed look (daylight sport broadcast). */
 :root{
@@ -362,6 +362,13 @@ body.touch #touchUI{display:flex;}
         <div class="opt-label">Commentary captions</div><div class="opt-row" id="optCommCap"></div>
         <div class="opt-label">Commentator voice</div>
         <div class="opt-row"><select id="optCommVoice" style="max-width:min(420px,90vw);background:rgba(18,26,21,0.9);color:var(--fg);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;font-family:var(--font-b);font-size:13px"></select><button class="chip" id="optCommTest">Test voice</button></div>
+        <div class="opt-label">Commentary voice engine</div><div class="opt-row" id="optVoiceEng"></div>
+        <div class="opt-row" id="optVoicePickRow"><select id="optVoicePick" style="max-width:min(420px,90vw);background:rgba(18,26,21,0.9);color:var(--fg);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;font-family:var(--font-b);font-size:13px"></select></div>
+        <div id="optVoiceStatus" style="font-size:12px;color:var(--fg-dim);max-width:460px;text-align:center;line-height:1.45"></div>
+        <div class="opt-row" id="optVoiceDl"></div>
+        <div class="opt-label">Speaking pace</div><div class="opt-row" id="optVoiceRate"></div>
+        <div class="opt-label">Commentary voice test</div><div class="opt-row" id="optVoiceTest" style="flex-wrap:wrap;justify-content:center"></div>
+        <div id="optVoiceInfo" style="font-size:12px;color:var(--fg-dim);max-width:460px;text-align:center;min-height:16px"></div>
         <div style="font-size:11px;color:var(--fg-dim);max-width:440px;text-align:center;" id="optCommNote">Spoken with your browser's built-in voices. An Australian voice is chosen automatically when your system has one (on a Mac: Lee or Karen — Enhanced/Premium versions can be downloaded in System Settings → Accessibility → Spoken Content).</div>
       </div>
       <button class="btn" id="settingsBack" style="margin-top:14px;">Back</button>
@@ -529,11 +536,13 @@ body.touch #touchUI{display:flex;}
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>window.THREE || document.write('<script src="vendor/three.min.js"><\/script>');</script>
 <script src="sim.js"></script>
 <script src="season.js"></script>
 <script src="commentary.js"></script>
+<script src="voice-core.js"></script>
+<script src="voice.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -3346,8 +3355,58 @@ function buildCommSettings() {
   sel.disabled = !COMM.supported;
   sel.onchange = () => { COMM.set("voice", sel.value); };
   $("optCommTest").onclick = () => COMM.test();
+  buildVoiceLab();
   if (!COMM.supported) $("optCommNote").textContent = "This browser has no speech synthesis, so the commentary is shown as captions only.";
   else if (!list.length) setTimeout(() => { if (ui.state === "settings" && COMM.voiceList().length) buildCommSettings(); }, 700);   // voices load asynchronously
+}
+
+/* Enhanced commentary voice: engine, voice, model download, pace, and the voice test (samples + measured latency) */
+function voiceSampleHorse() {
+  try { if (typeof CAREER !== "undefined" && CAREER.data && CAREER.data.horses && CAREER.data.horses.length) { const h = CAREER.data.horses[CAREER.data.active || 0] || CAREER.data.horses[0]; return h.say || h.name; } } catch (e) {}
+  return ROSTER[settings.playerHorse].name;
+}
+const VOICE_SAMPLES = [
+  ["1 · Calm racing", 1.3, () => "They're away and racing. Desert Comet is quickest to find the front, Midnight Legend settles in third along the rail, and Quiet Thunder is back towards the tail of the field."],
+  ["2 · Home turn", 2.8, () => "Coming to the home turn, Desert Comet still leads them, Midnight Legend has worked into third, and Quiet Thunder is beginning to make ground out wider!"],
+  ["3 · Close finish", 4.6, () => "Two hundred to go! Desert Comet and Midnight Legend, locked together! Quiet Thunder flying down the outside! It's going to be close!"],
+  ["4 · Your horse", 3.4, () => `And here's ${voiceSampleHorse()}, making a long run down the middle of the track!`],
+];
+function buildVoiceLab() {
+  if (typeof VOICE === "undefined" || !$("optVoiceEng")) return;
+  const V = VOICE, S = V.settings, sup = V.supported();
+  const engines = sup ? ["system", "kokoro", "piper"] : ["system"];
+  chipRow($("optVoiceEng"), engines, engines.includes(S.engine) ? S.engine : "system", v => { V.set("engine", v); buildVoiceLab(); }, v => ({ system: "Standard (system voice)", kokoro: "Enhanced · Kokoro", piper: "Fast · Piper" })[v]);
+  const pick = $("optVoicePick"), neural = S.engine === "kokoro" || S.engine === "piper";
+  $("optVoicePickRow").hidden = !neural;
+  if (neural) {
+    const list = S.engine === "kokoro" ? V.KOKORO_VOICES : Object.fromEntries(Object.entries(V.PIPER_VOICES).map(([k, v]) => [k, v.label]));
+    pick.innerHTML = Object.entries(list).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+    pick.value = S.engine === "kokoro" ? S.kokoroVoice : S.piperVoice;
+    pick.onchange = () => { V.set(S.engine === "kokoro" ? "kokoroVoice" : "piperVoice", pick.value); buildVoiceLab(); };
+  }
+  chipRow($("optVoiceRate"), [0.92, 1, 1.08, 1.16], [0.92, 1, 1.08, 1.16].reduce((b, x) => Math.abs(x - S.rate) < Math.abs(b - S.rate) ? x : b, 1), v => V.set("rate", v), v => ({ 0.92: "Measured", 1: "Normal", 1.08: "Brisk", 1.16: "Fast" })[v]);
+  const st = $("optVoiceStatus"), dl = $("optVoiceDl"); dl.innerHTML = "";
+  if (!neural) {
+    st.textContent = sup ? "Standard: your browser's built-in voices (instant, no download). Choose Enhanced · Kokoro for a far more natural free neural voice (one-time ~105 MB download, then fully local), or Fast · Piper for a lighter neural voice that keeps up on slower computers."
+      : "This browser can't run the local neural voices (needs Web Workers, Web Audio and Cache Storage), so the standard voice is used.";
+  } else {
+    st.textContent = "Checking for the downloaded voice…";
+    V.status(S.engine).then(x => {
+      if (x.ready) {
+        st.innerHTML = `<b style="color:var(--fg)">${V.engineLabel} — downloaded and stored on this device.</b> Every line is generated locally; nothing is sent anywhere. ${V.stats.rtf != null ? `Measured speed on this computer: ${(1 / V.stats.rtf).toFixed(1)}× real time (${V.stats.threads} thread${V.stats.threads > 1 ? "s" : ""}).` : "Play a sample to measure its speed here."}`;
+        const rm = document.createElement("button"); rm.className = "chip"; rm.textContent = "Remove downloaded voice"; rm.onclick = async () => { await V.remove(S.engine); buildVoiceLab(); }; dl.appendChild(rm);
+      } else {
+        st.innerHTML = `${S.engine === "kokoro" ? "Kokoro-82M (Apache-2.0) — the most natural free voice tested. Needs a reasonably fast computer to call a live race (Apple Silicon is fine)." : "Piper (MIT engine; each voice has its own dataset licence) — less natural than Kokoro but several times faster."} One-time download of about ${Math.round(x.total / 1e6)} MB, stored in this browser; after that it works offline.`;
+        const b = document.createElement("button"); b.className = "chip on"; b.textContent = "Download voice"; dl.appendChild(b);
+        b.onclick = async () => { b.disabled = true; try { await V.download(S.engine, (f, key) => { b.textContent = `Downloading… ${Math.round(f * 100)}%`; }); b.textContent = "Preparing…"; await V.warm(); } catch (e) { st.textContent = "Download failed: " + e.message + " — the standard voice will be used."; } buildVoiceLab(); };
+      }
+    });
+  }
+  const tw = $("optVoiceTest"); tw.innerHTML = "";
+  VOICE_SAMPLES.forEach(([label, I, fn]) => { const b = document.createElement("button"); b.className = "chip"; b.textContent = label; tw.appendChild(b);
+    b.onclick = async () => { audio.ensure && audio.ensure(); $("optVoiceInfo").textContent = "Generating…"; const t0 = performance.now(); const r = await COMM.sample(fn(), I);
+      $("optVoiceInfo").textContent = r && r.firstMs != null ? `${r.engine}: speech started after ${Math.round(r.firstMs)} ms · generating at ${r.rtf ? (1 / r.rtf).toFixed(1) + "× real time" : "—"}${r.rtf && r.rtf > 0.9 ? " — too slow to call a live race on this computer; try Fast · Piper" : ""}` : (r ? r.engine : "Standard voice"); };
+  });
 }
 
 /* Option chips */

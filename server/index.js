@@ -9,7 +9,7 @@ const P = require('./protocol');
 
 const PORT = +(process.env.PORT || 8080), HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC = path.join(__dirname, '..', 'public');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.wasm': 'application/wasm', '.onnx': 'application/octet-stream', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -19,7 +19,11 @@ const server = http.createServer((req, res) => {
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('not found'); return; }
-    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': rel.endsWith('.html') ? 'no-cache' : 'public, max-age=300', 'x-content-type-options': 'nosniff' });
+    const hdr = { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': rel.endsWith('.html') ? 'no-cache' : 'public, max-age=300', 'x-content-type-options': 'nosniff', 'cross-origin-resource-policy': 'same-origin' };
+    // cross-origin isolation: lets the enhanced commentary voice run on several CPU threads (SharedArrayBuffer).
+    // Off with FF_COI=0 or ?coi=0 (if a browser extension or a third-party resource objects to it).
+    if (rel.endsWith('.html') && process.env.FF_COI !== '0' && url.searchParams.get('coi') !== '0') { hdr['cross-origin-opener-policy'] = 'same-origin'; hdr['cross-origin-embedder-policy'] = 'require-corp'; }
+    res.writeHead(200, hdr);
     res.end(data);
   });
 });

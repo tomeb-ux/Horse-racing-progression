@@ -451,6 +451,15 @@ const COMM = (() => {
   }
   function hideCaption() { if (capEl) capEl.className = ""; }
 
+  // the enhanced (neural) voice when it is installed and ready; otherwise the browser's own voices
+  function neural() { return typeof VOICE !== "undefined" ? VOICE.speaker() : null; }
+  let warned = false;
+  function activeSpeaker() {
+    const nv = neural();
+    if (!nv && typeof VOICE !== "undefined" && SET.on && !warned) { const why = VOICE.liveIssue && VOICE.liveIssue(); if (why && why !== "still measuring") { warned = true; try { toast("Enhanced voice " + why + " — using the standard voice (Settings → Voice test)", "info", 3.5); } catch (e) {} } }
+    if (!nv || !SET.on || SET.vol <= 0) return browserSpeaker;
+    return { speak: (text, prm, onEnd) => nv.speak(text, prm, onEnd), cancel: () => { nv.cancel(); hideCaption(); } };
+  }
   // ---------- public API (browser) ----------
   function metaFor(cfg) {
     const c = cfg && cfg.career;
@@ -466,7 +475,7 @@ const COMM = (() => {
     currentVoice() { const v = chooseVoice(); return v ? v.name + " (" + v.lang + ")" : (synth ? "System default" : "Not available in this browser"); },
     // must run inside a user gesture once: some browsers only allow speech after the player has interacted
     prime() { if (primed || !synth) return; primed = true; try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch (e) {} },
-    begin(race, cfg) { this.silence(); if (!race) return; booth = new Booth(race, metaFor(cfg), browserSpeaker, { log: inBrowser && window.__commLog ? (e => window.__commLog.push(Object.assign({}, e, { claim: e.claim ? e.claim.def.name : null, leaderNow: e.leaderNow ? e.leaderNow.def.name : null }))) : null }); },
+    begin(race, cfg) { this.silence(); if (!race) return; booth = new Booth(race, metaFor(cfg), activeSpeaker(), { log: inBrowser && window.__commLog ? (e => window.__commLog.push(Object.assign({}, e, { claim: e.claim ? e.claim.def.name : null, leaderNow: e.leaderNow ? e.leaderNow.def.name : null }))) : null }); },
     update(race) {
       if (!booth || booth.race !== race) return;
       if (!SET.on && !SET.captions) return;
@@ -474,8 +483,13 @@ const COMM = (() => {
     },
     // how long the results screen should wait so the winner call isn't cut off (ms)
     holdMs() { return booth && (booth.finalPending || (booth.firstFinT && !booth.winCalled)) ? 2600 : 0; },
-    silence() { if (booth) booth.stop(); booth = null; browserSpeaker.cancel(); },
-    test() { this.prime(); browserSpeaker.cancel(); browserSpeaker.speak("Into the straight, and here they come! It's going to be close!", voiceParams(4.2), () => {}); },
+    silence() { if (booth) booth.stop(); booth = null; browserSpeaker.cancel(); const nv = neural(); if (nv) nv.cancel(); hideCaption(); },
+    test() { this.sample("Into the straight, and here they come! It's going to be close!", 4.2); },
+    // speak one line with whatever engine is active (the voice test screen); returns timing info for neural engines
+    async sample(text, level) { this.prime(); browserSpeaker.cancel(); const nv = neural(); if (nv) nv.cancel();
+      if (typeof VOICE !== "undefined" && (VOICE.settings.engine === "kokoro" || VOICE.settings.engine === "piper")) { const r = await VOICE.sample(text, level); if (r) return Object.assign({ engine: VOICE.engineLabel }, r); }
+      browserSpeaker.speak(text, voiceParams(level), () => {}); return { engine: "System voice: " + this.currentVoice() }; },
+    _caption(text, I) { showCaption(text, I); },
   };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = COMM;

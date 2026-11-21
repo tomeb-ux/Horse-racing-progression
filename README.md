@@ -55,6 +55,18 @@ Bend radii, the back-straight kink and the chute angle are estimates (the offici
 from the build environment) — see `TRACK_DEFS` in `public/sim.js`. Choose it in Quick Race → Course. Online races use the
 original course.
 
+## Flemington, venues and presentation
+Royal Randwick and Flemington are built from their real course geometry (see `HANDOFF.md` for the figures and which
+are estimates). Flemington has the Straight Six and the Melbourne Cup route. Settings → Graphics quality (High /
+Medium / Low), Parade ring (Feature races / Every race / Off), Winner presentation (On / Off).
+
+## Enhanced commentary voice (optional)
+Settings → Commentary voice engine: *Standard* (your system's voices), *Enhanced · Kokoro* (most natural; one-time
+~105 MB download) or *Fast · Piper* (lighter). After the download everything runs locally. Use **Commentary voice
+test** to hear four samples and see how fast the voice generates on your computer — the live race call only uses a
+neural voice when it is faster than real time. Self-hosting: `node tools/fetch-voices.js` puts the Kokoro files in
+`public/voices/` so your server provides them. Licences: `ASSETS.md`.
+
 ## Live race commentary
 
 A continuous, original Australian-style race call (linked clauses, a call through the field, chained bursts in the straight), spoken aloud in every mode (Quick Race, Career, online) using the

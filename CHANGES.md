@@ -1,5 +1,28 @@
 # Final Furlong — change log
 
+## Update: Flemington, rebuilt racecourses, realistic horses and jockeys, race-day presentation, neural commentary voice
+- **Flemington** (left-handed, 2312 m, 450 m straight, pear shape, sweeping home turn from the 1200 m) with the real
+  **Straight Six** (1000–1200 m races run dead straight: no bend loading, no ground lost for width, no "final bend")
+  and the **Melbourne Cup** route (start up the straight course, past the post at 888 m, a full lap). Career races at
+  Flemington now run there; Quick Race has the course too. Fixed a latent AI bug (an early "check" never expired).
+- **Racecourses rebuilt** (`gfx.js`, `venues.js`): image-based lighting from a procedural sky, a new turf shader (mowing
+  stripes, relief, worn running line), five tree species with wind, a GPU-animated crowd that watches and reacts to the
+  race, rails that follow the geometry exactly. Royal Randwick: the five-level grandstand with its translucent fabric
+  roof, the Theatre of the Horse, Owners' Pavilion, heritage stand, Kensington track, Sydney skyline. Flemington: the
+  Club Stand with its petal bands, the Grandstand and Hill Stand, roses along the straight, the mounting yard, the
+  river, Melbourne skyline. Graphics quality presets (High / Medium / Low).
+- **Horses**: athletic thoroughbred barrel and underline, coat shading with sheen and tone, a mane of real locks and a
+  tail with loose strands, both moving in the wind; a walking gait. **Jockeys**: proper short-iron racing crouch (knees
+  forward, flat back), anatomical body, face, gloves, boots, satin silks with folds that flutter.
+- **Broadcast director**: long-lens coverage that frames the leaders and your horse (towers, tracking camera, head-on
+  down the straight, finish camera), smoothly panned and zoomed.
+- **Race day**: Australian-style barrier unit with split doors and attendants; optional, skippable **parade ring**
+  before feature races; **winner presentation** with the official time and margin and a trophy for feature races.
+- **Enhanced commentary voice** (optional, free, local): Kokoro neural TTS (or the faster Piper) in a Web Worker, a
+  one-time download stored in the browser, streaming playback with lookahead, late lines dropped rather than played
+  stale, a broadcast audio chain; automatic fallback to the system voice when the computer is too slow. New **voice
+  test** in Settings with four samples and the measured speed.
+
 ## Update: 3D racing stable, new horse creator, faster development, persistent rivals, a real race-caller, and Royal Randwick
 **A 3D Australian racing stable** (`public/stable3d.js`). Career screens now sit inside a timber-and-steel stable block:
 concrete aisle, five loose boxes with grilles and sliding doors, straw beds, buckets and hay nets, a tack wall (saddle racks,
