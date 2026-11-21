@@ -1,5 +1,31 @@
 # Final Furlong — change log
 
+## Update: smarter pack racing, immersive cameras, a better jockey, a Flemington infield worth looking at
+- **AI jockeys with personalities**: every rival is a front-runner, stalker, rail rider or closer (shown under each
+  name in the Tab stats panel). Front-runners press on early; stalkers sit handy; rail riders hug the fence and wait
+  for a gap; closers drop out and come wide and late. Riders actively tuck in behind a horse for cover, stay on the
+  rail to save ground, and make mistakes: some kick too early and empty out, some wait too long. Horses that are
+  boxed in genuinely cannot go until a gap opens (yours included). Measured over 60 simulated races, mid-race:
+  horses racing in cover 12.5% → 15.0%, horses held up 7.1% → 8.5%, the field slightly more compact.
+- **Chase camera**: closer and lower behind your horse with a narrower lens, so the horse fills the frame; the
+  camera eases away on a surge and drifts to show a rival sliding back as you pass it (or coming past you). Through
+  the home turn it lifts and looks further ahead to reveal the straight and the stands; in the last 250 m it drops
+  lower behind the horse with a subtle widening of the view.
+- **Jockey camera**: the horse's neck and ears in view, with motion synced to the gallop but stabilised like a real
+  rider's head (steadier when the horse is settled, more ragged when it tires), a small forward surge each stride,
+  a lean into acceleration. No added shake; steering is never affected by the camera.
+- **Jockey model**: a proper skull cap with peak and pompom, goggles with lenses and strap, a face with nose, chin and
+  ears, a hair line at the nape, broader chest and shoulders, slimmer forearms and gloves, knees in the riding
+  breeches, and a silk sheen on the colours.
+- **Flemington infield**: mown stripes across the whole lawn, 18 tree groves (plane trees, gums, figs, cypress
+  windbreaks), the lake with fountain and roses, an avenue of trees and clipped hedges on the promenades, a training
+  centre (three stable barns, a horse walker, a round yard), an inner sand training track, picnic lawns with café
+  umbrellas, flag lines and light towers.
+- **Replays**: some of the crowd wave and clap in the replay and the winner's celebration (still static during the
+  race itself).
+- **Feature-race tiles removed** from the title screen: The Everest and the Melbourne Cup are reached through Career.
+- **Parade ring at Randwick**: the horses were walking below the lawn (sunken ring); the ring is now level.
+
 ## Update: static crowd, screen-relative steering, more emotional race calls in your voice, name list, new menus
 - **Crowd is static**: one fixed pose per spectator (no per-frame animation) with a much cheaper shader; the simpler
   spectator models take over sooner. Finish-straight crowd ~270–365k triangles (was ~475k last update, >2M originally).

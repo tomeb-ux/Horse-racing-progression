@@ -42,7 +42,7 @@ img{max-width:100%;}
 /* ---- main menu ---- */
 #menuScreen{justify-content:center;padding:clamp(16px,4vw,48px);}
 #menuVeil{background:radial-gradient(120% 90% at 78% 40%,rgba(5,10,8,0) 0%,rgba(5,10,8,0.35) 55%,rgba(5,10,8,0.85) 100%),linear-gradient(90deg,rgba(5,10,8,0.88) 0%,rgba(5,10,8,0.55) 38%,rgba(5,10,8,0) 70%);}
-.mm{position:relative;width:min(1180px,100%);display:flex;gap:32px;align-items:flex-end;justify-content:space-between;margin:auto 0;}
+.mm{position:relative;width:min(1180px,100%);display:flex;gap:32px;align-items:flex-end;justify-content:flex-start;margin:auto 0;}
 .mm-left{display:flex;flex-direction:column;gap:22px;width:min(460px,100%);}
 .mm-brand{display:flex;gap:16px;align-items:center;}
 .mm-badge{flex:none;width:64px;height:64px;border-radius:16px;display:grid;place-items:center;color:var(--accent);background:linear-gradient(160deg,rgba(232,195,90,0.18),rgba(232,195,90,0.04));border:1px solid rgba(232,195,90,0.45);box-shadow:0 8px 30px rgba(0,0,0,0.35);}
@@ -349,11 +349,6 @@ body.touch #touchUI{display:flex;}
           <button class="mm-item" id="btnHow"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2zm2.1-7.7-.9.9C13.5 11 13 11.6 13 13h-2v-.5c0-1.1.5-2.1 1.2-2.8l1.2-1.3A1.9 1.9 0 0 0 12 5.4 2 2 0 0 0 10 7.4H8a4 4 0 1 1 7.1 2.9z" fill="currentColor"/></svg></span><span class="tx"><b>How to Play</b><small>Riding, rhythm, steering and starts</small></span><span class="chev">›</span></button>
         </nav>
         <div class="mm-foot" id="menuHorseLine"></div>
-      </div>
-      <div class="mm-right">
-        <div class="mm-feat-h">Feature races</div>
-        <button class="mm-feat everest" id="featEverest"><span class="tag">Royal Randwick · 1200 m · right-handed</span><b>The Everest</b><small>The richest race on turf — a full house at Randwick</small><span class="go">Race now ›</span></button>
-        <button class="mm-feat cup" id="featCup"><span class="tag">Flemington · 3200 m · left-handed</span><b>Melbourne Cup</b><small>The race that stops a nation — 24 runners</small><span class="go">Race now ›</span></button>
       </div>
     </div>
   </div>
@@ -1900,7 +1895,7 @@ HORSE_MAT.onBeforeCompile = sh => {
 };
 HORSE_MAT.customProgramCacheKey = () => "ffcoat";
 const EYE_MAT = new THREE.MeshStandardMaterial({ color: 0x0c0604, roughness: 0.05, metalness: 0.0 });
-const JOCKEY_MAT = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.0, skinning: true, clearcoat: 0.35, clearcoatRoughness: 0.3 });   // satin silks
+const JOCKEY_MAT = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.0, skinning: true, clearcoat: 0.12, clearcoatRoughness: 0.45 });   // satin silks (sheen below), matte skin and breeches
 try { JOCKEY_MAT.sheen = new THREE.Color(0.25, 0.25, 0.25); } catch (e) {}
 JOCKEY_MAT.onBeforeCompile = sh => {
   Object.assign(sh.uniforms, HORSE_U);
@@ -2021,7 +2016,7 @@ function buildJockeyGeometryQ(def, ck) {
   // → collar → neck. Silks get soft folds (a little looser at the back where the wind fills them).
   const cloth0 = G.pos.length / 3;
   seg("torso", [[-0.2, .02, .02, .03, "w"], [-0.12, .088, .088, .125, "w"], [0.0, .108, .112, .14, "w"], [0.09, .1, .104, .132, "w"], [0.15, .102, .104, .134, "s"], [0.3, .108, .112, .138, "s"],
-    [0.48, .118, .128, .15, "s"], [0.64, .125, .134, .165, "s"], [0.78, .118, .124, .182, "s"], [0.88, .1, .1, .178, "s"], [0.95, .07, .072, .12, "s"], [1.0, .05, .05, .062, "s"], [1.05, .044, .044, .046, "k"]], torsoCol, 2.5, 30);
+    [0.48, .124, .136, .156, "s"], [0.64, .132, .142, .172, "s"], [0.76, .126, .13, .19, "s"], [0.86, .108, .106, .186, "s"], [0.93, .078, .078, .13, "s"], [0.98, .056, .056, .07, "s"], [1.04, .048, .048, .05, "k"]], torsoCol, 2.6, 34);
   // neck, head: chin, jaw, cheekbones and nose under a skull cap with the owner's silk cover, peak and pompom;
   // goggles pushed down over the eyes with a strap round the helmet; chinstrap
   const Lh = bp.S.distanceTo(bp.H);
@@ -2034,9 +2029,8 @@ function buildJockeyGeometryQ(def, ck) {
     if (capP === "spots") return Math.sin(Math.atan2(sn, cs) * 5) * Math.sin(R.d * 90) > 0.55 ? C.x : C.s;
     return C.s;
   };
-  seg("head", [[10.0, .043, .043, .043, "k"], [10 + Lh - 0.115, .046, .05, .045, "k"], [10 + Lh - 0.09, .06, .072, .058, "j"], [10 + Lh - 0.06, .08, .088, .072, "j"],
-    [10 + Lh - 0.03, .092, .094, .082, "k"], [10 + Lh - 0.008, .1, .1, .092, "f"], [10 + Lh + 0.014, .106, .106, .098, "f"], [10 + Lh + 0.032, .116, .114, .108, "h"], [10 + Lh + 0.066, .104, .102, .1, "h"],
-    [10 + Lh + 0.096, .076, .074, .075, "h"], [10 + Lh + 0.118, .03, .03, .03, "h"], [10 + Lh + 0.125, .003, .003, .003, "h"]], capCol, 2.1, 28);
+  // the neck (short and strong), rising into the back of the skull
+  seg("head", [[10.0, .046, .046, .046, "k"], [10 + Lh - 0.13, .047, .05, .046, "k"], [10 + Lh - 0.09, .056, .06, .054, "k"], [10 + Lh - 0.06, .06, .064, .058, "k"], [10 + Lh - 0.03, .05, .05, .05, "k"]], capCol, 2.1, 20);
   // arms: loose satin sleeves (fuller at the shoulder), cuffed at the wrist; gloved hands closed round the reins
   const sleeveCol = (k, sn, cs, R) => {
     if (R.col !== "v") return C[R.col];
@@ -2047,28 +2041,49 @@ function buildJockeyGeometryQ(def, ck) {
   };
   ["L", "R"].forEach(sd => {
     seg("ua" + sd, [[-0.07, .062, .062, .062, "v"], [0.0, .064, .062, .062, "v"], [0.22, .058, .056, .055, "v"], [0.55, .05, .05, .048, "v"], [0.85, .045, .045, .043, "v"], [1.0, .042, .042, .041, "v"]], sleeveCol);
-    seg("fa" + sd, [[-0.08, .043, .043, .042, "v"], [0.25, .042, .041, .039, "v"], [0.66, .034, .033, .032, "v"], [0.74, .036, .036, .035, "x"], [0.8, .03, .029, .029, "g2"], [0.9, .034, .03, .042, "g2"], [1.0, .042, .036, .046, "g2"], [1.08, .04, .034, .042, "g2"], [1.15, .022, .02, .026, "g2"], [1.18, .003, .003, .003, "g2"]], sleeveCol);
+    seg("fa" + sd, [[-0.08, .044, .044, .043, "v"], [0.18, .045, .043, .042, "v"], [0.5, .037, .035, .035, "v"], [0.7, .032, .031, .031, "v"], [0.76, .034, .034, .033, "x"], [0.82, .026, .025, .026, "g2"], [0.92, .028, .026, .036, "g2"], [1.0, .032, .028, .038, "g2"], [1.07, .029, .025, .033, "g2"], [1.12, .017, .015, .02, "g2"], [1.15, .003, .003, .003, "g2"]], sleeveCol);
   });
   const clothEnd = G.pos.length / 3;
   ["L", "R"].forEach(sd => {
     // breeches: a jockey's thigh is short and muscular; the knee is bony; boots are thin racing boots with tan tops
-    seg("th" + sd, [[-0.12, .08, .08, .084, "w"], [0.0, .084, .08, .086, "w"], [0.3, .08, .074, .078, "w"], [0.62, .066, .062, .064, "w"], [0.88, .054, .052, .055, "w"], [1.0, .052, .054, .054, "w"]]);
+    seg("th" + sd, [[-0.12, .08, .08, .084, "w"], [0.0, .088, .082, .088, "w"], [0.25, .086, .076, .082, "w"], [0.55, .072, .064, .068, "w"], [0.82, .056, .052, .056, "w"], [0.94, .054, .058, .054, "w"], [1.0, .05, .056, .052, "w"]]);
     seg("sh" + sd, [[-0.06, .054, .054, .054, "w"], [0.12, .05, .056, .05, "w"], [0.28, .049, .058, .049, "w"], [0.32, .051, .058, .051, "t"], [0.42, .05, .056, .05, "t"], [0.45, .048, .054, .048, "b"], [0.7, .042, .047, .042, "b"], [0.92, .036, .04, .037, "b"], [1.04, .034, .036, .034, "b"], [1.1, .003, .003, .003, "b"]]);
   });
   G.clothSpans = [[cloth0, clothEnd]];
-  // helmet peak, cap pompom, nose, ears, and the boot feet (heel down, toe in the iron)
-  { const A = bp.H, f = new THREE.Vector3(0.95, -0.1, 0).normalize(), pc = capP === "contrast" ? C.s : C.x;
-    const pk = [0, 0.4, 0.8, 1].map((t, i) => ({ c: [A.x + 0.095 * f.x + 0.06 * f.x * t, A.y + 0.045 + 1.30 + 0.06 * f.y * t, A.z], top: [.004, .006, .005, .002][i], bot: .004, wid: [.07, .084, .078, .03][i], n: 2 }));
-    horseLoft(G, pk, 14, () => [[JKI.head, 1]], () => pc);
-    const up = new THREE.Vector3().subVectors(bp.H, bp.S).normalize(), tp = bp.H.clone().addScaledVector(up, 0.125);
-    horseLoft(G, [0, 0.3, 0.7, 1].map((t, i) => ({ c: [tp.x - 0.012 + 0.024 * t, tp.y + 1.30 + 0.004, tp.z], top: [.002, .014, .014, .002][i], bot: [.002, .01, .01, .002][i], wid: [.002, .014, .014, .002][i], n: 2 })), 10, () => [[JKI.head, 1]], () => pc);
-    const fwd = new THREE.Vector3(up.y, -up.x, 0);                                                     // the face points forward, square to the neck
-    const nz = bp.H.clone().addScaledVector(up, -0.05).addScaledVector(fwd, 0.088);
-    horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [nz.x + fwd.x * 0.02 * t - up.x * 0.02 * t, nz.y + 1.30 + fwd.y * 0.02 * t - up.y * 0.02 * t, nz.z], top: [.005, .012, .003][i], bot: [.005, .009, .003][i], wid: [.005, .012, .003][i], n: 2 })), 10, () => [[JKI.head, 1]], () => C.k);
-    const ch = bp.H.clone().addScaledVector(up, -0.105).addScaledVector(fwd, 0.06);                  // chin
-    horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [ch.x + fwd.x * 0.015 * t, ch.y + 1.30 + fwd.y * 0.015 * t, ch.z], top: [.006, .02, .004][i], bot: [.006, .016, .004][i], wid: [.006, .024, .004][i], n: 2 })), 10, () => [[JKI.head, 1]], () => C.k);
-    [1, -1].forEach(sd2 => { const e = bp.H.clone().addScaledVector(up, -0.03).addScaledVector(fwd, -0.01);
-      horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [e.x, e.y + 1.30, e.z + sd2 * (0.09 + 0.012 * t)], top: [.004, .024, .004][i], bot: [.004, .018, .004][i], wid: [.004, .012, .004][i], n: 2 })), 8, () => [[JKI.head, 1]], () => C.k); }); }
+  // the head, built from real parts: a silk-covered skull cap (helmet) with a peak and a pompom, a face with brow,
+  // cheekbones, nose, mouth and chin in skin tone, racing goggles (dark lenses, strap round the helmet), ears.
+  // Everything lofts along paths in the side-view plane, weighted to the head bone.
+  { const A = bp.H, up = new THREE.Vector3().subVectors(bp.H, bp.S).normalize(), fwd = new THREE.Vector3(up.y, -up.x, 0);
+    const pc = capP === "contrast" ? C.s : C.x, HB = () => [[JKI.head, 1]];
+    const at = (u, f) => [A.x + up.x * u + fwd.x * f, A.y + 1.30 + up.y * u + fwd.y * f, A.z];
+    // skull cap: a dome along the head's up axis, slightly back of centre, a little wider than long at the brim
+    const cap = [[-0.035, .118, .112], [-0.01, .124, .118], [0.025, .121, .115], [0.06, .106, .101], [0.09, .078, .074], [0.11, .045, .043], [0.122, .004, .004]];
+    horseLoft(G, cap.map(([u, r, w]) => ({ c: at(u, -0.012), top: r, bot: r * 1.02, wid: w, n: 2.15 })), 30, HB, (k, sn, cs, x, y, z) => capCol(k, sn, cs, { col: "h", d: 0.1 + k * 0.01 }, x, y, z));
+    // the back of the skull under the cap (skin/hair) so nothing shows through between cap and neck
+    const hairC = new THREE.Color(0.06, 0.04, 0.03);
+    horseLoft(G, [[-0.115, .05, .048], [-0.085, .085, .082], [-0.055, .098, .096], [-0.035, .09, .09]].map(([u, r, w]) => ({ c: at(u, -0.045), top: r, bot: r, wid: w, n: 2.1 })), 22, HB, () => hairC);
+    // the face: a loft along the forward axis, from inside the skull to the nose, taller than wide; cheekbones under the goggles
+    const face = [[-0.02, .075, .082, .088], [0.03, .076, .084, .086], [0.06, .066, .08, .076], [0.08, .052, .07, .06], [0.093, .034, .052, .04], [0.1, .012, .02, .014]];
+    horseLoft(G, face.map(([f, t, b2, w]) => ({ c: at(-0.045, f), top: t, bot: b2, wid: w, n: 2.25 })), 26, HB, () => C.k);
+    // nose, lips, chin
+    horseLoft(G, [0, 0.45, 1].map((t, i) => ({ c: at(-0.045 - 0.008 * t, 0.096 + 0.018 * t), top: [.006, .013, .003][i], bot: [.006, .01, .003][i], wid: [.007, .012, .003][i], n: 2 })), 10, HB, () => C.k);
+    horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: at(-0.088, 0.078 + 0.01 * t), top: [.003, .006, .002][i], bot: .004, wid: [.012, .02, .01][i], n: 2 })), 10, HB, () => tmpC.copy(C.k).multiplyScalar(0.72));
+    horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: at(-0.112, 0.062 + 0.014 * t), top: [.006, .018, .004][i], bot: [.006, .016, .004][i], wid: [.006, .026, .004][i], n: 2 })), 10, HB, () => C.k);
+    // goggles: a band round the head at eye level — dark glossy lenses in front, black strap behind
+    const gg = [[-0.052, .104, .108], [-0.044, .108, .112], [-0.03, .108, .112], [-0.022, .104, .108]];
+    const lensC = new THREE.Color(0.02, 0.025, 0.03), rimC = new THREE.Color(0.55, 0.56, 0.58);
+    horseLoft(G, gg.map(([u, r, w]) => ({ c: at(u, 0.004), top: r, bot: r, wid: w, n: 2.6 })), 36, HB, (k, sn, cs, x, y, z) => {
+      const f = (x - A.x) * fwd.x + (y - A.y - 1.30) * fwd.y, side = Math.abs(z - A.z);
+      if (f > 0.05 && side < 0.085) return side < 0.008 ? rimC : (k === 0 || k === gg.length - 1) ? rimC : lensC;   // two lenses, a bridge, silver rims
+      return C.b; });
+    // the peak of the cap: a thin visor over the goggles
+    const pk = [0, 0.35, 0.75, 1].map((t, i) => ({ c: at(0.012 - 0.03 * t, 0.104 + 0.036 * t), top: [.004, .004, .0035, .002][i], bot: .003, wid: [.07, .072, .062, .03][i], n: 2 }));
+    horseLoft(G, pk, 16, HB, () => capP === "contrast" ? C.x : C.s);
+    // pompom on the crown
+    const tp = at(0.124, -0.012);
+    horseLoft(G, [0, 0.3, 0.7, 1].map((t, i) => ({ c: [tp[0] - 0.012 + 0.024 * t, tp[1] + 0.006, tp[2]], top: [.002, .015, .015, .002][i], bot: [.002, .011, .011, .002][i], wid: [.002, .015, .015, .002][i], n: 2 })), 10, HB, () => pc);
+    // ears (under the cap's edge)
+    [1, -1].forEach(sd2 => { const e = at(-0.035, -0.005); horseLoft(G, [0, 0.5, 1].map((t, i) => ({ c: [e[0], e[1], e[2] + sd2 * (0.1 + 0.012 * t)], top: [.004, .022, .004][i], bot: [.004, .017, .004][i], wid: [.004, .011, .004][i], n: 2 })), 8, HB, () => C.k); }); }
   ["L", "R"].forEach(sd => { const F = bp["ft" + sd];
     horseLoft(G, [0, 0.25, 0.55, 0.85, 1].map((t, i) => ({ c: [F.x - 0.045 + 0.2 * t, F.y - 0.01 - 0.026 * t + 1.30, F.z], top: [.038, .036, .028, .02, .003][i], bot: [.036, .034, .03, .02, .003][i], wid: [.036, .038, .034, .026, .003][i], n: 2.4 })), 14, () => [[JKI["sh" + sd], 1]], () => C.b); });
   const g = new THREE.BufferGeometry();
@@ -2743,9 +2758,16 @@ function updateCamera(dt) {
   } else if (camMode === 1) { // jockey: from the rider's eyes — hands, reins, the horse's neck and ears, rivals ahead
     const h = p.pos, b = p.mesh ? p.mesh.userData : null;
     const bob = b ? b.bob : 0;
-    if (b) { tx = b.eyeW.x - h.hx * 0.12; ty = b.eyeW.y + 0.2; tz = b.eyeW.z - h.hz * 0.12; } else { tx = h.x - h.hx * 1.3; ty = 2.45; tz = h.z - h.hz * 1.3; }
-    const ahead = race.route.point(p.progress + 24, laneOff(p.laneF) + (p.latS || 0) * 1.2, _tmpP);
-    lx = ahead.x; ly = 0.55 + bob * 0.2; lz = ahead.z;
+    // a rider's head is stabilised: the eye keeps ~45% of the body's vertical motion (less when the horse is settled
+    // or restrained, more when it is tired and its stride gets ragged); a small forward surge on each stride
+    const rest = b ? b.rest || 0 : 0, tired = clamp((p.F || 0) / 80, 0, 1), keep = clamp(0.45 - 0.2 * rest + 0.2 * tired, 0.2, 0.7);
+    if (b) { const ey = b.eyeW.y + 0.2; cam.eyeY = cam.eyeY == null || dt == null ? ey : cam.eyeY + (ey - cam.eyeY) * Math.min(1, dt * 6);
+      const surge = Math.sin(p.phase * TAU - 0.6) * 0.07 * sN * (1 - 0.5 * rest);
+      tx = b.eyeW.x - h.hx * (0.12 - surge); ty = lerp(cam.eyeY, ey, keep); tz = b.eyeW.z - h.hz * (0.12 - surge); }
+    else { tx = h.x - h.hx * 1.3; ty = 2.45; tz = h.z - h.hz * 1.3; }
+    // look down the course; through a bend the gaze leads into it; the horse's head and ears stay in the lower frame
+    const ahead = race.route.point(p.progress + 20 + 10 * sN, laneOff(p.laneF) + (p.latS || 0) * 1.2, _tmpP);
+    lx = ahead.x; ly = 0.75 + bob * 0.12 - 0.25 * Math.max(0, cam.accS) / 5; lz = ahead.z;
   } else if (camMode === 2) { // broadcast: long-lens TV coverage that frames the action (see broadcastFrame)
     const B = broadcastFrame(dt, p);
     tx = B.tx; ty = B.ty; tz = B.tz; lx = B.lx; ly = B.ly; lz = B.lz; cut = B.cut;
@@ -2753,18 +2775,29 @@ function updateCamera(dt) {
     const h = p.pos;
     // the camera is left behind by real acceleration (and catches up as the horse settles into its speed)
     const accel = clamp(p.accel, -3, 5);
-    cam.lagBack += (accel * 0.85 + cam.kick * 1.6 - cam.lagBack) * Math.min(1, dt * 2.2);
+    cam.lagBack += (accel * 0.6 + cam.kick * 1.6 - cam.lagBack) * Math.min(1, dt * 2.2);
     // pull back a little when rivals are alongside or the drive is on, so the battle stays in frame
     let along = 0; for (const o of race.horses) if (o !== p && Math.abs(o.progress - p.progress) < 4 && Math.abs(o.laneF - p.laneF) < 2.2) along++;
     const momN = race.dist - p.progress < RHYTHM_AT ? p.mom : 0;
-    cam.pullback += (sN * sN * 1.6 + Math.min(2, along) * 0.7 + momN * 0.5 - cam.pullback) * Math.min(1, dt * 1.5);
+    cam.pullback += (sN * sN * 0.9 + Math.min(2, along) * 0.55 + momN * 0.35 - cam.pullback) * Math.min(1, dt * 1.5);
     // a little higher when boxed in, so the gaps ahead are readable
     cam.boxUp += ((p.blocked ? 0.9 : 0) - cam.boxUp) * Math.min(1, dt * 1.5);
-    const back = 8.8 + cam.lagBack + cam.pullback, up = 3.4 + cam.pullback * 0.25 - momN * 0.35 - cam.rush * 0.45 + cam.boxUp;
-    // frame a horse racing alongside: drift the camera to keep both in view
-    let sideT = 0; for (const o of race.horses) if (o !== p && Math.abs(o.progress - p.progress) < 3.5 && Math.abs(o.laneF - p.laneF) < 2.2) sideT += (o.laneF - p.laneF) * 0.6;
-    cam.side += (clamp(sideT, -1.4, 1.4) - cam.side) * Math.min(1, dt * 1.2);
-    const behind = race.route.point(p.progress - NOSE_OFF - back, laneOff(p.laneF) + 1.2 + cam.side * LANE_W * 0.5, _tmpP);
+    // the home turn: the view lifts and looks further ahead to reveal the straight, the stands and the gaps;
+    // in the last 250 m it drops lower behind the horse for the sprint
+    const remC = race.dist - p.progress, hs = (race.route && race.route.homeStraight) || HOME_STRAIGHT;
+    const reveal = race.state === "running" && !race.route.straightRace && remC < hs + 260 && remC > hs - 120 ? 1 : 0;
+    cam.reveal = (cam.reveal || 0) + (reveal - (cam.reveal || 0)) * Math.min(1, dt * 0.9);
+    const sprint = race.state === "running" && remC < 250 && remC > 0 ? 1 : 0;
+    cam.sprint = (cam.sprint || 0) + (sprint - (cam.sprint || 0)) * Math.min(1, dt * 1.2);
+    // close and fairly low: the horse and rider fill the lower-middle of the frame
+    const back = 3.7 + cam.lagBack * 0.8 + cam.pullback * 0.6 + cam.reveal * 1.8, up = 2.3 + cam.pullback * 0.2 - momN * 0.25 - cam.sprint * 0.55 + cam.boxUp + cam.reveal * 0.9;
+    // overtaking: drift towards the horse being passed (or passing you) so its rider is in view as it slides back
+    let sideT = 0, passT = 0;
+    for (const o of race.horses) { if (o === p) continue; const dp = o.progress - p.progress, dl = o.laneF - p.laneF;
+      if (Math.abs(dp) < 3.5 && Math.abs(dl) < 2.2) sideT += dl * 0.6;
+      if (Math.abs(dp) < 7 && Math.abs(dl) < 2.6 && Math.abs(p.v - o.v) > 0.35) passT += Math.sign(dl || 1) * (1 - Math.abs(dp) / 7) * 0.8; }
+    cam.side += (clamp(sideT + passT, -1.6, 1.6) - cam.side) * Math.min(1, dt * 1.6);
+    const behind = race.route.point(p.progress - NOSE_OFF - back, laneOff(p.laneF) + 1.0 + cam.side * LANE_W * 0.55, _tmpP);
     tx = behind.x; ty = up; tz = behind.z;
     // never inside another horse: rise over anyone close to the camera
     for (const o of race.horses) {
@@ -2772,8 +2805,8 @@ function updateCamera(dt) {
       const dd = Math.hypot(o.mesh.position.x - tx, o.mesh.position.z - tz);
       if (dd < 3.4) ty = Math.max(ty, up + (3.4 - dd) * 0.9);
     }
-    const ahead = race.route.point(p.progress + 14 + 8 * sN, laneOff(p.laneF) + cam.side * LANE_W * 0.35, _tmpP);
-    lx = ahead.x; ly = 1.5; lz = ahead.z;
+    const ahead = race.route.point(p.progress + 12 + 7 * sN + cam.reveal * 22, laneOff(p.laneF) + cam.side * LANE_W * 0.3, _tmpP);
+    lx = ahead.x; ly = 1.3 + cam.reveal * 0.5 - cam.sprint * 0.15; lz = ahead.z;
   }
   // look behind (R): swing smoothly over the rider to a rear-facing view; controls stay live
   if (racing && race && lookBack.k > 0.01) {
@@ -2798,7 +2831,7 @@ function updateCamera(dt) {
   let sway = 0, bob = 0, vib = 0;
   if (racing && race.state === "running" && camMode !== 2) {
     const b = p.mesh ? p.mesh.userData.bob : 0;
-    const amp = camMode === 1 ? 0.3 : 0.22;
+    const amp = camMode === 1 ? 0.12 : 0.2;                           // the jockey eye already carries the stride (stabilised above)
     sway = Math.sin(p.phase * TAU) * 0.035 * sN * amp * 2;
     bob = b * amp;
     vib = (Math.max(0, sN - 0.7) * 0.02 + cam.rush * 0.012 + cam.kick * 0.03) * (Math.random() - 0.5) + (p.penT > 0 ? 0.03 * (Math.random() - 0.5) : 0);
@@ -2821,7 +2854,7 @@ function updateCamera(dt) {
   const accF = racing ? Math.max(0, cam.accS) * (camMode === 2 ? 0.5 : 1.6) + cam.kick * 5 : 0;
   // beyond any real horse (unlimited mode): the world starts to stretch, shake and roar
   cam.crazy = racing ? clamp((kmh - 80) / 160, 0, 1.6) : 0;
-  const fovT = racing ? (camMode === 1 ? 66 : camMode === 2 ? 42 : 54) + (camMode === 0 ? Math.abs(cam.side) * 3 : 0) + clamp((kmh - 30) / 40, 0, 1) * (camMode === 2 ? 6 : 16) + momF * (camMode === 2 ? 0 : 4) + accF + cam.rush * (camMode === 2 ? 0 : 3) : 50;
+  const fovT = racing ? (camMode === 1 ? 66 : camMode === 2 ? 42 : 46) + (camMode === 0 ? Math.abs(cam.side) * 3 + (cam.reveal || 0) * 4 + (cam.sprint || 0) * 3 : 0) + clamp((kmh - 30) / 40, 0, 1) * (camMode === 2 ? 6 : camMode === 0 ? 9 : 16) + momF * (camMode === 2 ? 0 : 4) + accF + cam.rush * (camMode === 2 ? 0 : 3) : 50;
   if (racing && camMode === 2 && cam.bfov) { if (cut) cam.fov = cam.bfov; else cam.fov += (cam.bfov - cam.fov) * Math.min(1, dt * 2.2); }
   else cam.fov += (Math.min(fovT + cam.crazy * 28, (camMode === 1 ? 80 : 70) + cam.crazy * 32) - cam.fov) * Math.min(1, dt * 3.2);
   if (cam.crazy > 0.01 && camMode !== 2) {                          // violent shake and a lurching roll
@@ -3338,7 +3371,7 @@ function toggleStats() { const s = $("statsPanel"); s.hidden = !s.hidden; if (!s
 function renderStatsPanel() {
   let html = `<h3 style="font-size:15px;margin-bottom:8px;">Race Stats — ${race.dist} m · ${race.going.label}</h3><table><tr><th>#</th><th>Horse</th><th>km/h</th><th>Effort</th><th>Stamina</th><th>Fatigue</th><th>Reserve</th><th>Plan</th></tr>`;
   race.order.forEach((h, i) => {
-    html += `<tr class="${h.isPlayer ? "me" : ""}"><td>${i + 1}</td><td>${h.def.name}</td><td>${Math.round(h.v * 3.6)}</td><td>${Math.round(h.eAct * 100)}%</td>
+    html += `<tr class="${h.isPlayer ? "me" : ""}"><td>${i + 1}</td><td>${h.def.name}${h.bot && h.bot.persona ? `<div style="font-size:10px;color:var(--fg-dim);letter-spacing:.06em;text-transform:uppercase">${h.bot.persona}</div>` : ""}</td><td>${Math.round(h.v * 3.6)}</td><td>${Math.round(h.eAct * 100)}%</td>
       <td><span class="mini-sbar"><i style="width:${h.S}%;background:${h.S > 45 ? "var(--good)" : h.S > 20 ? "var(--warn)" : "var(--bad)"}"></i></span></td>
       <td><span class="mini-sbar"><i style="width:${h.F}%;background:#b5673f"></i></span></td>
       <td><span class="mini-sbar"><i style="width:${h.SR}%;background:#6aa7e8"></i></span></td>
@@ -4220,15 +4253,7 @@ function buildSetupHorse() {
   el.innerHTML = `<span class="sw" style="background:${r.silk}"></span><span class="nm"><b>${r.name}</b><small>${r.role}</small></span><button class="btn small" id="setupHorseBtn">Change horse</button>`;
   $("setupHorseBtn").onclick = () => { buildHorseGrid(); show("select"); };
 }
-// feature races straight from the menu (full crowd, parade, race call for the occasion — not a career race)
-function featureRace(kind) {
-  const ev = kind === "cup" ? { track: "flemington", distance: 3200, field: 24, career: { name: "Melbourne Cup", venue: "Flemington", major: true, crown: true, official: true, exhibition: true } }
-    : { track: "randwick", distance: 1200, field: 14, career: { name: "The Everest", venue: "Royal Randwick", major: true, crown: true, official: true, exhibition: true } };
-  audio.ensure(); if (typeof COMM !== "undefined") COMM.prime();
-  startRace(Object.assign(quickCfg(), ev, { chaos: false, incidents: settings.incidents }));
-}
-$("featEverest").onclick = () => featureRace("everest");
-$("featCup").onclick = () => featureRace("cup");
+
 $("btnSettings").onclick = () => { buildSettings(); show("settings"); };
 $("btnHow").onclick = () => show("how");
 $("selDone").onclick = () => { buildSetup(); show("setup"); };
@@ -4320,6 +4345,7 @@ function frame(now) {
   // Career screens: the 3D racing stable is drawn instead of the racecourse
   if (typeof STABLE3D !== "undefined" && STABLE3D.active && !race && ui.state.startsWith("c_")) { STABLE3D.frame(dt); return; }
   // race-day presentation (parade ring / winner presentation): its own camera, the race itself is paused
+  if (typeof GFX !== "undefined") GFX.setCrowdAnim((typeof PRESENT !== "undefined" && PRESENT.mode === "celebrate") || ui.state === "replay");
   if (typeof PRESENT !== "undefined" && PRESENT.mode) {
     PRESENT.frame(dt); HORSE_U.uTime.value += dt; FX.update(dt); updateVenue(dt); if (typeof VENUES !== "undefined") VENUES.update(dt);
     if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), PRESENT.mode === "celebrate" ? 1 : 0);

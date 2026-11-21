@@ -71,6 +71,13 @@ Royal Randwick and Flemington are built from their real course geometry (see `HA
 are estimates). Flemington has the Straight Six and the Melbourne Cup route. Settings → Graphics quality (High /
 Medium / Low), Parade ring (Feature races / Every race / Off), Winner presentation (On / Off).
 
+## AI jockeys and cameras
+Rival riders have personalities (front-runner, stalker, rail rider, closer — shown under each name in the Tab stats
+panel) that shape where they race, when they look for cover, whether they save ground on the rail or go wide, and when
+they kick; they also make mistakes (kicking too early, waiting too long). The chase camera sits close behind your
+horse, drifts to show a rival you are passing, lifts through the home turn to reveal the straight and drops lower for
+the last 250 m; the jockey camera shows the horse's neck and ears with stabilised, gait-synced motion.
+
 ## Graphics: AUTO quality and the performance overlay
 Settings → Graphics quality: **Auto (recommended, default)** · High (fixed) · Medium · Low. AUTO starts from the High
 look and, only if frames are *consistently* slow, steps down in this order: distant crowd detail → distant trees/roses →
@@ -230,7 +237,7 @@ If the game page is hosted separately (say, on a static host) and the server els
 | Key | Function |
 |---|---|
 | W / S | Effort up / down |
-| A / D | Toward the rail / wider |
+| A / D | Steer left / right (D always moves your horse to its right, on every course) |
 | Space | In the gates: hold to lift the marker and keep it in the moving sweet spot, then press when the gates open. Mid-race: urge. Final drive: tap on the stride rhythm |
 | Shift | Drive |
 | E / Q | Settle / check (take a pull) |

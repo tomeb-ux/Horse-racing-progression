@@ -488,14 +488,14 @@ const GFX = (() => {
     figBand(A, 3, [[1.48, 0.11, 0.1], [1.74, 0.11, 0.1]], 0, 0, 4, 0);
     return CROWD_FAR = figGeo(A);
   }
-  const crowdU = { uTime, uExcite: { value: 0 }, uFocus: { value: new THREE.Vector3() }, uRoar: { value: 0 } };
+  const crowdU = { uTime, uExcite: { value: 0 }, uFocus: { value: new THREE.Vector3() }, uRoar: { value: 0 }, uAnim: { value: 0 } };
   function crowdMat() {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true });
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, crowdU);
       sh.vertexShader = sh.vertexShader.replace("#include <common>", `#include <common>
         attribute float part; attribute vec3 iShirt; attribute vec3 iPants; attribute vec3 iSkin; attribute vec4 iHair; attribute vec4 iBeh;
-        uniform float uTime, uExcite, uRoar; uniform vec3 uFocus;
+        uniform float uTime, uExcite, uRoar, uAnim; uniform vec3 uFocus;
         vec3 rotX(vec3 p, vec3 o, float a) { p -= o; float c = cos(a), s = sin(a); return o + vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z); }
         vec3 rotY(vec3 p, vec3 o, float a) { p -= o; float c = cos(a), s = sin(a); return o + vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z); }
         vec3 rotZ(vec3 p, vec3 o, float a) { p -= o; float c = cos(a), s = sin(a); return o + vec3(c * p.x - s * p.y, s * p.x + c * p.y, p.z); }
@@ -509,13 +509,22 @@ const GFX = (() => {
           // STATIC crowd (no per-frame animation — far cheaper and steadier with thousands on screen): a fixed pose per
           // spectator chosen once from its behaviour vector — arms by the side, some clapping-height, a few raised;
           // the head turned a little towards the track
+          // replays and the winner presentation (uAnim → 1): the keener half of the crowd comes alive — clapping,
+          // arms raised and pumping, a little bounce; during the live race uAnim is 0 and nothing moves
+          float live = uAnim * step(0.45, keen);
           if (pt > 1.5 && pt < 3.5) {
             float side = pt < 2.5 ? -1.0 : 1.0; vec3 sh = vec3(0.2 * side, 1.42, 0.0) * (1.0 - N);
             float a = style > 0.9 && keen > 0.6 ? -2.6 : style < 0.25 && keen > 0.5 ? -1.1 : -0.1;
+            if (live > 0.0) {
+              float clap = step(style, 0.55), raise = 1.0 - clap;
+              float an = clap * (-1.2 + 0.18 * sin(uTime * 14.0 + ph)) + raise * (-2.7 + 0.4 * sin(uTime * 6.5 + ph + side));
+              a = mix(a, an, live); p = rotZ(p, sh, side * (0.08 + clap * 0.3) * live);
+            }
             p = rotX(p, sh, a);
           }
           if (pt > 3.5 && pt < 6.5) p = rotY(p, vec3(0.0), (ph - 3.1416) * 0.06);
           if (N < 0.5 && seated > 0.5) p.y -= 0.42;
+          if (N < 0.5 && live > 0.0) p.y += max(0.0, sin(uTime * 7.0 + ph)) * (seated > 0.5 ? 0.03 : 0.1) * live * keen;
           return p;
         }`)
         .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\naY = position.y; objectNormal = normalize(ffPose(objectNormal, 1.0));")
@@ -569,10 +578,13 @@ const GFX = (() => {
     return { mesh: parts[0] && parts[0].levels[0], parts, n, set(frac) { for (const p of parts) { const k = Math.max(0, Math.min(p.n, Math.round(p.n * frac))); for (const m of p.levels) m.count = k; } } };
   }
   /* ---------- per-frame ---------- */
+  let crowdAnimT = 0;                          // 1 in replays / the winner presentation: part of the crowd cheers
+  function setCrowdAnim(v) { crowdAnimT = v ? 1 : 0; }
   function update(dt, excite, focus, roar) {
     uTime.value += dt;
     updateLODs();                               // rail posts, trees, roses, spectators: detail by on-screen size
     crowdU.uExcite.value += ((excite || 0) - crowdU.uExcite.value) * Math.min(1, dt * 1.5);
+    crowdU.uAnim.value += (crowdAnimT - crowdU.uAnim.value) * Math.min(1, dt * 2);
     crowdU.uRoar.value += ((roar || 0) - crowdU.uRoar.value) * Math.min(1, dt * 3);
     if (focus) crowdU.uFocus.value.lerp(focus, Math.min(1, dt * 4));
   }
@@ -621,7 +633,7 @@ const GFX = (() => {
     for (let i = 0; i < uv.count; i++) { const nx = Math.abs(N.getX(i)), ny = Math.abs(N.getY(i)); const a = nx > 0.5 ? P.getZ(i) : P.getX(i), b = ny > 0.5 ? P.getZ(i) : P.getY(i); uv.setXY(i, a / t, b / t); }
     return g;
   }
-  return { applyQuality, buildSky, turfMaterial, turfTextures, plantTrees, treeGeo, shrubs, rail, crowd, update, chunked, addLOD, LODS, get lodBias() { return lodBias; }, set lodBias(v) { lodBias = v; }, get horseBias() { return horseBias; }, AUTO, AUTO_STEPS, autoTick, autoReset, setAuto, runtimeParams, mats, glassMat, wallBox, merge, paint, lin, fbm, pnoise, hash, rand, dataTex, QUALITY, q, uTime, crowdU, get envMap() { return envRT && envRT.texture; } };
+  return { applyQuality, buildSky, turfMaterial, turfTextures, plantTrees, treeGeo, shrubs, rail, crowd, update, chunked, addLOD, LODS, setCrowdAnim, get lodBias() { return lodBias; }, set lodBias(v) { lodBias = v; }, get horseBias() { return horseBias; }, AUTO, AUTO_STEPS, autoTick, autoReset, setAuto, runtimeParams, mats, glassMat, wallBox, merge, paint, lin, fbm, pnoise, hash, rand, dataTex, QUALITY, q, uTime, crowdU, get envMap() { return envRT && envRT.texture; } };
 })();
 // start-up: sky + environment lighting, quality preset, and the original course's turf upgraded to the new material
 (function gfxInit() {

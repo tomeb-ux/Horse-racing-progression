@@ -284,7 +284,7 @@ const VENUES = (() => {
     batchStatic(S); G.add(S);
     // ---- Theatre of the Horse: a sunken amphitheatre parade ring behind the stand, tiered decks around it
     const ringF = frameAt(trk, lap - 60, W + 3 + 128), R = place(new THREE.Group(), ringF); R.name = "Theatre of the Horse";
-    buildParadeRing(R, { rx: 30, ry: 19, sunk: 2.2, tiers: 9, style: "randwick" });
+    buildParadeRing(R, { rx: 30, ry: 19, sunk: 0, tiers: 9, style: "randwick" })   // at ground level: the course lawn covers any sunken floor;
     spots.push(...standSpotsToWorld(R, R.userData.spots));
     G.add(R);
     G.userData.parade = R;
@@ -433,19 +433,122 @@ const VENUES = (() => {
     sign(G, trk, trk.marks.topTurn + 50, "RIVER END", "#0b2a4a", "#ffffff", W + 6);
     bigScreen(G, trk, lap - 160, -60, 28, "FLEMINGTON");
     marquees(G, trk, lap - 120, lap + 40, -40, 8, rng, true);
+    const lake = flemingtonInfield(G, trk, C, rng, spots);
     // ---- the Maribyrnong River beyond the back of the course, lined with river red gums; Melbourne to the south-east
     { const riv = new THREE.Mesh(ribbon(pt, trk.marks.topTurn - 200, trk.marks.back_end + 200, W + 150, W + 182, -0.02, -0.02, 160, 1), mm.water); riv.receiveShadow = true; G.add(riv);
       const bank = new THREE.Mesh(ribbon(pt, trk.marks.topTurn - 200, trk.marks.back_end + 200, W + 140, W + 150, 0, -0.01, 160, 1), mm.gravel); G.add(bank); }
     const trees = [];
     for (let s = trk.marks.topTurn - 200; s < trk.marks.back_end + 200; s += 9) { for (const off of [W + 120 + rng() * 22, W + 195 + rng() * 40]) { const p = pt(s, off, {}); trees.push({ x: p.x, z: p.z, s: 0.95 + rng() * 0.6, sp: "gum" }); } }
-    for (let k = 0; k < 2400 && trees.length < 260; k++) { const x = C.cx + (rng() - 0.5) * 1100, z = C.cz + (rng() - 0.5) * 520; if (!C.inside(x, z)) continue; let ok = true; for (let s = 0; s < lap; s += 15) { const p = pt(s, -20, Q); if ((p.x - x) ** 2 + (p.z - z) ** 2 < 38 * 38) { ok = false; break; } } if (!ok) continue; trees.push({ x, z, s: 0.8 + rng() * 0.6, sp: rng() < 0.55 ? "plane" : rng() < 0.6 ? "gum" : "cypress" }); }
+    for (let k = 0; k < 2400 && trees.length < 260; k++) { const x = C.cx + (rng() - 0.5) * 1100, z = C.cz + (rng() - 0.5) * 520; if (!C.inside(x, z) || lake.keepOut(x, z)) continue; let ok = true; for (let s = 0; s < lap; s += 15) { const p = pt(s, -20, Q); if ((p.x - x) ** 2 + (p.z - z) ** 2 < 38 * 38) { ok = false; break; } } if (!ok) continue; trees.push({ x, z, s: 0.8 + rng() * 0.6, sp: rng() < 0.55 ? "plane" : rng() < 0.6 ? "gum" : "cypress" }); }
     for (let s = lap - 520; s < lap + 200; s += 16) { const p = pt(s, W + 250 + rng() * 30, {}); trees.push({ x: p.x, z: p.z, s: 1 + rng() * 0.4, sp: rng() < 0.25 ? "palm" : "plane" }); }
+    trees.push(...lake.trees);
     GFX.plantTrees(G, trees);
     suburbs(G, trk, trk.marks.homeTurn - 200, trk.marks.homeTurn_end + 100, W + 260, W + 480, 160, rng, 0x8e6a5a);
     skyline(G, C.cx, C.cz, 0.35, 0.7, 4000, 4700, 70, rng, { crown: true });
     G.userData.crowdSpots = spots;
     G.userData.crowd = buildCrowd(G, spots, trk, rng, 1, 0.6);
     return G;
+  }
+
+  /* ---------- Flemington's infield: an inner training track, an ornamental lake with a fountain and rose gardens,
+     gravel promenades, white-fenced infield enclosures with picnic crowds, flag lines, a giant mown "FLEMINGTON" in the
+     lawn (read from the broadcast towers) and light towers — so the middle of the course is part of race day ---------- */
+  function flemingtonInfield(G, trk, C, rng, spots) {
+    const pt = trk.point, lap = trk.lap, mm = M();
+    // inner training track (cushion sand) with its own white rails
+    const tr = new THREE.Mesh(ribbon(pt, 0, lap, -31, -23, -0.012, -0.012, Math.round(lap / 3), 1), mm.sand); tr.receiveShadow = true; G.add(tr);
+    GFX.rail(G, (s0, off, o) => { const p = pt(s0, -22.6 - off, o); p.nx = -p.nx; p.nz = -p.nz; return p; }, 0, lap, 0, true, false, { r: 0.06 });
+    GFX.rail(G, pt, 0, lap, -31.4, true, false, { r: 0.06 });
+    // the lake: an ellipse in the wide part of the infield, a stone edge, a fountain, rose beds round it
+    const lx = C.cx + 40, lz = C.cz, ax = 70, az = 34;
+    const water = new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshStandardMaterial({ color: 0x3f6b78, roughness: 0.06, metalness: 0.3, envMapIntensity: 1.3 }));
+    water.rotation.x = -Math.PI / 2; water.scale.set(ax, az, 1); water.position.set(lx, 0.02, lz); water.receiveShadow = true; G.add(water);
+    const edge = new THREE.Mesh(new THREE.RingGeometry(1, 1.05, 64), mm.concrete); edge.rotation.x = -Math.PI / 2; edge.scale.set(ax, az, 1); edge.position.set(lx, 0.03, lz); G.add(edge);
+    { const fm = new THREE.MeshStandardMaterial({ color: 0xf4fbff, roughness: 0.2, transparent: true, opacity: 0.75, emissive: 0x334455 });
+      const basin = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.6, 24), mm.whiteConc); basin.position.set(lx, 0.3, lz); G.add(basin);
+      const jet = new THREE.Mesh(new THREE.ConeGeometry(1.6, 7, 16, 1, true), fm); jet.position.set(lx, 4, lz); jet.rotation.x = Math.PI; G.add(jet);
+      const crown = new THREE.Mesh(new THREE.SphereGeometry(2.2, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), fm); crown.position.set(lx, 7.2, lz); crown.scale.set(1, 0.6, 1); G.add(crown); }
+    const roses = [], cols = [0xc8102e, 0xe63950, 0xf28bb0, 0xfff1e6, 0xf6c445];
+    for (let i = 0; i < 150; i++) { const a = i / 150 * Math.PI * 2; roses.push({ x: lx + Math.cos(a) * (ax + 3.5), z: lz + Math.sin(a) * (az + 3.5), s: 0.85, flower: cols[(i >> 2) % cols.length] }); }
+    // formal rose beds and gravel promenades from the course side to the lake
+    const beds = [[lx - ax - 40, lz - 20], [lx - ax - 40, lz + 20], [lx + ax + 35, lz - 22], [lx + ax + 35, lz + 22]];
+    for (const [bx, bz] of beds) for (let r = 0; r < 4; r++) for (let c = 0; c < 9; c++) roses.push({ x: bx - 12 + c * 3, z: bz - 4.5 + r * 3, s: 0.8, flower: cols[(r + c) % cols.length] });
+    GFX.shrubs(G, roses, 0x34552a, cols);
+    const walk = (x0, z0, x1, z1, w) => { const L = Math.hypot(x1 - x0, z1 - z0), m = new THREE.Mesh(new THREE.PlaneGeometry(L, w), mm.gravel); m.rotation.x = -Math.PI / 2; m.rotation.z = -Math.atan2(z1 - z0, x1 - x0); m.position.set((x0 + x1) / 2, 0.015, (z0 + z1) / 2); m.receiveShadow = true; G.add(m); };
+    walk(lx - ax - 70, lz, lx - ax - 6, lz, 6); walk(lx + ax + 6, lz, lx + ax + 70, lz, 6); walk(lx, lz - az - 40, lx, lz - az - 6, 5); walk(lx, lz + az + 6, lx, lz + az + 40, 5);
+    // the mown "FLEMINGTON" in the lawn (lighter stripes), readable from the stands and the broadcast towers
+    { const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 160; const g = cv.getContext("2d"); g.clearRect(0, 0, 1024, 160); g.fillStyle = "rgba(235,255,215,0.32)"; g.font = "900 128px Archivo, Arial Black, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("FLEMINGTON", 512, 84);
+      const tx = new THREE.CanvasTexture(cv); tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 8;
+      const p0 = pt(lap - 120, -95, {}), m = new THREE.Mesh(new THREE.PlaneGeometry(150, 23), new THREE.MeshStandardMaterial({ map: tx, transparent: true, depthWrite: false, roughness: 1 }));
+      m.rotation.x = -Math.PI / 2; m.rotation.z = Math.atan2(-p0.hz, p0.hx); m.position.set(p0.x, 0.02, p0.z); m.renderOrder = 1; G.add(m); }
+    // white-fenced infield enclosures beside the marquees, with a picnic crowd (filled on feature days)
+    const encl = [];
+    for (let s0 = lap - 150; s0 < lap + 60; s0 += 1.2) { const off = -44 - rng() * 26, p = pt(s0, off, Q); if (rng() < 0.5) encl.push({ x: p.x, y: 0, z: p.z, rot: Math.atan2(p.nx, p.nz) + (rng() - 0.5) * 1.2, seated: rng() < 0.3, keen: rng() }); }
+    spots.push(...encl);
+    GFX.rail(G, pt, lap - 160, lap + 70, -40, false, false, { r: 0.05 });
+    // flag line along the infield side of the straight + light towers
+    for (let s0 = lap - 420; s0 < lap - 20; s0 += 40) { const p = pt(s0, -14, {}); const c = cyl(G, mm.steelWhite, p.x, 0, p.z, 0.08, 0.06, 10, 6); c.castShadow = false; flag(G, p.x, 9.4, p.z, [0xc8102e, 0x0b2a4a, 0xf6c445][(s0 / 40 | 0) % 3], Math.atan2(p.hx, p.hz)); }
+    for (const s0 of [lap - 330, lap - 60, 300, 900]) { const p = pt(s0, -60, {}); cyl(G, mm.steel, p.x, 0, p.z, 0.5, 0.35, 28, 8); box(G, mm.dark, p.x, 29, p.z, 6, 2.4, 1.2); }
+    const keepOut = (x, z) => ((x - lx) / (ax + 14)) ** 2 + ((z - lz) / (az + 14)) ** 2 < 1 || beds.some(([bx, bz]) => Math.abs(x - bx) < 22 && Math.abs(z - bz) < 12);
+    // distance to the inner rail, from a coarse list of rail points (cheap enough to test thousands of positions)
+    const railPts = []; for (let s = 0; s < lap; s += 10) { const p = pt(s, -20, {}); railPts.push(p.x, p.z); }
+    const near = (x, z, d) => { const d2 = d * d; for (let i = 0; i < railPts.length; i += 2) { const dx = railPts[i] - x, dz = railPts[i + 1] - z; if (dx * dx + dz * dz < d2) return true; } return false; };
+    const straightZone = (x, z) => { for (let s = lap - 180; s < lap + 80; s += 12) { const p = pt(s, -55, Q); if ((p.x - x) ** 2 + (p.z - z) ** 2 < 42 * 42) return true; } return false; };
+    // ---- mown stripes across the whole infield: alternate lighter bands, parallel to the home straight
+    { const h0 = pt(lap - 200, 0, {}), ux = h0.hx, uz = h0.hz, vx = -uz, vz = ux, step = 5, bw = 9, pos = [], idx = [];
+      const quad = (t0, t1, d) => { const n = pos.length / 3; for (const [t, e] of [[t0, -bw / 2], [t1, -bw / 2], [t0, bw / 2], [t1, bw / 2]]) pos.push(C.cx + ux * t + vx * (d + e), 0.014, C.cz + uz * t + vz * (d + e)); idx.push(n, n + 2, n + 1, n + 1, n + 2, n + 3); };
+      for (let d = -420; d <= 420; d += bw * 2) { let run = null;
+        for (let t = -800; t <= 800; t += step) { const x = C.cx + ux * t + vx * d, z = C.cz + uz * t + vz * d, ok = C.inside(x, z) && !near(x, z, 33) && !keepOut(x, z);
+          if (ok && run == null) run = t; if ((!ok || t + step > 800) && run != null) { if (t - run > step) quad(run, t, d); run = null; } } }
+      if (idx.length) { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+        const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xf2ffd8, transparent: true, opacity: 0.13, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
+        m.receiveShadow = true; m.renderOrder = 0; m.name = "mown stripes"; G.add(m); } }
+    // ---- tree groves: plane-tree copses, gum stands and cypress rows scattered over the infield (sight lines to the
+    // far side of the course kept clear near the rail)
+    const trees = [], groves = [];
+    for (let k = 0; k < 900 && groves.length < 18; k++) {
+      const x = C.cx + (rng() - 0.5) * 1100, z = C.cz + (rng() - 0.5) * 560;
+      if (!C.inside(x, z) || near(x, z, 62) || keepOut(x, z) || straightZone(x, z) || groves.some(g => (g.x - x) ** 2 + (g.z - z) ** 2 < 85 * 85)) continue;
+      const sp = ["plane", "gum", "plane", "fig", "cypress", "gum"][groves.length % 6], n = sp === "cypress" ? 10 : 6 + (rng() * 9 | 0), R = sp === "cypress" ? 0 : 10 + rng() * 16;
+      groves.push({ x, z, sp });
+      for (let i = 0; i < n; i++) { let tx, tz;
+        if (sp === "cypress") { const a = (x * 0.013) % Math.PI; tx = x + (i - n / 2) * 7 * Math.cos(a); tz = z + (i - n / 2) * 7 * Math.sin(a); }   // a windbreak row
+        else { const a = rng() * Math.PI * 2, r = Math.sqrt(rng()) * R; tx = x + Math.cos(a) * r; tz = z + Math.sin(a) * r; }
+        if (C.inside(tx, tz) && !near(tx, tz, 48) && !keepOut(tx, tz)) trees.push({ x: tx, z: tz, s: 0.85 + rng() * 0.6, sp }); }
+    }
+    // ---- an avenue of plane trees and clipped hedges along the promenades to the lake
+    { const hedge = [], H = new THREE.Object3D();
+      for (const [x0, z0, x1, z1] of [[lx - ax - 70, lz, lx - ax - 8, lz], [lx + ax + 8, lz, lx + ax + 70, lz], [lx, lz - az - 40, lx, lz - az - 8], [lx, lz + az + 8, lx, lz + az + 40]]) {
+        const L = Math.hypot(x1 - x0, z1 - z0), dx = (x1 - x0) / L, dz = (z1 - z0) / L;
+        for (const sd of [-1, 1]) { for (let t = 4; t < L - 2; t += 12) trees.push({ x: x0 + dx * t - dz * sd * 7, z: z0 + dz * t + dx * sd * 7, s: 0.75, sp: "plane", keep: true });
+          hedge.push({ x: (x0 + x1) / 2 - dz * sd * 3.8, z: (z0 + z1) / 2 + dx * sd * 3.8, L, rot: Math.atan2(-dz, dx) }); } }
+      const hm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), std(0x2f4f26, 0.9), hedge.length);
+      hedge.forEach((h, i) => { H.position.set(h.x, 0.55, h.z); H.rotation.set(0, h.rot, 0); H.scale.set(h.L - 4, 1.1, 1.1); H.updateMatrix(); hm.setMatrixAt(i, H.matrix); });
+      hm.castShadow = true; hm.receiveShadow = true; G.add(hm); }
+    // ---- training centre at the far end of the infield: stable barns, a horse walker, a sand round yard
+    { let f = null; for (const s0 of [trk.marks.topTurn - 60, trk.marks.topTurn - 160, trk.marks.topTurn + 60, trk.marks.back + 100]) for (const off of [-120, -95, -150]) { if (f) break; const p = pt(s0, off, {}); if (C.inside(p.x, p.z) && !near(p.x, p.z, 70) && !keepOut(p.x, p.z)) f = frameAt(trk, s0, off); }
+      if (f) { const T = place(new THREE.Group(), f), wall = std(0xe9e2d2, 0.85), roofM = std(0x6b2a24, 0.7), doorM = std(0x2b4a35, 0.7);
+        for (let b = 0; b < 3; b++) { const z0 = -b * 16;
+          box(T, wall, 0, 1.8, z0, 46, 3.6, 9);
+          const r = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 6.6, 3, 4, 1), roofM); r.rotation.set(0, Math.PI / 4, 0); r.scale.set(1, 1, 1); r.position.set(0, 5.1, z0); r.scale.set(46 / 9.3, 1, 1.03); r.castShadow = true; r.receiveShadow = true; T.add(r);
+          for (let d = 0; d < 10; d++) box(T, doorM, -20.7 + d * 4.6, 1.4, z0 + 4.52, 2.2, 2.6, 0.08, false); }
+        excludeLocal(T, -24, 24, -38, 6);
+        // horse walker: central post, four arms, a fenced circular lane
+        const wx = 36, wz = -10; cyl(T, mm.steel, wx, 0, wz, 0.35, 0.3, 4.2, 8);
+        for (let a = 0; a < 4; a++) { const arm = box(T, mm.steel, wx, 4, wz, 18, 0.18, 0.18, false); arm.rotation.y = a * Math.PI / 4; }
+        const lane = new THREE.Mesh(new THREE.RingGeometry(6.5, 10, 40), mm.sand); lane.rotation.x = -Math.PI / 2; lane.position.set(wx, 0.02, wz); lane.receiveShadow = true; T.add(lane);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(10.2, 0.07, 6, 48), mm.steelWhite); ring.rotation.x = Math.PI / 2; ring.position.set(wx, 1.2, wz); T.add(ring);
+        const yard = new THREE.Mesh(new THREE.CircleGeometry(12, 40), mm.sand); yard.rotation.x = -Math.PI / 2; yard.position.set(-40, 0.02, -12); yard.receiveShadow = true; T.add(yard);
+        const yr = new THREE.Mesh(new THREE.TorusGeometry(12.1, 0.08, 6, 56), mm.steelWhite); yr.rotation.x = Math.PI / 2; yr.position.set(-40, 1.3, -12); T.add(yr);
+        G.add(T); T.updateMatrixWorld(true); const c = new THREE.Vector3(0, 0, -16).applyMatrix4(T.matrixWorld); groves.push({ x: c.x, z: c.z, sp: "stables" }); } }
+    // ---- the picnic lawns behind the infield enclosures: café umbrellas in the club colours
+    { const cols = [0xc8102e, 0x0b2a4a, 0xf6c445, 0xfbfbf8, 0x2a7a4b], n = 54, can = new THREE.InstancedMesh(new THREE.ConeGeometry(1.9, 0.7, 8), std(0xffffff, 0.75), n), pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.04, 0.04, 2.5, 5), mm.steelWhite, n), O = new THREE.Object3D(), c = new THREE.Color();
+      for (let i = 0; i < n; i++) { const p = pt(lap - 150 + rng() * 210, -74 - rng() * 22, {});
+        O.position.set(p.x, 2.55, p.z); O.rotation.set(0, rng() * 3, 0); O.scale.set(1, 1, 1); O.updateMatrix(); can.setMatrixAt(i, O.matrix); can.setColorAt(i, c.setHex(cols[i % cols.length]));
+        O.position.y = 1.25; O.updateMatrix(); pole.setMatrixAt(i, O.matrix);
+        if (rng() < 0.8) spots.push({ x: p.x + 1.1, y: 0, z: p.z, rot: rng() * 6.28, seated: rng() < 0.6, keen: rng() * 0.4 }); }
+      if (can.instanceColor) can.instanceColor.needsUpdate = true; can.castShadow = true; G.add(can); G.add(pole); }
+    return { keepOut: (x, z) => keepOut(x, z) || groves.some(g => (g.x - x) ** 2 + (g.z - z) ** 2 < (g.sp === "stables" ? 60 * 60 : 30 * 30)), trees };
   }
 
   /* ---------- shared pieces: parade ring, marquees, suburbs, skyline, crowd ---------- */

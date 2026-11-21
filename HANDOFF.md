@@ -67,6 +67,11 @@ Gotchas: after `npm install`, delete `node_modules/playwright*` (use the preinst
 voices (tests stub `speechSynthesis`). The build container has no outbound web access (reference sites were unreachable).
 
 ## Status
+Round 6 (latest): AI personas + cover-seeking + mistakes (`sim.js` makeJockey/Bot), chase/jockey camera rework
+(`updateCamera` in index.html: `cam.reveal`, `cam.sprint`, overtake drift), jockey head/body rebuild
+(`buildJockeyGeometry`), Flemington infield (`flemingtonInfield` in venues.js), replay crowd gestures
+(`GFX.setCrowdAnim`), feature-race tiles removed, Randwick parade ring level.
+
 Prompts 1–3 done. Prompt 3: Flemington (+ Straight Six, Cup route), venue rebuild for Randwick and Flemington, graphics kit,
 horse/jockey overhaul, broadcast director, barriers, parade ring, winner presentation, neural commentary voice with test
 screen. Next (user's plan): Prompt 5 (major-event atmosphere polish, export/import saves, final polish). Known limits:

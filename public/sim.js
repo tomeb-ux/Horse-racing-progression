@@ -787,7 +787,7 @@ function makeJockey(def, diffKey, rng) {
   const st = STYLE[def.style] || STYLE.mid, d = DIFF[diffKey] || DIFF.medium;
   const id = mulberry32(nameSeed(def.name + "/jockey"));       // the same rider every time this horse runs
   const iv = s => (id() - 0.5) * s, rv = s => (rng() - 0.5) * s;
-  return {
+  const j = {
     aggression: clamp(st.aggr + iv(0.3) + rv(0.16), 0, 1),
     patience:   clamp(st.pat + iv(0.3) + rv(0.16), 0, 1),
     tactics:    clamp(d.iq + iv(0.18) + rv(0.08), 0.05, 1),
@@ -802,6 +802,11 @@ function makeJockey(def, diffKey, rng) {
     finish:     clamp(d.rhythm + iv(0.24) + rv(0.1), 0.05, 0.97),
     consistency: clamp(d.consistency + iv(0.14), 0.2, 1),
   };
+  // a named riding personality (shapes decisions all race, shown in the race stats): aggressive front-runners push
+  // for the lead, rail riders save ground and sit in the pocket, stalkers take cover behind the leaders, closers
+  // conserve at the back and sweep wide late
+  j.persona = j.prefPos < 0.26 && j.aggression > 0.45 ? "front-runner" : j.prefPos > 0.58 ? "closer" : (st.rail || 0) > 0.55 && j.patience > 0.62 ? "rail rider" : "stalker";
+  return j;
 }
 class Bot {
   constructor(h, diffKey, rng) {
@@ -818,6 +823,9 @@ class Bot {
     this.laneCool = 1 + rng(); this.defendCool = 4; this.urgeCool = 0; this.noise = 0; this.seen = {};
     this.nextReview = 250 + rng() * 150; this.trapped = 0; this.wideBias = 0; this.tapT = rng() * BEAT;
     this.log = []; this.changes = 0; this.fb = null; this.fbOut = 0;
+    this.persona = j.persona; this.coverCool = 2 + rng() * 3;
+    // riders are not perfect: a weaker one sometimes goes for home too soon, or leaves the run too late
+    this.misjudge = rng() < (1 - this.d.iq) * 0.45 ? (rng() < 0.5 ? "early" : "late") : null;
   }
   // the home turn is a tactical moment: hold the rail and wait for a gap, angle out for a clear run, or follow a move.
   // Judgement depends on the rider (tactics/risk/patience) and difficulty: weaker riders misread it more often.
@@ -865,6 +873,7 @@ class Bot {
     const dScale = Math.sqrt(clamp(h.raceDist / 1600, 0.6, 2));
     let k = (st.kick + (h.sprintPow - 0.7) * 160 + (h.endN - 0.65) * 120 + j.kickBias * 170) * dScale;
     k += (this.rng() * 2 - 1) * this.d.kickErr;
+    if (this.misjudge === "early") k *= 1.3; else if (this.misjudge === "late") k *= 0.72;
     this.kickPoint = this.kick0 = clamp(k, 170, Math.min(h.raceDist * 0.6, 950));
     this.earlyUntil = Math.max(150, Math.min(420, h.raceDist * 0.14)) * (0.8 + 0.4 * this.rng());
   }
@@ -1057,7 +1066,7 @@ class Bot {
     }
     this.laneCool -= dt; this.defendCool -= dt;
     const cur = Math.round(h.targetLane);
-    const patT = this.mode === "kick" ? lerp(0.25, 1.1, j.patience) : lerp(0.6, 4.5, j.patience);
+    const patT = (this.mode === "kick" ? lerp(0.25, 1.1, j.patience) : lerp(0.6, 4.5, j.patience)) * (this.persona === "rail rider" ? 1.5 : this.persona === "front-runner" ? 0.6 : 1);
     // stuck behind a slower horse: sitting in is fine for a while (it saves energy), then look for room
     if (h.blocked && h.blockedTime > patT) {
       const best = this.findGap(race, cur, this.mode === "kick" ? 10 : 6);
@@ -1085,10 +1094,22 @@ class Bot {
         }
       }
     }
+    // find cover: stalkers, rail riders and closers would rather sit behind a horse (sheltered, settled) than race in
+    // clear air — so the field forms packs and pockets instead of spreading evenly across the track
+    this.coverCool -= dt;
+    if (this.coverCool <= 0 && this.mode !== "kick" && this.persona !== "front-runner" && remain > rFB + 60 && !h.blocked) {
+      this.coverCool = 1.1 + this.rng() * 1.3;
+      if (race.roomAhead(h, cur, 14) > 10 && this.rng() < 0.5 + 0.4 * j.patience) {
+        let best = null, bd = 1e9;
+        for (const o of race.horses) { if (o === h || o.finished || o.fallen) continue; const dp = o.progress - h.progress, L = Math.round(o.laneF);
+          if (dp > HORSE_LEN + 1 && dp < 10 && Math.abs(L - cur) === 1 && dp < bd) { bd = dp; best = L; } }
+        if (best != null && (best < cur || this.persona !== "rail rider") && race.canMove(h, best, this.margin)) { h.targetLane = best; this.laneCool = 1.4; this.note("tucks in for cover", race); return; }
+      }
+    }
     // save ground by getting to the rail (more urgent before a bend); wide closers late prefer clear running
     if (cur > 0 && this.wideBias <= 0 && !(st.wide && this.mode === "kick")) {
       const turnSoon = race.route.isTurn(h.progress + 40);
-      const p = st.rail * (turnSoon ? 0.9 : 0.4) * (0.5 + 0.5 * j.tactics);
+      const p = st.rail * (turnSoon ? 0.9 : 0.4) * (0.5 + 0.5 * j.tactics) * (this.persona === "rail rider" ? 1.8 : this.persona === "stalker" ? 1.25 : this.persona === "closer" ? 0.8 : 1);
       if (this.rng() < p && race.canMove(h, cur - 1, this.margin) && race.roomAhead(h, cur - 1, 20) > 9) { h.targetLane = cur - 1; this.laneCool = 1.0; }
     }
   }
