@@ -1,5 +1,19 @@
 # Final Furlong — change log
 
+## Update: static crowd, screen-relative steering, more emotional race calls in your voice, name list, new menus
+- **Crowd is static**: one fixed pose per spectator (no per-frame animation) with a much cheaper shader; the simpler
+  spectator models take over sooner. Finish-straight crowd ~270–365k triangles (was ~475k last update, >2M originally).
+- **Steering**: D always moves your horse to its right (right of the screen when riding forwards), A to its left, on
+  every course. At Randwick D therefore goes towards the rail. 70 steering checks.
+- **No more static**: the continuous wind / crowd-hiss / pack-rumble noise beds are muted.
+- **Career horse names** are chosen from a list of 19 names, all recorded in your ElevenLabs voice (excited and shouted).
+  Rivals only ever get recorded names (and never one of yours) — every name in a career race is now said in your voice.
+- **Commentary**: 77 new clips in your voice (227 total): big-race colour, the turn, stride-for-stride battles, the
+  crowd on its feet, emotional winner calls pitched to the margin, more lead-ins, shouted names for the climax, the 13
+  new names. Calls come more often mid-race and empty moments are filled with colour calls.
+- **Menus**: a new title screen (feature-race tiles for The Everest and the Melbourne Cup); Select Horse moved into
+  Quick Race ("Your horse · Change horse").
+
 ## Update: steering fix, smoother racing, Flemington grandstand repair, your ElevenLabs commentator
 - **Multiplayer temporarily disabled** (menu button hidden; all online code kept — `?mp=1` re-enables it for testing).
 - **Steering at Royal Randwick**: the horse, rider and HUD were drawn as if every course were left-handed. At a

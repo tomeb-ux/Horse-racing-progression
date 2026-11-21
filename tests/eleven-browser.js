@@ -17,7 +17,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
   await p.evaluate(() => { renderer.render = () => {}; });
   console.log('— library + test screen');
   const lib = await p.evaluate(async () => { await ELEVEN.loadLibrary(); return { ready: ELEVEN.ready, clips: ELEVEN.clipCount, names: ELEVEN.nameCount, id: ELEVEN.VOICE_ID }; });
-  ok(lib.ready && lib.clips === 150 && lib.names === 115 && lib.id === 'OQt0mf8rKBYkweCSQ9d4', `recordings loaded: ${lib.clips} clips, ${lib.names} names, voice ${lib.id}`);
+  ok(lib.ready && lib.clips >= 220 && lib.names >= 128 && lib.id === 'OQt0mf8rKBYkweCSQ9d4', `recordings loaded: ${lib.clips} clips, ${lib.names} names, voice ${lib.id}`);
   const t1 = await p.evaluate(() => ELEVEN.test(['start/away_1']));
   ok(t1.backend === 'ElevenLabs recorded (your voice)' && t1.firstMs < 1500, `Test 1 (race start): "${t1.backend}", decoded and started in ${Math.round(t1.firstMs)} ms (first use, includes MP3 decode)`);
   const t5 = await p.evaluate(() => ELEVEN.test(['transitions/big_run'], { name: 'My Custom Champion' }));
@@ -39,7 +39,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
   ok(R.lines.length >= 6 && voiced.length / R.lines.length > 0.7, `${R.lines.length} lines, ${voiced.length} voiced with recordings`);
   ok(lat.length && lat[lat.length >> 1] < 30 && lat[lat.length - 1] < 120, `decision → sound: median ${lat[lat.length >> 1].toFixed(1)} ms, worst ${lat[lat.length - 1].toFixed(1)} ms (everything decoded before the start)`);
   const win = R.lines.find(l => l.kind === 'win');
-  ok(win && win.plan.items.some(i => i === 'horse-names/' + R.winner.toLowerCase().replace(/[^a-z0-9]+/g, '_')), `winner call: ${win ? win.plan.items.join(' + ') : '—'} (official winner ${R.winner})`);
+  ok(win && win.plan.items.some(i => /^horse-names(-shout)?\//.test(i) && i.endsWith('/' + R.winner.toLowerCase().replace(/[^a-z0-9]+/g, '_'))), `winner call: ${win ? win.plan.items.join(' + ') : '—'} (official winner ${R.winner})`);
   console.log('   ' + R.lines.map(l => `[${l.kind}] ${l.plan ? l.plan.items.join(' + ') : ''}`).join('\n   '));
   console.log('\n— Enhanced mode with no API key on the server; quitting mid-line');
   const B = await p.evaluate(async () => {

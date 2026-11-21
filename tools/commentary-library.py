@@ -75,11 +75,75 @@ BATCHES = {
     L("transitions", "clear", "Clear in front,", 2, 2, "lead-in to a name: leader by ≥ 2 lengths"),
   ]),
 }
-def name_batch(names):
-    return ("[excited]", [L("horse-names", re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_"), n, 2, 3, "the horse's name, after a lead-in or on its own") for n in names])
+def name_batch(names, cat="horse-names", tag="[excited]", energy=2):
+    return (tag, [L(cat, re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_"), n, energy, 3, "the horse's name, after a lead-in or on its own" if cat == "horse-names" else "the name at the climax (choosable career names)") for n in names])
+PLAYER = ["Ka Ying Rising", "Tempted", "Half Yours", "Point Of Law", "Trust Your Instinct", "Soul Of Spain", "Make Up Your Mind", "Redline",
+          "Black Caviar", "Think About It", "Pierro", "Fan Girl", "Way With Words", "By Design", "If You Say So", "All Things Beautiful", "Spanish Affair",
+          "Call It Fate", "All Things Equal"]
 BATCHES["names_roster"] = name_batch(ROSTER)
 cn = career_names()
 for i in range(0, len(cn), 16): BATCHES["n%d" % (i // 16 + 1)] = name_batch(cn[i:i + 16])
+# round 2 (more calls, more emotion, the choosable career names, shouted names for the climax)
+BATCHES["names_player"] = name_batch(PLAYER[6:])
+BATCHES["shout1"] = name_batch(PLAYER[:10], "horse-names-shout", "[shouting]", 3)
+BATCHES["shout2"] = name_batch(PLAYER[10:], "horse-names-shout", "[shouting]", 3)
+BATCHES["q_mid"] = ("[warmly] … [excited]", [
+    L("middle", "good_clip", "They're bowling along at a good clip.", 1, 1, "middle stage"),
+    L("middle", "genuine_pace", "The leader's setting a genuine pace.", 1, 1, "middle stage"),
+    L("middle", "travelling_well", "Plenty still travelling well in behind.", 1, 1, "middle stage, bunched"),
+    L("middle", "biding_time", "Nothing's happening yet, they're just biding their time.", 1, 1, "middle stage, long races"),
+    L("final-600", "coming_600", "Coming up to the six hundred now.", 2, 2, "approaching 600 m"),
+    L("final-600", "pressure", "The pressure's starting to build!", 2, 2, "800–500 m"),
+])
+BATCHES["q_turn"] = ("[excited]", [
+    L("home-turn", "around_2", "Here they come around the home turn!", 2, 2, "on the final bend"),
+    L("home-turn", "jockeys_busy", "The jockeys are starting to get busy!", 2, 2, "final bend"),
+    L("home-turn", "fanning_out", "They're fanning out across the track!", 2, 2, "turning in, field spreading"),
+    L("home-turn", "young_and_old", "It's on for young and old!", 2, 2, "turning in, bunched"),
+    L("home-turn", "make_a_move", "Somebody's got to make a move now!", 2, 2, "final bend, leader holding"),
+])
+BATCHES["q_battle"] = ("[shouting]", [
+    L("battle", "fighting_it_out", "They're fighting it out!", 3, 3, "final 300 m, top two within a length"),
+    L("battle", "stride_for_stride", "Stride for stride!", 3, 3, "final 200 m, side by side"),
+    L("battle", "challenge", "Here comes the challenge!", 3, 3, "a challenger closing"),
+    L("battle", "from_everywhere", "They're coming from everywhere!", 3, 3, "three or more in contention"),
+    L("battle", "catch_leader", "Can anything catch the leader?", 3, 3, "leader holding a margin"),
+    L("battle", "everything", "Giving it everything!", 3, 3, "final 200 m"),
+    L("battle", "look_at_this", "Look at this finish!", 3, 3, "final 150 m, close"),
+    L("battle", "on_its_feet", "The crowd is on its feet!", 3, 3, "final 300 m, close"),
+    L("battle", "neck_and_neck", "Neck and neck!", 3, 3, "final 150 m, side by side"),
+    L("battle", "wont_give_inch", "They won't give an inch!", 3, 3, "final 200 m, side by side"),
+    L("battle", "what_a_battle", "What a battle!", 3, 3, "final 150 m, close"),
+    L("battle", "hang_on", "Hang on, hang on!", 3, 3, "final 100 m, leader being caught"),
+])
+BATCHES["q_win"] = ("[shouting]", [
+    L("winners", "unbelievable", "Unbelievable!", 3, 3, "after the result: late, close win"),
+    L("winners", "sensational", "Sensational!", 3, 3, "after the result"),
+    L("winners", "what_a_win", "What a win!", 3, 3, "after the result"),
+    L("winners", "what_a_run", "What a run!", 3, 3, "after the result: came from behind"),
+    L("winners", "incredible", "Absolutely incredible!", 3, 3, "after the result: big race, close"),
+    L("winners", "canter", "Won it in a canter!", 3, 3, "after the result: big margin"),
+    L("winners", "champion", "That was a champion's performance!", 3, 3, "after the result: feature race, clear winner"),
+    L("winners", "just_held_on", "Just held on!", 3, 3, "after the result: margin under half a length"),
+    L("photo-finish", "couldnt_split", "They couldn't split them!", 3, 4, "at the line, too close to call"),
+])
+BATCHES["q_leadins"] = ("[excited]", [
+    L("transitions", "here_comes", "Here comes", 2, 3, "lead-in to a name: a challenger"),
+    L("transitions", "out_in_front_is", "Out in front is", 2, 2, "lead-in to a name: the leader"),
+    L("transitions", "stride_with", "Stride for stride with", 3, 3, "lead-in to a name: side by side"),
+    L("transitions", "can_anything_catch", "Can anything catch", 3, 3, "lead-in to a name: a clear leader late"),
+    L("transitions", "flying_home", "Flying home is", 3, 3, "lead-in to a name: the fastest finisher"),
+    L("transitions", "charging_outside", "Charging down the outside,", 3, 3, "lead-in to a name: a wide run"),
+    L("transitions", "up_the_inside", "Up the inside,", 3, 3, "lead-in to a name: a run on the rail"),
+    L("transitions", "right_there", "Right there with them,", 2, 2, "lead-in to a name: in contention"),
+    L("transitions", "under_pressure", "Under pressure now,", 2, 2, "lead-in to a name: the leader tiring"),
+])
+BATCHES["q_major"] = ("[excited]", [
+    L("major-events", "crowd_flemington", "The crowd is roaring here at Flemington!", 2, 2, "feature race at Flemington, the straight"),
+    L("major-events", "crowd_randwick", "A massive crowd here at Randwick!", 2, 2, "feature race at Randwick, the straight"),
+    L("major-events", "cup_about", "This is what the Melbourne Cup is all about!", 3, 2, "Melbourne Cup, the straight"),
+    L("major-events", "everest_richest", "The Everest, the richest race on turf!", 2, 2, "The Everest, early"),
+])
 
 def run(cmd): return subprocess.run(cmd, capture_output=True, text=True)
 def dur(f): return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).stdout.strip())
@@ -94,7 +158,9 @@ def main(src, dst):
                 "clips": []}
     problems = []
     for b, (tag, lines) in BATCHES.items():
-        f = os.path.join(src, b + ".mp3"); T = dur(f); n = len(lines); cut = None
+        f = os.path.join(src, b + ".mp3")
+        if not os.path.exists(f): problems.append(b + " (not downloaded)"); continue
+        T = dur(f); n = len(lines); cut = None
         for noise, d in ((-32, 0.12), (-30, 0.1), (-28, 0.08), (-35, 0.15), (-26, 0.07)):
             g = [x for x in gaps(f, noise, d) if x[0] > 0.15 and x[1] < T - 0.1]
             if len(g) >= n - 1:

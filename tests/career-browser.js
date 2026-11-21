@@ -67,7 +67,9 @@ const SPEECH_STUB = () => {
   ok(st0.active && st0.mode === 'stalls' && st0.stalls.filter(Boolean).length === 2, `stable overview shows the two existing horses in their own boxes (${JSON.stringify(st0.stalls)})`);
   await p.evaluate(() => document.querySelector('#car_stable [data-new]').click()); await sleep(300);
   ok(await p.evaluate(() => ui.state === 'c_create' && STABLE3D.info().bay && STABLE3D.info().mode === 'full'), 'Create opens the grooming bay with a horse standing in it');
-  await p.fill('#cName', 'Midnight Legend');
+  const nameBtns = await p.evaluate(() => [...document.querySelectorAll('[data-name]')].map(b => b.dataset.name)), freeText = await p.evaluate(() => !!document.querySelector('#cName'));
+  ok(nameBtns.length === 19 && nameBtns.includes('Black Caviar') && !freeText, `the name is picked from the ${nameBtns.length} recorded names (no free-text box)`);
+  await p.click('[data-name="Black Caviar"]');
   const geo0 = await p.evaluate(() => renderer.info.memory.geometries);
   // A — every appearance change rebuilds the real horse model, and the pixels change
   const px0 = await snap();
@@ -111,8 +113,8 @@ const SPEECH_STUB = () => {
   ok(/sprint/i.test(b4.prof) && /Suitable distance/.test(b4.prof), 'projected profile from the real attributes: ' + b4.prof.replace(/([a-z])([A-Z])/g, '$1 · $2'));
   await p.evaluate(() => document.querySelector('[data-step="5"]').click()); await sleep(100);
   await p.evaluate(() => document.querySelector('#cDone').click()); await sleep(300);
-  const nh = await p.evaluate(() => { const h = CAREER.data.horses.find(x => x.name === 'Midnight Legend'); return h && { r: Math.round(Object.values(h.attrs).reduce((a, b) => a + b) / 8), pot: Object.keys(h.pot).reduce((a, k) => a + h.pot[k] - h.attrs[k], 0), potSet: h.potSet, look: h.look, ui: ui.state, act: CAREER.data.horses[CAREER.data.active].name }; });
-  ok(nh && nh.r === 71 && nh.pot === 168 && nh.potSet && nh.ui === 'c_profile' && nh.act === 'Midnight Legend', `new horse saved: rating ${nh && nh.r}, potential headroom ${nh && nh.pot}, profile opened`);
+  const nh = await p.evaluate(() => { const h = CAREER.data.horses.find(x => x.name === 'Black Caviar'); return h && { r: Math.round(Object.values(h.attrs).reduce((a, b) => a + b) / 8), pot: Object.keys(h.pot).reduce((a, k) => a + h.pot[k] - h.attrs[k], 0), potSet: h.potSet, look: h.look, ui: ui.state, act: CAREER.data.horses[CAREER.data.active].name }; });
+  ok(nh && nh.r === 71 && nh.pot === 168 && nh.potSet && nh.ui === 'c_profile' && nh.act === 'Black Caviar', `new horse saved: rating ${nh && nh.r}, potential headroom ${nh && nh.pot}, profile opened`);
   ok(nh.look.type === 'grey' && nh.look.face === 'blaze' && nh.look.socks[0] === 3 && nh.look.build === 0.85, 'saved look matches what was built in the creator');
   // F — no GPU growth from repeated rebuilds
   await p.evaluate(() => { CAREER._test.openCreate(CAREER.data.horses[2].id); STABLE3D.frame(0.016); });
@@ -124,7 +126,7 @@ const SPEECH_STUB = () => {
   // E — five-box stable: each horse in its own box, profiles and training stay separate
   const st1 = await p.evaluate(() => STABLE3D.info());
   ok(st1.stalls.filter(Boolean).length === 3, 'the new horse moves into its own box (3 of 5 filled)');
-  const tr = await p.evaluate(() => { const C = CAREER.data, i = C.horses.findIndex(h => h.name === 'Midnight Legend'), h = C.horses[i], other = JSON.stringify(C.horses[0].attrs);
+  const tr = await p.evaluate(() => { const C = CAREER.data, i = C.horses.findIndex(h => h.name === 'Black Caviar'), h = C.horses[i], other = JSON.stringify(C.horses[0].attrs);
     h.trainPts = 20; CAREER._test.openProfile(i); CAREER._test.openTraining(); const v0 = h.attrs.acc, pts0 = h.trainPts, cost = CAREER._test.upgCost(v0);
     document.querySelector('[data-up="acc"]').click(); const v1 = h.attrs.acc, pts1 = h.trainPts; const txt = document.getElementById('car_train').textContent;
     document.getElementById('trUndo').click(); const v2 = h.attrs.acc, pts2 = h.trainPts; document.querySelector('[data-up="acc"]').click();
@@ -134,7 +136,7 @@ const SPEECH_STUB = () => {
   ok(await p.evaluate(() => { const h = CAREER.data.horses[0]; return !h.potSet && !h.potRedist && /One-time potential redistribution/.test((CAREER._test.openProfile(0), CAREER._test.openTraining(), document.getElementById('car_train').textContent)); }), 'older horses are offered a one-time potential redistribution');
   // D — persistence
   await p.reload(); await p.waitForFunction(() => typeof CAREER !== 'undefined'); await p.evaluate(() => { window.__rr = renderer.render.bind(renderer); renderer.render = () => {}; CAREER.open(); });
-  ok(await p.evaluate(() => { const h = CAREER.data.horses.find(x => x.name === 'Midnight Legend'); return h && h.look.type === 'grey' && h.look.face === 'blaze' && h.look.socks[0] === 3 && h.silkPat === 'chevrons' && h.attrs.acc > 0; }), 'after a reload the horse, its look, silks and training are all still there');
+  ok(await p.evaluate(() => { const h = CAREER.data.horses.find(x => x.name === 'Black Caviar'); return h && h.look.type === 'grey' && h.look.face === 'blaze' && h.look.socks[0] === 3 && h.silkPat === 'chevrons' && h.attrs.acc > 0; }), 'after a reload the horse, its look, silks and training are all still there');
   // trophy room renders real records
   await p.evaluate(() => CAREER._test.openTrophies()); await sleep(200);
   ok(await p.evaluate(() => STABLE3D.info().trophies === 1 && /Golden Slipper/.test(document.getElementById('car_trophy').textContent)), 'trophy room shows the career\'s real trophy (Golden Slipper) on the shelves');
@@ -154,14 +156,14 @@ const SPEECH_STUB = () => {
     const r0 = rows[0], id = r0 && r0.getAttribute('data-rv'), rv = SEASON.rival(CAREER.data, id), cells = r0 ? [...r0.children].map(c => c.textContent) : [];
     return { n: rows.length, field: f.length, stars: document.querySelectorAll('#evForm td').length && [...document.querySelectorAll('#evForm tr')].filter(r => r.children[0] && r.children[0].textContent === '★').length, rating: +cells[2], real: (() => { const d = f.find(x => x._hid === id); return d ? Math.round(Object.values(d.attrs).reduce((a, b) => a + b, 0) / 8) : -1; })(), saved: rv ? SEASON.rRating(rv) : -1, you: !!document.querySelector('#evForm tr.me') }; });
   ok(fg.n === fg.field && fg.stars === 3 && fg.rating === fg.real && Math.abs(fg.rating - fg.saved) <= 1 && fg.you, `form guide lists all ${fg.n} rival runners + your horse, marks 3 contenders, and its ratings match the saved rival records`);
-  const idx = await p.evaluate(() => CAREER.data.horses.findIndex(h => h.name === 'Midnight Legend'));
+  const idx = await p.evaluate(() => CAREER.data.horses.findIndex(h => h.name === 'Black Caviar'));
   await p.click(`#car_event [data-go="${idx}"]`); await sleep(500);
   const cr = await p.evaluate(() => ({ chaos: race.chaos, cfgChaos: race.cfg.chaos, assist: race.cfg.assist, unl: race.cfg.unlimited, kickChip: !document.getElementById('kickChip').hidden && getComputedStyle(document.getElementById('kickChip')).display !== 'none', keys: document.getElementById('hudKeys').textContent, opp: race.horses.slice(1).map(h => h.def._stable).filter(Boolean).length, field: race.horses.length, name: race.player.def.name, settingsChaos: settings.chaos }));
   ok(cr.chaos === false && cr.cfgChaos === false && cr.settingsChaos === true, 'career race has chaos OFF in the race itself even though Quick Race still has it on');
   ok(!cr.kickChip && !/P kick/.test(cr.keys), 'no kick HUD chip and no kick key hint');
   ok(cr.assist === false && cr.unl === false, 'no stamina assist or unlimited options in championship racing');
-  ok(cr.opp === cr.field - 1 && cr.name === 'Midnight Legend', `all ${cr.opp} rivals are recurring AI stable runners; the player rides Midnight Legend`);
-  ok(await p.evaluate(() => { const L = race.player.mesh.userData.look, h = CAREER.data.horses.find(x => x.name === 'Midnight Legend'); return L.type === 'grey' && L.face === 'blaze' && L.socks[0] === 3 && race.player.def.silkPat === 'chevrons' && race.player.def.silk === h.silk && horseKey(race.player.def) === horseKey(CAREER._test.toDef(h)); }), 'the race horse is the stable horse: same coat, blaze, stocking, silks (same appearance key)');
+  ok(cr.opp === cr.field - 1 && cr.name === 'Black Caviar', `all ${cr.opp} rivals are recurring AI stable runners; the player rides Black Caviar`);
+  ok(await p.evaluate(() => { const L = race.player.mesh.userData.look, h = CAREER.data.horses.find(x => x.name === 'Black Caviar'); return L.type === 'grey' && L.face === 'blaze' && L.socks[0] === 3 && race.player.def.silkPat === 'chevrons' && race.player.def.silk === h.silk && horseKey(race.player.def) === horseKey(CAREER._test.toDef(h)); }), 'the race horse is the stable horse: same coat, blaze, stocking, silks (same appearance key)');
   ok(await p.evaluate(() => race.trk.id === 'randwick' && race.route.inChute(0) && VENUES.info().current === 'venue-randwick'), 'the Maiden Plate (Randwick) is run on the Royal Randwick course, from the 1200 m chute');
   await p.waitForFunction(() => race.state === 'running', null, { timeout: 20000 }); await sleep(1500);
   await p.keyboard.press('p'); await sleep(200);
@@ -191,7 +193,7 @@ const SPEECH_STUB = () => {
   await p.evaluate(() => { if (race) quitToMenu(); CAREER.open(); });
 
   console.log('\n— optional races');
-  const o0 = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Midnight Legend'); return { cur: C.season.cur, pts: SEASON.standings(C).find(r => r.you).pts, xp: h.xp + h.lvl * 1000, tp: h.trainPts, races: h.races, tro: C.trophies.length }; });
+  const o0 = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'); return { cur: C.season.cur, pts: SEASON.standings(C).find(r => r.you).pts, xp: h.xp + h.lvl * 1000, tp: h.trainPts, races: h.races, tro: C.trophies.length }; });
   for (let k = 0; k < 2; k++) {
     await p.evaluate(i => CAREER._test.enterOptional('o_bm64', i), idx); await sleep(300);
     ok(await p.evaluate(() => race.chaos === false && race.cfg.career && race.cfg.career.official === false), 'optional race starts (chaos off)');
@@ -199,12 +201,12 @@ const SPEECH_STUB = () => {
     await p.evaluate(() => { if (ui.state === 'replay') endReplay(); });
     await p.evaluate(() => { clearRaceMeshes(); race = null; CAREER.open(); });
   }
-  const o1 = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Midnight Legend'); return { cur: C.season.cur, pts: SEASON.standings(C).find(r => r.you).pts, xp: h.xp + h.lvl * 1000, tp: h.trainPts, races: h.races, tro: C.trophies.length, last: h.history[h.history.length - 1] }; });
+  const o1 = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'); return { cur: C.season.cur, pts: SEASON.standings(C).find(r => r.you).pts, xp: h.xp + h.lvl * 1000, tp: h.trainPts, races: h.races, tro: C.trophies.length, last: h.history[h.history.length - 1] }; });
   ok(o1.cur === o0.cur && o1.pts === o0.pts && o1.tro === o0.tro, 'optional races leave the calendar, points and trophies unchanged');
   ok(o1.races === o0.races + 2 && o1.xp > o0.xp && o1.tp > o0.tp && o1.last.off === false, `optional races award experience and training points (+${o1.tp - o0.tp} pts) and are recorded as optional`);
 
   console.log('\n— qualification');
-  const q = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Midnight Legend'); const e = SEASON.eligibility(h, SEASON.BY_ID.melbcup), ev = SEASON.eligibility(h, SEASON.BY_ID.everest);
+  const q = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'); const e = SEASON.eligibility(h, SEASON.BY_ID.melbcup), ev = SEASON.eligibility(h, SEASON.BY_ID.everest);
     const h2 = JSON.parse(JSON.stringify(h)); for (const k in h2.attrs) h2.attrs[k] = 88; h2.history.push({ raceId: 'sandown', name: 'Sandown Stayers', place: 2, dist: 3200, tier: 2 }); const e2 = SEASON.eligibility(h2, SEASON.BY_ID.melbcup);
     const h3 = JSON.parse(JSON.stringify(h2)); h3.history.push({ raceId: 'o_wildcard', name: 'Everest Wildcard Sprint', place: 1, dist: 1200, tier: 2 }); const sprinterH = JSON.parse(JSON.stringify(h3)); Object.assign(sprinterH.attrs, { end: 60, rec: 60 }); const e3 = SEASON.eligibility(sprinterH, SEASON.BY_ID.melbcup);
     return { mc: e.ok, mcReq: e.reqs.map(r => r.label + ':' + r.ok + ':' + r.detail), ev: ev.ok, mc2: e2.ok, sprinterCup: e3.ok, sprinterWhy: e3.reqs.filter(r => !r.ok).map(r => r.label) }; });
@@ -224,7 +226,7 @@ const SPEECH_STUB = () => {
   ok(await p.evaluate(() => ui.state === 'c_send' && /Finish Season/.test(document.getElementById('car_send').textContent)), 'season-complete screen with final standings');
   await p.click('#seGo'); await sleep(200);
   const hs = await p.evaluate(() => { const C = CAREER.data; return { n: C.season.n, cur: C.season.cur, hist: C.history.length, h0: C.history[0] && { pos: C.history[0].playerPos, champ: C.history[0].champion.name, entered: C.history[0].entered, skipped: C.history[0].skipped, used: C.history[0].horsesUsed } }; });
-  ok(hs.n === 2 && hs.cur === 0 && hs.hist === 1 && hs.h0.entered === 1 && hs.h0.skipped === 9 && hs.h0.used.join() === 'Midnight Legend', 'season 1 archived permanently, season 2 started: ' + JSON.stringify(hs.h0));
+  ok(hs.n === 2 && hs.cur === 0 && hs.hist === 1 && hs.h0.entered === 1 && hs.h0.skipped === 9 && hs.h0.used.join() === 'Black Caviar', 'season 1 archived permanently, season 2 started: ' + JSON.stringify(hs.h0));
   await p.evaluate(() => CAREER._test.openHistory()); await sleep(100);
   ok(await p.evaluate(c => document.getElementById('car_hist').textContent.includes(c), hs.h0.champ), 'history screen shows the recorded champion');
 

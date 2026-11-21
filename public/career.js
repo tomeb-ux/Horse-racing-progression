@@ -90,6 +90,10 @@ const CAREER = (() => {
     C = d; save(); return d;
   }
   function save() { try { store.set("career", C); } catch (e) {} }
+  // career horse names: chosen from the list the commentator has recordings for (an older horse keeps its own name)
+  const PLAYER_NAMES = (typeof SEASON !== "undefined" && SEASON.PLAYER_NAMES) || [];
+  function nameChoices() { const cur = draft && draft.name; return cur && !PLAYER_NAMES.includes(cur) ? [cur].concat(PLAYER_NAMES) : PLAYER_NAMES; }
+  function takenName(n) { try { return (C.horses || []).some(h => h.name === n && h.id !== (draft && draft.editId)); } catch (e) { return false; } }
   function cleanName(n, dflt) { n = (n == null ? "" : String(n)).replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 22); return n || dflt; }
   const hex = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d;
   const num = (v, lo, hi, d) => { v = +v; return isFinite(v) ? clampN(v, lo, hi) : d; };
@@ -889,9 +893,8 @@ const CAREER = (() => {
     const sws = (arr, sel, key) => `<div class="car-row" data-g="${key}">${arr.map((c, i) => `<button class="car-sw${i === sel ? " sel" : ""}" data-i="${i}" title="${esc(c.name || c)}" style="background:${c.hex || c}"></button>`).join("")}</div>`;
     if (step === 1) {
       body = `
-        <div class="sd-sec"><label class="car-lab">Horse name<input id="cName" maxlength="22" placeholder="Name your horse" value="${esc(draft.name)}"></label>
-          <label class="car-lab">Commentator says it as (optional)<input id="cSay" maxlength="22" placeholder="${esc(draft.name || "e.g. Midnight Ledge-end")}" value="${esc(draft.say)}"></label>
-          <div style="font-size:11.5px;color:var(--fg-dim)">Spell it the way it should sound if the voice gets it wrong.</div></div>
+        <div class="sd-sec"><div class="car-sub">Horse name — pick one (every name is recorded by the race caller)</div>
+          <div class="car-row car-names">${nameChoices().map(n => `<button class="car-chip${n === draft.name ? " sel" : ""}" data-name="${esc(n)}"${takenName(n) ? " disabled title=\"Already in your stable\"" : ""}>${esc(n)}</button>`).join("")}</div></div>
         <div class="sd-sec"><div class="car-sub">Coat</div>${chips(COATS, draft.customCoat ? -1 : draft.coat, "coat", o => `<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${o.hex};margin-right:6px;vertical-align:-1px;border:1px solid rgba(255,255,255,.3)"></span>${o.name}`)}</div>
         <div class="sd-sec"><div class="car-sub">Face marking</div>${chips(FACES, FACES.findIndex(f => f[0] === draft.face), "face", o => o[1])}</div>
         <div class="sd-sec"><div class="car-sub">White leg markings — choose each leg</div><div class="car-legs">${LEGS.map(([nm, li]) => `<div><div style="font-size:12px;margin-bottom:5px">${nm}</div><div class="car-row" data-leg="${li}">${SOCK_LV.map(([sn, sv]) => `<button class="car-chip${draft.socks[li] === sv ? " sel" : ""}" data-v="${sv}">${sn}</button>`).join("")}</div></div>`).join("")}</div></div>
@@ -943,8 +946,7 @@ const CAREER = (() => {
     const nx = el.querySelector("#cNext"); if (nx) nx.onclick = () => { if (draft.step === 1 && !cleanName(draft.name, "")) { toast("Give your horse a name first", "warn", 1.4); return; } draft.step++; afterStep(); };
     const dn = el.querySelector("#cDone"); if (dn) dn.onclick = () => edit ? saveAppearance() : confirmCreate();
     // inputs
-    const nm = el.querySelector("#cName"); if (nm) nm.addEventListener("input", e => { draft.name = e.target.value; el.querySelector(".car-hint b").textContent = draft.name || "New horse"; });
-    const sy = el.querySelector("#cSay"); if (sy) sy.addEventListener("input", e => { draft.say = e.target.value; });
+    el.querySelectorAll("[data-name]").forEach(b => b.onclick = () => { if (b.disabled) return; draft.name = b.dataset.name; draft.say = ""; el.querySelectorAll("[data-name]").forEach(x => x.classList.toggle("sel", x === b)); const hb = el.querySelector(".car-hint b"); if (hb) hb.textContent = draft.name; });
     el.querySelectorAll("[data-g]").forEach(g => {
       const key = g.getAttribute("data-g");
       g.querySelectorAll("button").forEach(b => b.onclick = () => {

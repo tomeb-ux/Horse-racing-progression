@@ -506,31 +506,16 @@ const GFX = (() => {
           vec3 o0 = vec3(0.0); float N = isNormal;
           // seated: thighs forward, shins down; the whole body lowered onto the seat
           if (seated > 0.5 && (pt < 0.5 || (pt > 6.5 && pt < 7.5))) { if (pt < 0.5 && aY > 0.44) p = rotX(p, vec3(0.0, 0.86, 0.0) * (1.0 - N), -1.5708); else if (N < 0.5) p += vec3(0.0, 0.43, 0.43); }
-          // excitement for this spectator (some stay seated and calm, some are on their feet roaring)
-          float ex = clamp(uExcite * (0.55 + 0.9 * keen) + uRoar * 0.6 * keen, 0.0, 1.3);
-          // arms: relaxed by the side, → clapping in front, → raised / pumping overhead
+          // STATIC crowd (no per-frame animation — far cheaper and steadier with thousands on screen): a fixed pose per
+          // spectator chosen once from its behaviour vector — arms by the side, some clapping-height, a few raised;
+          // the head turned a little towards the track
           if (pt > 1.5 && pt < 3.5) {
             float side = pt < 2.5 ? -1.0 : 1.0; vec3 sh = vec3(0.2 * side, 1.42, 0.0) * (1.0 - N);
-            float clap = smoothstep(0.25, 0.6, ex) * (1.0 - step(0.55, style)), raise = smoothstep(0.55, 1.0, ex) * step(0.35, style);
-            float a = -0.12 + clap * (-1.2 + 0.18 * sin(uTime * 14.0 + ph)) + raise * (-2.75 + 0.35 * sin(uTime * 6.0 + ph + side));
-            float z = side * (0.08 + clap * 0.32 - raise * 0.12);
-            p = rotZ(p, sh, z); p = rotX(p, sh, a);
+            float a = style > 0.9 && keen > 0.6 ? -2.6 : style < 0.25 && keen > 0.5 ? -1.1 : -0.1;
+            p = rotX(p, sh, a);
           }
-          // head (and shoulders a little) follow the action
-          vec3 lf = uFocus;
-          #ifdef USE_INSTANCING
-          vec3 dw = uFocus - instanceMatrix[3].xyz; lf = vec3(dot(instanceMatrix[0].xyz, dw), 0.0, dot(instanceMatrix[2].xyz, dw));
-          #endif
-          float yaw = clamp(atan(lf.x, lf.z), -1.25, 1.25) * clamp(length(lf.xz) / 30.0, 0.0, 1.0);
-          yaw += 0.12 * sin(uTime * 0.31 + ph) * (1.0 - uExcite);
-          if (pt > 3.5 && pt < 6.5) p = rotY(p, vec3(0.0) , yaw * 0.75);
-          else if (pt > 0.5) p = rotY(p, vec3(0.0), yaw * 0.22);
-          if (N < 0.5) {
-            if (seated > 0.5) p.y -= 0.42;
-            // jumps at the climax (standing spectators), a bounce when cheering seated
-            float j = max(0.0, sin(uTime * 7.0 + ph)) * smoothstep(0.7, 1.2, ex) * keen;
-            p.y += j * (seated > 0.5 ? 0.04 : 0.13);
-          }
+          if (pt > 3.5 && pt < 6.5) p = rotY(p, vec3(0.0), (ph - 3.1416) * 0.06);
+          if (N < 0.5 && seated > 0.5) p.y -= 0.42;
           return p;
         }`)
         .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\naY = position.y; objectNormal = normalize(ffPose(objectNormal, 1.0));")
@@ -580,7 +565,7 @@ const GFX = (() => {
     const order = items.map((_, i) => i), rs = rand((opts.seed || 77) + 5); for (let i = order.length - 1; i > 0; i--) { const j = (rs() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
     const sItems = order.map(i => items[i]), sAttrs = {};
     for (const k in A) { const sz = k === "iHair" || k === "iBeh" ? 4 : 3, a = new Float32Array(n * sz); order.forEach((i, j) => { for (let t = 0; t < sz; t++) a[j * sz + t] = A[k][i * sz + t]; }); sAttrs[k] = [sz, a]; }
-    const parts = chunked(group, sItems, [personGeo(), personGeoMid(), personGeoFar()], mat, { cell: 80, attrs: sAttrs, cy: 1, rad: 2, px: [60, 16], size: 1.7, shadow: false, receive: true, name: "crowd" });
+    const parts = chunked(group, sItems, [personGeo(), personGeoMid(), personGeoFar()], mat, { cell: 80, attrs: sAttrs, cy: 1, rad: 2, px: [80, 22], size: 1.7, shadow: false, receive: true, name: "crowd" });
     return { mesh: parts[0] && parts[0].levels[0], parts, n, set(frac) { for (const p of parts) { const k = Math.max(0, Math.min(p.n, Math.round(p.n * frac))); for (const m of p.levels) m.count = k; } } };
   }
   /* ---------- per-frame ---------- */

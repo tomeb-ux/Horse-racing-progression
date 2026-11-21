@@ -276,14 +276,14 @@ const COMM = (() => {
         const last = this.said.order;
         if (!this.flags.order1 || (now - (last || 0) > 26 && D >= 2000 && s.rem > 900)) {
           this.flags.order1 = true; this.said.order = now; this.lastCalledLeader = s.L;
-          return { text: cap1(this.orderCall(s)) + ".", claim: s.L, who: [s.L], cat: "order", gap: 1.6, clip: { kind: "order", leader: s.L, same: same0 } };
+          return { text: cap1(this.orderCall(s)) + ".", claim: s.L, who: [s.L], cat: "order", gap: 1.0, clip: { kind: "order", leader: s.L, same: same0 } };
         }
         const parts = [this.leaderClause(s), this.moverClause(s), this.playerClause(s)];
         if (parts.filter(Boolean).length < 2 && !this.flags.bunch && s.run.length >= 6 && s.L.progress - s.ord[Math.min(7, s.ord.length - 1)].progress < 11) { this.flags.bunch = true; parts.push("they're well bunched up"); }
         if (parts.filter(Boolean).length < 2 && s.L2) parts.push(`${nmShort(s.L2)} ${this.laneTag(s.L2, s.L) || "second"}`);
         this.lastCalledLeader = s.L;
         if (D >= 1400 && !this.flags.half && s.L.progress >= D / 2) { this.flags.half = true; parts.unshift("past halfway"); }
-        return { text: cap1(flow(parts)) + ".", claim: s.L, who: [s.L, s.L2, P], cat: "mid", gap: this.I < 1.6 ? 2.2 + this.rng() * 1.6 : 1.2,
+        return { text: cap1(flow(parts)) + ".", claim: s.L, who: [s.L, s.L2, P], cat: "mid", gap: this.I < 1.6 ? 1.0 + this.rng() * 0.9 : 0.7,
           clip: { kind: "mid", leader: s.L, same: same0, mover: this._mover, moverWide: this._moverWide, trapped: this._trapped, gapL: s.gap12 / SIMG.LEN_M, long: D >= 1600 } };
       }
       if (st === "turn") {
@@ -319,7 +319,7 @@ const COMM = (() => {
       const short = st === "final" ? parts.slice(0, 3) : parts.slice(0, 4);
       const cat = mk === "two hundred to go" ? "m200" : mk === "four hundred to go" ? "m400" : st === "final" ? "final" : "straight";
       return { text: cap1(flow(short)) + (this.I >= 3.4 ? "!" : "."), claim: A, who: [A, B], cat, gap: this.I >= 4.4 ? 0.04 : this.I >= 3.4 ? 0.15 : 0.45,
-        clip: { kind: "straight", first: firstStraight, marker: this._marker, leader: A, same: prevLead === A, gapL: gL, second: B, closing: !!(B && B.v - A.v > 0.25), bunched: s.near >= 2, closer: closerH, final: st === "final" } };
+        clip: { kind: "straight", first: firstStraight, marker: this._marker, leader: A, same: prevLead === A, gapL: gL, second: B, closing: !!(B && B.v - A.v > 0.25), bunched: s.near >= 2, closer: closerH, final: st === "final", major: !!m.major, venue: this.race.trk && this.race.trk.id } };
     }
     // the finish: never names a winner before the timing has decided it
     finish(s) {
@@ -344,10 +344,10 @@ const COMM = (() => {
         if (this.photo) t = this.pick("winp", what ? [`And on the photo, ${nm} has won ${what}!`, `${nm} gets the photo, ${nm} wins ${what}!`] : [`And on the photo, it's ${nm}!`, `${nm} gets the verdict!`]);
         else if (gL > 4) t = what && m.major ? `${nm}, and it's a dominant win in ${what}!` : this.pick("wind", [`${nm} wins it easily!`, `${nm}, ${lengthsW(this.winGap)} clear at the line!`]);
         else if (late) t = this.pick("winl", [`${nm} gets there in the final strides!`, `${nm} swoops late${what ? " to win " + what : ""}!`]);
-        else if (gL < 1.5) t = this.pick("winc", [`${nm} just holds on${what ? " to win " + what : ""}!`, `${nm} by ${lengthsW(this.winGap)}!`]);
+        else if (gL < 1.5) t = this.pick("winc", [`${nm} just holds on${what ? " to win " + what : ""}!`, `${nm} by ${lengthsW(this.winGap)}${what ? " in " + what : ""}!`]);
         else t = what ? this.pick("winm", [`And ${nm} wins ${what}!`, `${nm} has won ${what}!`]) : this.pick("win", [`And ${nm} wins!`, `${nm} is the winner!`]);
         if (m.major && (this.photo || gL < 1)) t += ` What a finish to ${what}!`;
-        return { text: t, claim: Wn, who: [Wn], final: true, clip: { kind: "win", winner: Wn, photo: !!this.photo, gapL: gL } };
+        return { text: t, claim: Wn, who: [Wn], final: true, clip: { kind: "win", winner: Wn, photo: !!this.photo, gapL: gL, major: !!m.major } };
       }, { interrupt: true });
     }
     // ----- the scheduler -----

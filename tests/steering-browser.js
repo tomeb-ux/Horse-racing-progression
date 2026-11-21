@@ -1,4 +1,4 @@
-// Rail-relative steering in the real game, on a right-handed course (Royal Randwick), a left-handed one (Flemington,
+// Screen-relative steering (D = the horse's right / right of the screen when riding forwards, A = left) in the real game, on a right-handed course (Royal Randwick), a left-handed one (Flemington,
 // main course and the Straight Six) and the original generic course. Drives the real key path (keydown → keys →
 // handlePlayerInput → applyRiderInput → the simulation) and checks, on straights and on bends:
 //   • D increases the horse's distance from the inside rail, A decreases it (measured in world metres from the rail);
@@ -64,24 +64,23 @@ const CASES = [
     await p.keyboard.down('d');
     const d1 = await p.evaluate(() => { __run(0.6, true); const a = __probe(); __run(0.6, false); return [a, __probe()]; });
     await p.keyboard.up('d');
-    const dm = d1[0], de = d1[1];
-    ok(de.lane > s0.lane + 0.2 && de.railDist > s0.railDist + 0.2, `D: further from the inside rail (lane ${s0.lane.toFixed(2)} → ${de.lane.toFixed(2)}, ${s0.railDist.toFixed(1)} → ${de.railDist.toFixed(1)} m from the rail)`);
-    const outSide = Math.sign(s0.sxOut - s0.sxIn);
-    ok(Math.sign(dm.sx - s0.sx) === outSide || Math.abs(dm.sx - s0.sx) < 1e-3, `D on screen: the horse moves ${outSide > 0 ? 'right' : 'left'}, the side the outside rail is drawn on (${c.hand === 'right' ? 'outside rail on the left at a right-handed course' : 'outside rail on the right'})`);
-    ok(dm.noseOut > 0.003, `D: nose turned towards the outside (${dm.noseOut.toFixed(3)})`);
-    ok(dm.leanOut > s0.leanOut, `D: body leans with the move towards the outside (${s0.leanOut.toFixed(3)} → ${dm.leanOut.toFixed(3)})`);
+    const dm = d1[0], de = d1[1], rs = c.hand === 'right' ? -1 : 1;       // D = right: wider on a left-handed course, towards the rail on a right-handed one
+    ok(rs * (de.lane - s0.lane) > 0.2, `D moves the horse to its right: ${c.hand === 'right' ? 'towards the inside rail (right-handed course)' : 'wider (left-handed course)'} — lane ${s0.lane.toFixed(2)} → ${de.lane.toFixed(2)}`);
+    ok(dm.sx > s0.sx, `D on screen (chase camera): the horse moves RIGHT (${s0.sx.toFixed(3)} → ${dm.sx.toFixed(3)})`);
+    ok(rs * dm.noseOut > 0.003, `D: nose turned to the right, the way it is moving (${dm.noseOut.toFixed(3)})`);
+    ok(rs * (dm.leanOut - s0.leanOut) > 0, `D: body leans with the move (${s0.leanOut.toFixed(3)} → ${dm.leanOut.toFixed(3)})`);
     // hold A
     await p.evaluate(() => __run(1.0, false));
     const a0 = await p.evaluate(() => __probe());
     await p.keyboard.down('a');
     const a1 = await p.evaluate(() => { __run(0.6, true); const a = __probe(); __run(0.6, false); return [a, __probe()]; });
     await p.keyboard.up('a');
-    ok(a1[1].lane < a0.lane - 0.2 && a1[1].railDist < a0.railDist - 0.2, `A: closer to the inside rail (lane ${a0.lane.toFixed(2)} → ${a1[1].lane.toFixed(2)}, ${a0.railDist.toFixed(1)} → ${a1[1].railDist.toFixed(1)} m)`);
-    ok(a1[0].noseOut < -0.003, `A: nose turned towards the inside (${a1[0].noseOut.toFixed(3)})`);
+    ok(rs * (a1[1].lane - a0.lane) < -0.2, `A moves the horse to its left — lane ${a0.lane.toFixed(2)} → ${a1[1].lane.toFixed(2)}`);
+    ok(rs * a1[0].noseOut < -0.003, `A: nose turned to the left (${a1[0].noseOut.toFixed(3)})`);
   }
   // keep A held to the rail: the horse stops at the rail, it never crosses it
-  const rail = await p.evaluate(() => { startRace(Object.assign(quickCfg(), { distance: 1600, field: 4, track: 'randwick', incidents: 'off', seed: 9 })); race.state = 'count'; race.openGates(); keys.a = true; let mn = 9; for (let i = 0; i < 40 / SIM_DT; i++) { handlePlayerInput(SIM_DT); race.step(SIM_DT); mn = Math.min(mn, race.player.laneF); } keys.a = false; return mn; });
-  ok(rail >= 0, `Randwick: holding A the whole way the horse reaches the rail and stays on the course (min lane ${rail.toFixed(2)})`);
+  const rail = await p.evaluate(() => { startRace(Object.assign(quickCfg(), { distance: 1600, field: 4, track: 'randwick', incidents: 'off', seed: 9 })); race.state = 'count'; race.openGates(); updateHorseMeshes(0); keys.d = true; let mn = 9; for (let i = 0; i < 40 / SIM_DT; i++) { handlePlayerInput(SIM_DT); race.step(SIM_DT); mn = Math.min(mn, race.player.laneF); } keys.d = false; return mn; });
+  ok(rail >= 0 && rail < 0.6, `Randwick: holding D (right = the rail there) the horse reaches the rail and stays on the course (min lane ${rail.toFixed(2)})`);
   ok(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.join(' | ') : ''));
   console.log(`\n${pass} passed, ${fail} failed`);
   await b.close(); process.exit(fail ? 1 : 0);

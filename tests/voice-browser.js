@@ -11,7 +11,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   const ctx = await b.newContext({ viewport: { width: 1000, height: 640 } });
   await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
   let external = 0; await ctx.route(/huggingface\.co|jsdelivr\.net/, r => { external++; r.abort(); });
-  await ctx.addInitScript(() => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_voice', JSON.stringify({ engine: 'kokoro', kokoroVoice: 'am_michael' }));
+  await ctx.addInitScript(() => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_eleven', JSON.stringify({ mode: 'local' })); /* this suite tests the LOCAL neural voice */ localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_voice', JSON.stringify({ engine: 'kokoro', kokoroVoice: 'am_michael' }));
     window.__sys = 0; const S = window.speechSynthesis; if (S) { const o = S.speak.bind(S); S.speak = u => { if (u.text && u.text.trim()) window.__sys++; try { o(u); } catch (e) {} }; } });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE); await p.waitForFunction(() => typeof VOICE !== 'undefined' && typeof COMM !== 'undefined');

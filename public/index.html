@@ -39,6 +39,49 @@ img{max-width:100%;}
 .game-title em{font-style:normal;color:var(--accent);}
 .tagline{color:var(--fg-dim);font-size:15px;letter-spacing:0.12em;text-transform:uppercase;text-align:center;margin-top:2px;}
 .menu-btns{display:flex;flex-direction:column;gap:10px;width:min(320px,100%);margin-top:18px;}
+/* ---- main menu ---- */
+#menuScreen{justify-content:center;padding:clamp(16px,4vw,48px);}
+#menuVeil{background:radial-gradient(120% 90% at 78% 40%,rgba(5,10,8,0) 0%,rgba(5,10,8,0.35) 55%,rgba(5,10,8,0.85) 100%),linear-gradient(90deg,rgba(5,10,8,0.88) 0%,rgba(5,10,8,0.55) 38%,rgba(5,10,8,0) 70%);}
+.mm{position:relative;width:min(1180px,100%);display:flex;gap:32px;align-items:flex-end;justify-content:space-between;margin:auto 0;}
+.mm-left{display:flex;flex-direction:column;gap:22px;width:min(460px,100%);}
+.mm-brand{display:flex;gap:16px;align-items:center;}
+.mm-badge{flex:none;width:64px;height:64px;border-radius:16px;display:grid;place-items:center;color:var(--accent);background:linear-gradient(160deg,rgba(232,195,90,0.18),rgba(232,195,90,0.04));border:1px solid rgba(232,195,90,0.45);box-shadow:0 8px 30px rgba(0,0,0,0.35);}
+.mm-badge svg{width:40px;height:40px;}
+#menuScreen .game-title{text-align:left;font-size:clamp(38px,6vw,72px);line-height:0.9;}
+#menuScreen .tagline{text-align:left;font-size:12.5px;margin-top:8px;}
+.mm-nav{display:flex;flex-direction:column;gap:10px;}
+.mm-item{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px;border-radius:14px;background:linear-gradient(90deg,rgba(14,22,18,0.92),rgba(14,22,18,0.72));border:1px solid var(--panel-line);color:var(--fg);cursor:pointer;transition:transform .15s,border-color .15s,background .15s;font-family:var(--font-b);}
+.mm-item:hover,.mm-item:focus-visible{transform:translateX(6px);border-color:rgba(232,195,90,0.7);background:linear-gradient(90deg,rgba(26,36,30,0.96),rgba(20,30,25,0.8));outline:none;}
+.mm-item .ic{flex:none;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,0.06);color:var(--accent);}
+.mm-item .ic svg{width:20px;height:20px;}
+.mm-item .tx{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.mm-item .tx b{font-family:var(--font-d);font-weight:800;font-size:17px;letter-spacing:0.06em;text-transform:uppercase;}
+.mm-item .tx small{font-size:12.5px;color:var(--fg-dim);}
+.mm-item .chev{font-size:26px;color:var(--fg-dim);transition:color .15s,transform .15s;}
+.mm-item:hover .chev{color:var(--accent);transform:translateX(3px);}
+.mm-item.primary{background:linear-gradient(90deg,#e8c35a,#d9a93a);border-color:#f0d27c;color:#1a1405;box-shadow:0 10px 30px rgba(232,195,90,0.25);}
+.mm-item.primary .ic{background:rgba(26,20,5,0.15);color:#1a1405;}
+.mm-item.primary .tx small{color:rgba(26,20,5,0.72);}
+.mm-item.primary .chev{color:#1a1405;}
+.mm-foot{font-size:12.5px;color:var(--fg-dim);letter-spacing:0.04em;}
+.mm-right{display:flex;flex-direction:column;gap:12px;width:min(340px,100%);}
+.mm-feat-h{font-family:var(--font-d);font-weight:800;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:var(--fg-dim);}
+.mm-feat{position:relative;display:flex;flex-direction:column;gap:4px;text-align:left;padding:16px 18px;border-radius:16px;border:1px solid rgba(255,255,255,0.14);color:#fff;cursor:pointer;overflow:hidden;font-family:var(--font-b);transition:transform .15s,border-color .15s;box-shadow:0 12px 34px rgba(0,0,0,0.35);}
+.mm-feat:hover{transform:translateY(-3px);border-color:rgba(232,195,90,0.8);}
+.mm-feat.everest{background:linear-gradient(135deg,#0f3b2a 0%,#155a3d 60%,#1d6b48 100%);}
+.mm-feat.cup{background:linear-gradient(135deg,#5a0f1c 0%,#7a1020 60%,#8f1a2c 100%);}
+.mm-feat::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:rgba(232,195,90,0.14);}
+.mm-feat .tag{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.72);}
+.mm-feat b{font-family:var(--font-d);font-weight:900;font-size:24px;letter-spacing:0.02em;}
+.mm-feat small{font-size:12.5px;color:rgba(255,255,255,0.8);}
+.mm-feat .go{margin-top:6px;font-family:var(--font-d);font-weight:800;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);}
+@media (max-width:860px){.mm{flex-direction:column;align-items:stretch;}.mm-right{width:100%;flex-direction:row;flex-wrap:wrap;}.mm-right .mm-feat{flex:1 1 220px;}.mm-feat-h{width:100%;}}
+/* the horse card in the Quick Race setup */
+.setup-horse{display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;border-radius:12px;background:rgba(18,26,21,0.9);border:1px solid var(--panel-line);}
+.setup-horse .sw{width:34px;height:34px;border-radius:50%;flex:none;border:2px solid rgba(255,255,255,0.35);}
+.setup-horse .nm{flex:1;display:flex;flex-direction:column;}
+.setup-horse .nm b{font-family:var(--font-d);font-weight:800;font-size:17px;letter-spacing:0.04em;}
+.setup-horse .nm small{font-size:12px;color:var(--fg-dim);}
 .btn{background:rgba(18,26,21,0.9);color:var(--fg);border:1px solid var(--panel-line);padding:13px 20px;font-size:16px;letter-spacing:0.06em;text-transform:uppercase;transition:background .15s,border-color .15s,transform .1s;}
 .btn:hover{background:rgba(34,46,38,0.95);border-color:var(--accent);}
 .btn:active{transform:scale(0.985);}
@@ -289,18 +332,29 @@ body.touch #touchUI{display:flex;}
   <!-- MAIN MENU -->
   <div class="screen" id="menuScreen">
     <div id="menuVeil"></div>
-    <div class="menu-inner">
-      <h1 class="game-title">FINAL <em>FURLONG</em></h1>
-      <div class="tagline">Every second. Every stride. Every decision.</div>
-      <div class="menu-btns">
-        <button class="btn primary" id="btnQuick">Quick Race</button>
-        <button class="btn" id="btnCareer">Career Mode</button>
-        <button class="btn" id="btnMP" hidden>Multiplayer</button>
-        <button class="btn" id="btnSelect">Select Horse</button>
-        <button class="btn" id="btnSettings">Settings</button>
-        <button class="btn" id="btnHow">How to Play</button>
+    <div class="mm">
+      <div class="mm-left">
+        <div class="mm-brand">
+          <div class="mm-badge" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M17 56 L13 30 A19 19 0 0 1 51 30 L47 56" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><g fill="#0c1210"><circle cx="16.5" cy="44" r="1.8"/><circle cx="15" cy="32" r="1.8"/><circle cx="47.5" cy="44" r="1.8"/><circle cx="49" cy="32" r="1.8"/><circle cx="22" cy="20" r="1.8"/><circle cx="42" cy="20" r="1.8"/></g></svg></div>
+          <div>
+            <h1 class="game-title">FINAL <em>FURLONG</em></h1>
+            <div class="tagline">Every second. Every stride. Every decision.</div>
+          </div>
+        </div>
+        <nav class="mm-nav">
+          <button class="mm-item primary" id="btnQuick"><span class="ic"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg></span><span class="tx"><b>Quick Race</b><small>Choose your horse, a course and go to the gates</small></span><span class="chev">›</span></button>
+          <button class="mm-item" id="btnCareer"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v3a6 6 0 0 1-5 5.9V15h3v2H8v-2h3v-3.1A6 6 0 0 1 6 6zM4 5h2v2a3 3 0 0 1-2-2zm14 0h2a3 3 0 0 1-2 2zM7 19h10v2H7z" fill="currentColor"/></svg></span><span class="tx"><b>Career Mode</b><small>Build a stable, win championships, chase the Cup</small></span><span class="chev">›</span></button>
+          <button class="mm-item" id="btnMP" hidden><span class="ic"></span><span class="tx"><b>Multiplayer</b><small>Private online races</small></span><span class="chev">›</span></button>
+          <button class="mm-item" id="btnSettings"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 4-2.1-.7-.5-1.3 1-2-1.4-1.4-2 1-1.3-.5L14 3h-2l-.7 2.1-1.3.5-2-1L6.6 6l1 2-.5 1.3L5 10v2l2.1.7.5 1.3-1 2 1.4 1.4 2-1 1.3.5L12 21h2l.7-2.1 1.3-.5 2 1 1.4-1.4-1-2 .5-1.3L21 14z" fill="currentColor"/></svg></span><span class="tx"><b>Settings</b><small>Graphics, commentary voice, sound</small></span><span class="chev">›</span></button>
+          <button class="mm-item" id="btnHow"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2zm2.1-7.7-.9.9C13.5 11 13 11.6 13 13h-2v-.5c0-1.1.5-2.1 1.2-2.8l1.2-1.3A1.9 1.9 0 0 0 12 5.4 2 2 0 0 0 10 7.4H8a4 4 0 1 1 7.1 2.9z" fill="currentColor"/></svg></span><span class="tx"><b>How to Play</b><small>Riding, rhythm, steering and starts</small></span><span class="chev">›</span></button>
+        </nav>
+        <div class="mm-foot" id="menuHorseLine"></div>
       </div>
-      <div style="font-size:12px;color:var(--fg-dim);margin-top:8px;" id="menuHorseLine"></div>
+      <div class="mm-right">
+        <div class="mm-feat-h">Feature races</div>
+        <button class="mm-feat everest" id="featEverest"><span class="tag">Royal Randwick · 1200 m · right-handed</span><b>The Everest</b><small>The richest race on turf — a full house at Randwick</small><span class="go">Race now ›</span></button>
+        <button class="mm-feat cup" id="featCup"><span class="tag">Flemington · 3200 m · left-handed</span><b>Melbourne Cup</b><small>The race that stops a nation — 24 runners</small><span class="go">Race now ›</span></button>
+      </div>
     </div>
   </div>
 
@@ -321,6 +375,8 @@ body.touch #touchUI{display:flex;}
     <div class="menu-inner">
       <h2 style="font-size:26px;" id="setupTitle">Quick Race</h2>
       <div class="setup-box">
+        <div class="opt-label">Your horse</div>
+        <div class="setup-horse" id="setupHorse"></div>
         <div class="opt-label">Course</div>
         <div class="opt-row" id="optTrack"></div>
         <div class="opt-label">Race distance</div>
@@ -396,7 +452,7 @@ body.touch #touchUI{display:flex;}
           <tr><td><kbd>E</kbd></td><td><b>Settle</b> (hold): the horse relaxes and travels more efficiently, and stops pulling — but it won't quicken until you wake it up, and it gets less from urging and driving. Calm stayers settle quickly; hot sprinters slowly. Only works at a sensible pace.</td></tr>
           <tr><td><kbd>Q</kbd></td><td><b>Check</b> (hold): take a firm hold to slow quickly — to avoid running up a horse's heels, drop in behind one, or wait for a gap. Momentum lost costs energy to regain, and a hot horse resents being checked too much.</td></tr>
           <tr><td><kbd>R</kbd></td><td>Look behind (hold) — you keep full control while looking.</td></tr>
-          <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td><b>Steer</b> (hold) towards the rail / wider; release to hold your line anywhere across the track. You fit between two horses only if the gap is wide enough — pick it early. Fast lateral moves at speed cost a little energy. The keys are rail-relative: on a left-handed course (Flemington) the rail is on your left; on a right-handed course (Royal Randwick) it is on your right, so A steers right and D steers left there — the radar shows the rail on the side it really is.</td></tr>
+          <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td><b>Steer</b> (hold) left / right; release to hold your line anywhere across the track. You fit between two horses only if the gap is wide enough — pick it early. Fast lateral moves at speed cost a little energy. A always steers your horse to its left and D to its right, on every course. On a left-handed course (Flemington) the inside rail is on your left; on a right-handed course (Royal Randwick) it is on your right — the radar shows the rail on the side it really is.</td></tr>
           <tr><td><kbd>Space</kbd></td><td>Before the gates: hold/release to keep the marker in the green; then press the instant the gates open. Mid-race: <b>urge</b> — a short push that costs energy and sours the horse if overused. Final 450 m: tap to the stride rhythm.</td></tr>
           <tr><td><kbd>Shift</kbd></td><td><b>Drive</b>: commit to a hard, energy-hungry riding style for the finish.</td></tr>
           <tr><td><kbd>C</kbd></td><td>Camera: chase / jockey / broadcast</td></tr>
@@ -2676,7 +2732,8 @@ function updateCamera(dt) {
     const t = performance.now() / 1000 * 0.12, ph = menuHorsePos;
     tx = ph.x + Math.cos(t) * 13; ty = 4.0 + Math.sin(t * 0.7) * 0.7; tz = ph.z + Math.sin(t) * 13;
     const ddx = ph.x - tx, ddz = ph.z - tz, dl = Math.hypot(ddx, ddz) || 1;
-    lx = ph.x - ddz / dl * 4.5; lz = ph.z + ddx / dl * 4.5; ly = 1.4;
+    const off = ui.state === "menu" ? -1.6 : -4.5;                    // menu: the horse stands in the open space right of the menu
+    lx = ph.x + ddz / dl * off * -1; lz = ph.z - ddx / dl * off * -1; ly = 1.4;
   } else if (p.fallen && race.state === "running") {   // the incident: a wider view of the fall, from the infield
     cam.fallT = (cam.fallT || 0) + dt;
     const m = p.mesh ? (p.mesh.userData.fallCenter && p.mesh.userData.fallVis ? p.mesh.userData.fallCenter : p.mesh.position) : p.pos, at = (p.stat.dnfAt || p.progress);
@@ -2871,7 +2928,7 @@ const audio = (() => {
       this.roar(0.55);
     },
     finishBell() { ensure(); if (!ctx) return; burst(1760, 0.5, 0.12, "sine"); burst(2637, 0.4, 0.08, "sine"); },
-    roar(level) { if (!ctx) return; const t = ctx.currentTime; [crowdGain, crowdHi].forEach((g, i) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime((i ? 0.22 : 0.5) * level, t + 0.5); g.gain.linearRampToValueAtTime((i ? 0.04 : 0.12) * level, t + 5); }); },
+    roar(level) { return; if (!ctx) return; const t = ctx.currentTime; [crowdGain, crowdHi].forEach((g, i) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime((i ? 0.22 : 0.5) * level, t + 0.5); g.gain.linearRampToValueAtTime((i ? 0.04 : 0.12) * level, t + 5); }); },
     hoof(h, legIdx, hind) {
       if (!ctx || !race || race.state !== "running") return;
       if (!h.isPlayer && hoofBudget > 10) return; hoofBudget++;
@@ -2902,7 +2959,9 @@ const audio = (() => {
       const p = race.player, running = race.state === "running";
       const sN = Math.min(1, p.v / 19);
       const wT = running ? (Math.pow(sN, 2.2) * (camMode === 1 ? 0.2 : 0.12)) * (1 + 0.35 * cam.rush + 0.08 * Math.max(0, cam.accS)) + (cam.crazy || 0) * 0.35 : 0;
-      windGain.gain.value += (wT * duckF - windGain.gain.value) * Math.min(1, dt * 3);
+      // the continuous noise beds (wind, crowd hiss, pack rumble) read as static on most speakers: muted. The hoofbeats,
+      // breathing, whip, passing whooshes and the commentary carry the race.
+      windGain.gain.value = 0; void wT;
       windFilt.frequency.value = 400 + 1800 * sN * sN + 500 * cam.rush;
       // passing: a whoosh, panned to the side, when you go by a rival (or one goes by you) at a speed difference
       if (running && camMode !== 2) for (const o of race.horses) {
@@ -2929,10 +2988,10 @@ const audio = (() => {
         if (lRem < 600) cT += 0.06;
       }
       if (running && race.cfg.career && race.cfg.career.major && commLvl > 3) { cT += 0.03 * (commLvl - 3); hT += 0.035 * (commLvl - 3); }
-      crowdGain.gain.value += (cT * duckF - crowdGain.gain.value) * Math.min(1, dt * 1.2);
+      crowdGain.gain.value = 0; void cT;
       // pack rumble and the horse's breathing (one exhalation per stride, harder with effort and fatigue)
       let pack = 0; if (running) for (const o of race.horses) if (Math.abs(o.progress - p.progress) < 10) pack += Math.min(1, o.v / 16);
-      rumbleGain.gain.value += ((running ? Math.min(0.22, pack * 0.025) * (0.6 + 0.4 * duckF) : 0) - rumbleGain.gain.value) * Math.min(1, dt * 2);
+      rumbleGain.gain.value = 0; void pack;
       const ph = p.phase % 1;
       if (running && p.v > 6 && !p.finished && lastBreathPh < 0.62 && ph >= 0.62) {
         const effortN = clamp((p.eAct - 0.5) / 0.5, 0, 1), tired = clamp(p.F / 80 + (p.S < 20 ? (20 - p.S) / 40 : 0), 0, 1);
@@ -2943,7 +3002,7 @@ const audio = (() => {
         src.connect(bp).connect(g).connect(master); src.start(t, Math.random()); src.stop(t + 0.32);
       }
       lastBreathPh = ph;
-      crowdHi.gain.value += (hT * duckF - crowdHi.gain.value) * Math.min(1, dt * 1.5);
+      crowdHi.gain.value = 0; void hT;
     },
     urge() { ensure(); burst(220, 0.08, 0.07, "noise"); burst(140, 0.12, 0.06, "triangle"); if (Math.random() < 0.5) this.call(); },
     // jockey's call ("hup!"): a short voiced burst with a falling pitch, through a vowel-like formant
@@ -3011,11 +3070,11 @@ addEventListener("keydown", e => {
   if (e.key === "F9") { DBG.on = !DBG.on; DBG.marks = []; DBG.seenEv = race ? race.events.length : 0; toast("Collider view " + (DBG.on ? "ON (developer)" : "off"), "info", 1); }
 });
 // CHAOS MODE: P — the jockey's ONE kick of the race, aimed at the horse right alongside.
-// Hold A (or ←) to kick towards the inside rail, D (or →) towards the outside — the same rail-relative sides as steering;
+// Hold A (or ←) to kick to the horse's left, D (or →) to its right — the same sides as steering;
 // with neither held, whichever side has a horse in reach.
 function kickPressed() {
   if (ui.state !== "racing" || !race || !race.chaos || race.state !== "running") return;
-  const side = (keys.a || keys.arrowleft) ? -1 : (keys.d || keys.arrowright) ? 1 : 0;
+  const side = ((keys.a || keys.arrowleft) ? -1 : (keys.d || keys.arrowright) ? 1 : 0) * (race.player.sideS || 1);   // left / right of the horse
   if (MPC()) { MPC().kick(side); return; }
   kickFeedback(riderKick(race, race.player, side));
 }
@@ -3050,7 +3109,10 @@ function handlePlayerInput(dt) {
   // the rider's request this frame (multiplayer sends the same thing to the server)
   if (keys.w) riderInput.effort = Math.min(1, riderInput.effort + 0.5 * dt);
   if (keys.s) riderInput.effort = Math.max(0, riderInput.effort - 0.6 * dt);
-  riderInput.steer = (keys.d ? 1 : 0) - (keys.a ? 1 : 0); riderInput.settle = !!keys.e; riderInput.check = !!keys.q; riderInput.drive = !!keys.shift;
+  // screen-relative steering: D always moves the horse to ITS right (the right of the screen when riding forwards),
+  // A to its left — on every course. The simulation works in lanes from the inside rail, so the key is converted with
+  // the course's handedness at the horse (sideS: +1 = the outside is on the horse's right, -1 = on its left).
+  riderInput.steer = ((keys.d ? 1 : 0) - (keys.a ? 1 : 0)) * (p.sideS || 1); riderInput.settle = !!keys.e; riderInput.check = !!keys.q; riderInput.drive = !!keys.shift;
   riderInput.hold = !!keys[" "]; riderInput.adv = settings.steer === "advanced";
   const wasDrive = p.drive;
   if (MPC()) MPC().localInput(riderInput, dt); else applyRiderInput(race, p, riderInput, dt);
@@ -3357,7 +3419,7 @@ function show(state) {
   hud.classList.toggle("on", state === "racing" || state === "pause");
   $("replayUI").hidden = state !== "replay";
   if (state === "menu" && typeof VENUES !== "undefined") { VENUES.use(TRACKS.generic); buildShots(TRACKS.generic); }
-  if (state === "menu") $("menuHorseLine").textContent = "Riding: " + ROSTER[settings.playerHorse].name + " · " + ROSTER[settings.playerHorse].role;
+  if (state === "menu") $("menuHorseLine").textContent = "Quick Race horse: " + ROSTER[settings.playerHorse].name + " · " + ROSTER[settings.playerHorse].role;
 }
 
 /* Menu parade horse */
@@ -3503,6 +3565,7 @@ function chipRow(el, options, current, onPick, fmt) {
   });
 }
 function buildSetup() {
+  buildSetupHorse();
   chipRow($("optTrack"), ["generic", "randwick", "flemington"], settings.track, v => { settings.track = v; store.set("track", v); }, v => v === "randwick" ? "Royal Randwick (right-handed, 2224 m)" : v === "flemington" ? "Flemington (left-handed, 2312 m · Straight Six)" : "Furlong Park (original oval)");
   chipRow($("optDist"), DISTANCES, settings.dist, v => { settings.dist = v; store.set("dist", v); }, v => v + "m · " + DIST_LABEL[v]);
   chipRow($("optOpp"), [7, 9, 11], settings.opp, v => { settings.opp = v; store.set("opp", v); }, v => v + " rivals");
@@ -3939,9 +4002,9 @@ function startRace(cfg) {
   $("hDist").textContent = race.dist + " m " + DIST_LABEL[race.dist];
   $("hGoing").textContent = race.going.label + " going";
   showMsg(race.chaos ? "CHAOS MODE — one kick per race: P knocks over the horse beside you" : "Loading the gates…", 2.6);
-  $("hudKeys").textContent = (race.trk.cw ? "A rail (right) · D wider (left) · " : "") + "W/S effort · E settle · Q check · Space urge · Shift drive" + (race.chaos ? " · P kick" : "");
+  $("hudKeys").textContent = "A/D steer left/right · W/S effort · E settle · Q check · Space urge · Shift drive" + (race.chaos ? " · P kick" : "");
   // a right-handed course: the inside rail is on the rider's right, so "towards the rail" (A) is to the right on screen
-  if (race.trk.cw && !race.player.bot) toast("RIGHT-HANDED COURSE · A = towards the rail (on your right) · D = wider (to your left)", "info", 5);
+  if (race.trk.cw && !race.player.bot) toast("RIGHT-HANDED COURSE · the rail is on your right", "info", 4);
   const sp = race.route.point(0, race.trk.W / 2, {});
   camPos.set(sp.x - sp.hx * 20 + sp.nx * 14, 6, sp.z - sp.hz * 20 + sp.nz * 14);
   camLook.set(sp.x, 1.5, sp.z);
@@ -4032,8 +4095,9 @@ function finishRaceDNF(r) {
   $("resOrder").innerHTML = orderHtml(r);
   drawPositionGraph(r);
   $("resPhotoBtn").hidden = true; $("resReplay").hidden = true; $("resFall").hidden = false; $("resHl").hidden = !r.recFull.n;
-  $("resNext").hidden = true; $("resAgain").hidden = !!r.cfg.career; $("resCareer").hidden = !r.cfg.career;
-  if (typeof CAREER !== "undefined") { if (r.cfg.career) CAREER.onResult(r, 0); else CAREER.hidePanel(); }
+  const isCar = !!(r.cfg.career && !r.cfg.career.exhibition);       // feature-race quick play carries race meta but is not a career race
+  $("resNext").hidden = true; $("resAgain").hidden = isCar; $("resCareer").hidden = !isCar;
+  if (typeof CAREER !== "undefined") { if (isCar) CAREER.onResult(r, 0); else CAREER.hidePanel(); }
   setTimeout(() => { if (race === r && r.state === "done" && ui.state === "racing") show("results"); }, 400 + (typeof COMM !== "undefined" ? COMM.holdMs() : 0));
 }
 // finishing order with any fallers listed as DNF (they never get a time or a place)
@@ -4095,9 +4159,10 @@ function finishRace(r) {
   $("resOrder").innerHTML = orderHtml(r);
   drawPositionGraph(r);
   $("resNext").hidden = true;
-  $("resAgain").hidden = !!r.cfg.career;
-  $("resCareer").hidden = !r.cfg.career;
-  if (typeof CAREER !== "undefined") { if (r.cfg.career) CAREER.onResult(r, place); else CAREER.hidePanel(); }
+  const isCar = !!(r.cfg.career && !r.cfg.career.exhibition);
+  $("resAgain").hidden = isCar;
+  $("resCareer").hidden = !isCar;
+  if (typeof CAREER !== "undefined") { if (isCar) CAREER.onResult(r, place); else CAREER.hidePanel(); }
   // let the commentator finish the winner call before the replay / results take over
   setTimeout(() => {
     if (race !== r || r.state !== "done" || ui.state !== "racing") return;
@@ -4149,10 +4214,24 @@ function quickCfg() {
 $("btnQuick").onclick = () => { $("setupTitle").textContent = "Quick Race"; buildSetup(); show("setup"); };
 $("btnCareer").onclick = () => CAREER.open();
 $("resCareer").onclick = () => { clearRaceMeshes(); race = null; CAREER.open(); };
-$("btnSelect").onclick = () => { buildHorseGrid(); show("select"); };
+// horse choice lives inside Quick Race now
+function buildSetupHorse() {
+  const r = ROSTER[settings.playerHorse], el = $("setupHorse"); if (!el) return;
+  el.innerHTML = `<span class="sw" style="background:${r.silk}"></span><span class="nm"><b>${r.name}</b><small>${r.role}</small></span><button class="btn small" id="setupHorseBtn">Change horse</button>`;
+  $("setupHorseBtn").onclick = () => { buildHorseGrid(); show("select"); };
+}
+// feature races straight from the menu (full crowd, parade, race call for the occasion — not a career race)
+function featureRace(kind) {
+  const ev = kind === "cup" ? { track: "flemington", distance: 3200, field: 24, career: { name: "Melbourne Cup", venue: "Flemington", major: true, crown: true, official: true, exhibition: true } }
+    : { track: "randwick", distance: 1200, field: 14, career: { name: "The Everest", venue: "Royal Randwick", major: true, crown: true, official: true, exhibition: true } };
+  audio.ensure(); if (typeof COMM !== "undefined") COMM.prime();
+  startRace(Object.assign(quickCfg(), ev, { chaos: false, incidents: settings.incidents }));
+}
+$("featEverest").onclick = () => featureRace("everest");
+$("featCup").onclick = () => featureRace("cup");
 $("btnSettings").onclick = () => { buildSettings(); show("settings"); };
 $("btnHow").onclick = () => show("how");
-$("selDone").onclick = () => show("menu");
+$("selDone").onclick = () => { buildSetup(); show("setup"); };
 $("setupBack").onclick = () => show("menu");
 $("setupGo").onclick = () => { audio.ensure(); if (typeof COMM !== "undefined") COMM.prime(); startRace(quickCfg()); };
 $("settingsBack").onclick = () => show("menu");

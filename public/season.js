@@ -105,6 +105,10 @@ const SEASON = (() => {
     "Tamworth Twang", "Opal Hunter", "Cape Otway", "Glasshouse Gale", "Platypus Pete", "Echidna Edge", "Flying Fox", "Coastal Ranger", "Granite Belt",
     "Bellbird Call", "Cassowary Charge", "Lyrebird Lilt", "Galah Gala", "Dusty Swagman", "Merindah Mist", "Southern Sky", "Sandstone Sovereign", "Clover Downs",
     "River Red Gum", "Salt Lake Sunset", "Stockman's Pride", "Wedge-tail Wings", "Heron Island", "Boab Bandit"];
+  // the names a player may give a career horse (all recorded in the ElevenLabs commentator's voice). Rivals never use them.
+  const PLAYER_NAMES = ["Ka Ying Rising", "Tempted", "Half Yours", "Point Of Law", "Trust Your Instinct", "Soul Of Spain", "Make Up Your Mind", "Redline",
+    "Black Caviar", "Think About It", "Pierro", "Fan Girl", "Way With Words", "By Design", "If You Say So", "All Things Beautiful", "Spanish Affair",
+    "Call It Fate", "All Things Equal"];
   const SILK_PAL = ["#d62828", "#1d3557", "#2e8b57", "#e8c35a", "#7a4fd1", "#e86a17", "#f4f1ea", "#15161a", "#5fb7e8", "#e75480", "#1f6b3a", "#d9a521"];
   const PATTERNS = ["plain", "hoops", "sash", "quartered", "stars", "chevrons", "braces", "diamond", "crossbelts"];
   const COAT_HEX = [0x7a4a28, 0x45291a, 0x8f4a24, 0x241a14, 0xb9b3aa, 0x5d3a22, 0x6b4226, 0x96522c, 0x3c2a1a];
@@ -140,10 +144,15 @@ const SEASON = (() => {
       coat: COAT_HEX[(rng() * COAT_HEX.length) | 0], attrs: shapeTo(shape, r0), pot: shapeTo(shape, Math.min(94, r0 + g)), rate: r1(0.03 + rng() * 0.07) || 0.05,
       star: !!star, born: C.season ? C.season.n : 1, starts: 0, wins: 0, seconds: 0, thirds: 0, majors: [], form: [], seasons: {} };
   }
+  // rival names come only from the recorded pool (so the commentator can always say them in the ElevenLabs voice):
+  // first names never used in this career, then names of rivals that have left the active population
   function rivalName(C, rng) {
-    const used = new Set(Object.values(C.rivals || {}).map(r => r.name).concat((C.horses || []).map(h => h.name)));
-    const fresh = HORSE_NAMES.filter(n => !used.has(n));
+    const all = Object.values(C.rivals || {}), mine = new Set((C.horses || []).map(h => h.name).concat(PLAYER_NAMES));
+    const used = new Set(all.map(r => r.name)), activeNames = new Set(all.filter(r => r.active !== false).map(r => r.name));
+    const fresh = HORSE_NAMES.filter(n => !used.has(n) && !mine.has(n));
     if (fresh.length) return fresh[(rng() * fresh.length) | 0];
+    const reuse = HORSE_NAMES.filter(n => !activeNames.has(n) && !mine.has(n));
+    if (reuse.length) return reuse[(rng() * reuse.length) | 0];
     for (let i = 0; i < 200; i++) { const n = NAME_A[(rng() * NAME_A.length) | 0] + " " + NAME_B[(rng() * NAME_B.length) | 0]; if (!used.has(n)) return n; }
     return "Runner " + (C.rivalSeq || 0);
   }
@@ -445,7 +454,7 @@ const SEASON = (() => {
     return C;
   }
 
-  return { DIVS, OPTIONAL, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
+  return { PLAYER_NAMES, HORSE_NAMES, DIVS, OPTIONAL, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
     commitRound, skipRound, closeSeason, eligibility, checkReq, migrate, hRating, sprintIdx, stayIdx, goingFor, hashStr, rngOf, ensureWorld, stablesOf, rival, rivalDef, rRating,
     recordResult, recordH2H, h2hFor, formGuide, suitability, xpFor, upgCost, XP_PER_PT, retireRivals };
 })();

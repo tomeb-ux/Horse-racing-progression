@@ -37,70 +37,87 @@ const ELEVEN = (() => {
   const PICK = {};
   function pick(key, ids, rng) { const used = PICK[key] || (PICK[key] = []); let opt = ids.filter(i => !used.includes(i)); if (!opt.length) { used.length = 0; opt = ids; } const c = opt[Math.floor((rng || Math.random)() * opt.length)]; used.push(c); if (used.length >= ids.length) used.shift(); return c; }
   function plan(clip, ctx) {
-    const rng = ctx.rng || Math.random, has = ctx.has, nm = h => { if (!h) return null; const id = ctx.nameOf(h); return id ? { id, name: true } : { say: ctx.display(h), name: true }; };
-    // no parroting: a phrase isn't repeated within 10 s, nor the same lead-in + name within 9 s
-    const R = ctx.recent || null, now = ctx.now || 0, fresh = (k, s) => !R || !R.has(k) || now - R.get(k) > s;
-    const P = (key, ids) => { const ok = ids.filter(id => has(id) && fresh(id, 10)); return ok.length ? { id: pick(key, ok, rng) } : null; };
-    const call = (lead, h) => { if (!h) return []; const a = P("lead_" + lead, [].concat(lead)) || (has([].concat(lead)[0]) ? { id: [].concat(lead)[0] } : null), n = nm(h); if (!n) return [];
+    const rng = ctx.rng || Math.random, has = ctx.has;
+    // a horse's name: the shouted take at the climax when there is one (the choosable career names), else the excited take
+    const nm = (h, loud) => { if (!h) return null; const sh = loud && ctx.shoutOf ? ctx.shoutOf(h) : null; if (sh && has(sh)) return { id: sh, name: true }; const id = ctx.nameOf(h); return id ? { id, name: true } : { say: ctx.display(h), name: true }; };
+    // no parroting: a phrase isn't repeated within 12 s, nor the same lead-in + name within 9 s
+    const R = ctx.recent || null, now = ctx.now || 0, fresh = (k, sec) => !R || !R.has(k) || now - R.get(k) > sec;
+    const P = (key, ids) => { const ok = [].concat(ids).filter(id => has(id) && fresh(id, 12)); return ok.length ? { id: pick(key, ok, rng) } : null; };
+    const call = (leads, h, loud) => { if (!h) return []; const ld = [].concat(leads), a = P("lead_" + ld.join(), ld) || (has(ld[0]) ? { id: ld[0] } : null), n = nm(h, loud); if (!n) return [];
       if (!fresh((a ? a.id : "") + "|" + ctx.display(h), 9)) return []; return a ? [a, n] : [n]; };
     if (!clip) return [];
-    const k = clip.kind, out = [];
-    const push = x => { if (x) out.push(x); };
+    const k = clip.kind, out = [], push = x => { if (x) out.push(x); }, T = "transitions/";
+    const FILL = {
+      early: ["early/settle_1", "early/settle_2", "middle/good_clip"],
+      mid: ["middle/tempo_1", "middle/tempo_2", "middle/back_1", "middle/good_clip", "middle/genuine_pace", "middle/travelling_well", "middle/biding_time"],
+      turn: ["home-turn/jockeys_busy", "home-turn/fanning_out", "home-turn/young_and_old", "home-turn/make_a_move", "final-600/pressure"],
+      straight: ["battle/everything", "battle/challenge", "battle/fighting_it_out", "battle/look_at_this"],
+    };
     switch (k) {
       case "intro": {
         const n = norm(clip.race);
-        if (/everest/.test(n)) push(P("intro_e", ["major-events/everest"]));
+        if (/everest/.test(n)) { push(P("intro_e", ["major-events/everest"])); push(P("intro_e2", ["major-events/everest_richest"])); }
         else if (/melbourne cup/.test(n)) push(P("intro_c", ["major-events/melbourne_cup"]));
         else push(P("intro", ["major-events/welcome_generic"]));
         break;
       }
       case "away": push(P("away", ["start/away_1", "start/away_2", "start/away_3"])); break;
-      case "early": push(P("early", ["early/settle_1", "early/settle_2"])); break;
-      case "order": out.push(...call(clip.same ? "transitions/still_leads" : "transitions/takes_over", clip.leader)); break;
+      case "early": push(P("early", FILL.early)); out.push(...call(T + "out_in_front_is", clip.leader)); break;
+      case "order": push(P("order_f", FILL.mid)); out.push(...call(clip.same ? [T + "still_leads", T + "out_in_front_is"] : [T + "takes_over", T + "new_leader"], clip.leader)); break;
       case "mid": {
-        if (!clip.same) out.push(...call(pick("mid_new", ["transitions/new_leader", "transitions/takes_over"], rng), clip.leader));
-        else if (clip.mover) out.push(...call(clip.moverWide ? "transitions/out_wide" : "transitions/big_run", clip.mover));
-        else if (clip.trapped) out.push(...call("transitions/trapped", clip.trapped));
-        else if (clip.gapL > 4) out.push(...call("transitions/clear", clip.leader));
-        else if ((ctx.midN = (ctx.midN || 0) + 1) % 2) push(P("mid_fill", clip.long ? ["middle/tempo_1", "middle/tempo_2", "middle/back_1"] : ["middle/tempo_1", "middle/back_1"]));
-        else out.push(...call("transitions/still_leads", clip.leader));
+        if (!clip.same) out.push(...call([T + "new_leader", T + "takes_over"], clip.leader));
+        else if (clip.mover) out.push(...call(clip.moverWide ? [T + "out_wide", T + "charging_outside"] : [T + "big_run", T + "here_comes"], clip.mover));
+        else if (clip.trapped) out.push(...call(T + "trapped", clip.trapped));
+        else if (clip.gapL > 4) out.push(...call(T + "clear", clip.leader));
+        else { push(P("mid_fill", FILL.mid)); if ((ctx.midN = (ctx.midN || 0) + 1) % 2 === 0) out.push(...call([T + "still_leads", T + "out_in_front_is"], clip.leader)); }
         break;
       }
-      case "turn": push(P("turn", ["home-turn/approach", "home-turn/around"])); out.push(...(clip.closer ? call("transitions/big_run", clip.closer) : call(clip.same ? "transitions/still_leads" : "transitions/takes_over", clip.leader))); break;
-      case "turn2": push(clip.marker === 600 ? P("m600", ["final-600/winding"]) : P("turn2", ["home-turn/around"]));
-        out.push(...(clip.closer ? call("transitions/big_run", clip.closer) : [])); if (!out.length) out.push(...call(clip.same ? "transitions/still_leads" : "transitions/takes_over", clip.leader)); break;
+      case "turn": push(P("turn", ["home-turn/approach", "home-turn/around", "home-turn/around_2"])); out.push(...(clip.closer ? call([T + "big_run", T + "here_comes"], clip.closer) : call(clip.same ? [T + "still_leads", T + "out_in_front_is"] : T + "takes_over", clip.leader))); break;
+      case "turn2":
+        push(clip.marker === 600 ? P("m600", ["final-600/winding", "final-600/coming_600"]) : P("turn2", FILL.turn.concat(["home-turn/around", "home-turn/around_2"])));
+        out.push(...(clip.closer ? call([T + "big_run", T + "here_comes", T + "charging_outside"], clip.closer) : call(clip.same ? [T + "still_leads", T + "out_in_front_is"] : T + "takes_over", clip.leader)));
+        break;
       case "straight": {
-        if (clip.first) push(P("str", ["home-turn/straighten"]));
-        else if (clip.marker === 600) push(P("m600", ["final-600/winding"]));
-        else if (clip.marker === 400) push(P("m400", clip.bunched ? ["final-400/four_2"] : ["final-400/four_1", "final-400/four_2"]));
-        else if (clip.marker === 200) push(P("m200", clip.gapL < 1.5 ? ["final-200/two_2"] : ["final-200/two_1"]));
-        else if (clip.marker === 100) push(P("m100", clip.gapL < 1 ? ["final-100/hundred_1"] : ["final-100/hundred_2"]));
-        // then ONE name call about the leader or the danger (short: the finish moves fast)
-        if (!clip.same) out.push(...call(pick("s_new", ["transitions/new_leader", "transitions/takes_over"], rng), clip.leader));
-        else if (clip.gapL > 4) out.push(...call("transitions/clear", clip.leader));
-        else if (clip.closing && clip.second) out.push(...call("transitions/big_run", clip.second));
-        else if (clip.closer) out.push(...call("transitions/big_run", clip.closer));
-        else if (!out.length || clip.final) out.push(...call("transitions/still_leads", clip.leader));
+        const close = clip.gapL < 1, late = clip.final, loud = late || clip.marker === 200 || clip.marker === 100;
+        if (clip.first) { push(P("str", ["home-turn/straighten"])); if (clip.major) push(P("crowd", clip.venue === "flemington" ? ["major-events/crowd_flemington", "major-events/cup_about"] : ["major-events/crowd_randwick"])); }
+        else if (clip.marker === 600) push(P("m600", ["final-600/winding", "final-600/pressure"]));
+        else if (clip.marker === 400) push(P("m400", clip.bunched ? ["final-400/four_2", "battle/from_everywhere"] : ["final-400/four_1", "final-400/four_2"]));
+        else if (clip.marker === 200) push(P("m200", close ? ["final-200/two_2", "battle/fighting_it_out"] : ["final-200/two_1"]));
+        else if (clip.marker === 100) push(P("m100", close ? ["final-100/hundred_1", "battle/neck_and_neck"] : ["final-100/hundred_2"]));
+        else if (late && close) push(P("battle_l", ["battle/stride_for_stride", "battle/neck_and_neck", "battle/wont_give_inch", "battle/what_a_battle", "battle/look_at_this", "battle/on_its_feet"]));
+        else if (late && clip.bunched) push(P("battle_b", ["battle/from_everywhere", "battle/on_its_feet"]));
+        // then the name call about the leader or the danger (with the emotion of the moment)
+        if (!clip.same) out.push(...call([T + "new_leader", T + "takes_over"], clip.leader, loud));
+        else if (close && clip.second) out.push(...call(T + "stride_with", clip.second, loud));
+        else if (clip.closing && clip.second) out.push(...call([T + "here_comes", T + "big_run", T + "charging_outside"], clip.second, loud));
+        else if (clip.closer) out.push(...call([T + "flying_home", T + "big_run", T + "here_comes"], clip.closer, loud));
+        else if (clip.gapL > 4) out.push(...call(late ? [T + "can_anything_catch", T + "clear"] : [T + "clear", T + "out_in_front_is"], clip.leader, loud));
+        else if (clip.gapL > 1.5 && late) { push(P("catch", ["battle/catch_leader"])); }
+        else out.push(...call([T + "still_leads", T + "out_in_front_is"], clip.leader, loud));
+        if (!out.length) push(P("str_fill", FILL.straight));
         break;
       }
-      case "lead": out.push(...call(clip.tight ? "transitions/new_leader" : pick("late_new", ["transitions/new_leader", "transitions/takes_over"], rng), clip.leader)); break;
-      case "photo": push(clip.tight ? P("photo_t", ["photo-finish/line_together"]) : null); push(P("photo", ["photo-finish/photo_1", "photo-finish/photo_2"])); break;
+      case "lead": out.push(...call(clip.tight ? [T + "new_leader"] : [T + "new_leader", T + "takes_over"], clip.leader, true)); if (clip.tight) push(P("lead_hang", ["battle/hang_on"])); break;
+      case "photo": push(clip.tight ? P("photo_t", ["photo-finish/line_together", "photo-finish/couldnt_split"]) : null); push(P("photo", ["photo-finish/photo_1", "photo-finish/photo_2"])); break;
       case "win": {
         // the official result only (the engine never sends this before the timing has decided it)
-        out.push(...call("winners/winner_is", clip.winner));
-        if (clip.gapL > 4) push(P("w_big", ["winners/extraordinary"]));
-        else if (clip.gapL > 2) push(P("w_easy", ["winners/plenty_in_hand"]));
-        else if (clip.photo || clip.gapL < 0.5) push(P("w_close", ["photo-finish/what_a_finish"]));
+        out.push(...call("winners/winner_is", clip.winner, true));
+        if (clip.gapL > 4) push(P("w_big", clip.major ? ["winners/champion", "winners/extraordinary", "winners/canter"] : ["winners/extraordinary", "winners/canter", "winners/plenty_in_hand"]));
+        else if (clip.gapL > 2) push(P("w_easy", ["winners/plenty_in_hand", "winners/what_a_win", "winners/sensational"]));
+        else if (clip.photo || clip.gapL < 0.5) push(P("w_close", ["photo-finish/what_a_finish", "winners/just_held_on", "winners/unbelievable", "winners/incredible"]));
+        else push(P("w_mid", ["winners/what_a_win", "winners/what_a_run", "winners/sensational"]));
         break;
       }
       default: break;                                        // falls and other rare calls: caption (+ local voice if chosen)
     }
+    // never leave a running-race line silent if a fitting colour call exists
+    if (!out.length && FILL[k === "order" ? "mid" : k === "turn2" ? "turn" : k]) push(P("fill_" + k, FILL[k === "order" ? "mid" : k === "turn2" ? "turn" : k]));
     return out;
   }
 
   /* ---------- the library ---------- */
-  let manifest = null, byId = new Map(), names = new Map(), libErr = null, libLoading = null;
-  function index(m) { manifest = m; byId.clear(); names.clear(); for (const c of m.clips) { const id = c.file.replace(/\.mp3$/, ""); byId.set(id, c); if (c.category === "horse-names") names.set(norm(c.phrase), id); } }
+  let manifest = null, byId = new Map(), names = new Map(), shouts = new Map(), libErr = null, libLoading = null;
+  function index(m) { manifest = m; byId.clear(); names.clear(); shouts.clear(); for (const c of m.clips) { const id = c.file.replace(/\.mp3$/, ""); byId.set(id, c); if (c.category === "horse-names") names.set(norm(c.phrase), id); if (c.category === "horse-names-shout") shouts.set(norm(c.phrase), id); } }
   function loadLibrary() {
     if (manifest) return Promise.resolve(manifest);
     if (libLoading) return libLoading;
@@ -114,6 +131,7 @@ const ELEVEN = (() => {
     return libLoading;
   }
   const nameClip = h => { const d = h && h.def; if (!d) return null; return names.get(norm(d.say || d.name)) || null; };
+  const shoutClip = h => { const d = h && h.def; if (!d) return null; return shouts.get(norm(d.say || d.name)) || null; };
   const display = h => (h && h.def && (h.def.say || h.def.name)) || "";
 
   /* ---------- audio ---------- */
@@ -177,7 +195,7 @@ const ELEVEN = (() => {
     if (!active()) return;
     const lib = await loadLibrary(); if (!lib || !ensureCtx()) return;
     const ids = [...byId.keys()].filter(id => !id.startsWith("horse-names/"));
-    const field = race.horses.map(h => nameClip(h)).filter(Boolean);
+    const field = race.horses.map(h => nameClip(h)).concat(race.horses.map(h => shoutClip(h))).filter(Boolean);
     await Promise.all(ids.concat(field).map(load));
     for (const id of field) { const i = nameUse.indexOf(id); if (i >= 0) nameUse.splice(i, 1); nameUse.push(id); }
     prepared = race;
@@ -199,7 +217,7 @@ const ELEVEN = (() => {
     if (info && info.clip && info.clip.kind === "intro" && prepTask && !prepDone) { prepTask.then(() => { if (my === seq && !done) speak(text, prm, onEnd, info); }); endTimer = setTimeout(finish, 4000); return; }
     if (ctx.state === "suspended") ctx.resume().catch(() => {});
     outGain.gain.value = vol();
-    const now = performance.now() / 1000, items = plan(info && info.clip, { has: id => buffers.has(id), nameOf: nameClip, display, rng: Math.random, recent, now });
+    const now = performance.now() / 1000, items = plan(info && info.clip, { has: id => buffers.has(id), nameOf: nameClip, shoutOf: shoutClip, display, rng: Math.random, recent, now });
     // remember what was said (phrases, and lead-in + name pairs) for the no-repeat rule
     for (let i = 0; i < items.length; i++) { const it = items[i]; if (it.id && !it.id.startsWith("horse-names/")) recent.set(it.id, now); if (it.name) recent.set((items[i - 1] && items[i - 1].id ? items[i - 1].id : "") + "|" + (it.say || (byId.get(it.id) || {}).phrase || ""), now); }
     if (recent.size > 200) for (const [k, t] of recent) if (now - t > 30) recent.delete(k);

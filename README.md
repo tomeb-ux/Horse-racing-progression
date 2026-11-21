@@ -84,9 +84,9 @@ F9 is still the collider view.
 
 ## ElevenLabs commentary (your voice)
 Settings → Race commentary voice:
-* **ElevenLabs · recorded** (default) — 150 clips made with your ElevenLabs voice *mw_e-sports-commentator_The Aussie
+* **ElevenLabs · recorded** (default) — 227 clips made with your ElevenLabs voice *mw_e-sports-commentator_The Aussie
   Companion* (voice ID `OQt0mf8rKBYkweCSQ9d4`): starts, settling, mid-race, home turn, 600/400/200/100 m, photo finishes,
-  winners, lead-ins, and 115 horse names (the Quick Race field + the career rival pool). They ship with the game — no
+  winners, lead-ins, battle calls, and 128 horse names (the Quick Race field, the career rival pool and the 19 choosable career names — those also shouted for the climax). They ship with the game — no
   API key, no internet, no credits. The live commentary engine still decides what to say from the race; the clip
   planner voices each line with recorded phrases + the right names. Lines it can't voice stay as captions; names that
   aren't recorded (your own horses, generated rival names) are said by the local voice (or captions only — your choice).
