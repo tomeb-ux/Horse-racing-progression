@@ -43,7 +43,10 @@ const ELEVEN = (() => {
     if (libLoading) return libLoading;
     libLoading = (async () => {
       try {
-        if (inBrowser && window.__FF_COMM_LIB) index(window.__FF_COMM_LIB.manifest);              // single-file build: embedded
+        if (inBrowser && !window.__FF_COMM_LIB) {                                                 // the packed library (one file)
+          try { const r = await fetch("assets/audio/commentary-lib.json"); if (r.ok) window.__FF_COMM_LIB = await r.json(); } catch (e) {}
+        }
+        if (inBrowser && window.__FF_COMM_LIB) index(window.__FF_COMM_LIB.manifest);              // single-file build / pack
         else { const r = await fetch(BASE + "manifest.json", { cache: "no-cache" }); if (!r.ok) throw new Error("HTTP " + r.status); index(await r.json()); }
         return manifest;
       } catch (e) { libErr = "commentary recordings not found (" + e.message + ")"; libLoading = null; return null; }
