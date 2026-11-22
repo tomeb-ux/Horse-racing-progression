@@ -126,6 +126,9 @@ names in Enhanced mode cost ~120 credits each (three deliveries), once — the r
    batches with the ElevenLabs connector (eleven_v4, voice MTGAJpjryOZn2Xr8FOtm, one take), save each as
    `<batch name>.mp3` in a folder with the existing masters.
 3. `python3 tools/commentary-library.py tools/commentary-batches.json <masters> public/assets/audio/commentary`
+Listen to a whole race call without the game: `node tools/render-race-call.js <race index> out.mp3` (a scenario-harness race,
+clips laid out at the times the director spoke them; an interrupting call is placed after the line it cut short).
+
 4. `node tests/eleven-plan.js` (every phrase and name recorded), `node tests/commentary-scenarios.js 160`.
 The director picks from the bank whatever voice is active; a phrase without a recording would play as a caption only,
 which is why `tests/eleven-plan.js` fails if any phrase lacks one.
