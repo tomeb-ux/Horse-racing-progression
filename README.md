@@ -243,11 +243,11 @@ If the game page is hosted separately (say, on a static host) and the server els
 
 | Key | Function |
 |---|---|
-| W / S | Effort up / down |
-| A / D | Steer left / right (D always moves your horse to its right, on every course) |
-| Space | In the gates: hold to lift the marker and keep it in the moving sweet spot, then press when the gates open. Mid-race: urge. Final drive: tap on the stride rhythm |
-| Shift | Drive |
-| E / Q | Settle / check (take a pull) |
+| W / S | In the stalls: keep the horse balanced (weight forward / sit back). In the race: effort (tap = 5% step, hold = smooth) |
+| A / D | Steer left / right (D always moves your horse to its right, on every course); a tap nudges ¼ lane, holding moves decisively |
+| Space | Press the instant the gates open (no countdown; early = the horse anticipates), then tap with the first four strides to push into stride. Mid-race: urge (a nudge). Final drive: tap on the rhythm |
+| Shift | Drive — all-out; strongest in the finish, wasteful early or for too long |
+| E / Q | Settle (relax, keep rhythm, save energy) / check (a firm pull for traffic — loses momentum) |
 | C | Camera |
 | Tab | Race stats |
 | P | Chaos mode only: your ONE kick of the race — knocks over the horse right beside you (hold A/D for the side) |

@@ -255,7 +255,7 @@ const COMM = (() => {
       if (st === "mid" || st === "near" || st === "turn") {
         // the running order, once (twice in long races)
         const ordN = this.flags.orderN || 0;
-        if (st === "mid" && ((ordN === 0 && L.progress > D * 0.28) || (ordN === 1 && D >= 2000 && L.progress > D * 0.62)) && s.run.length >= 5) add("order", 5.8, () => { this.flags.orderN = ordN + 1; return this.orderCall(s); });
+        if (st === "mid" && s.rem > 700 && ((ordN === 0 && L.progress > D * 0.28) || (ordN === 1 && D >= 2000 && L.progress > D * 0.62)) && s.run.length >= 5) add("order", 5.8, () => { this.flags.orderN = ordN + 1; return this.orderCall(s); });
         // the leader: a breakaway is a story, not a statistic
         const bk = this.memv("breakaway");
         if (gL >= 3.4 && !bk) add("breakaway", 7.2, () => { this.memo("breakaway", gL); this.memo("margin", Math.round(gL)); return this.rng() < 0.6 ? this.L1(L, "breakaway", "c", { claim: L }) : this.full("breakaway", { claim: L }); });
@@ -310,6 +310,9 @@ const COMM = (() => {
         }
         // nothing worth saying for a while: a short colour line about the shape of the race (never the same twice)
         if (st === "mid") add("quiet", 1.2, () => this.rng() < 0.5 && bk != null ? this.full("chasers_idle") : this.full("quiet"));
+        // on the way to and round the turn the call never stops for long: the turn's own colour, or the leader again
+        if (st === "near") add("quiet", 1.2, () => this.full("turn_near"));
+        if (st === "turn") add("quiet", 1.2, () => this.rng() < 0.6 ? this.full("turn_on") : this.L1(L, gL >= 4 ? "turn_clear" : "turn_lead", "c", { claim: L }));
       }
       return C;
     }
@@ -434,7 +437,11 @@ const COMM = (() => {
       const now = this.now;
       this.q = this.q.filter(e => now - e.t <= e.ttl);
       if (this.cur) {
-        if (!this.q.length) return;
+        // a long run through the field never runs on into the straight: the business end is called live
+        if (this.cur.cat === "order" && (this.st === "straight" || this.st === "final" || this.st === "turn") && now - this.cur.t0 > 0.5) this.cancel();
+        else if (!this.q.length) return;
+      }
+      if (this.cur) {
         this.q.sort((a, b) => b.pri - a.pri || a.t - b.t);
         const top = this.q[0], spoke = now - this.cur.t0;
         const stale = this.cur.claim && s && s.L && this.cur.claim !== s.L && s.rem < 300 && !this.cur.final;
@@ -449,7 +456,12 @@ const COMM = (() => {
         const st = this.st, rules = this.quietRules(st), silent = now - this.lastSpokeEnd;
         const C = this.candidates(s, st).sort((a, b) => b.score - a.score);
         const need = silent >= rules.max ? 0 : rules.need;
-        for (const c of C) { if (c.score < need) break; if (c.key === "quiet" && silent < rules.max) continue; out = c.build(); if (out) { out.pri = 3; out.key = c.key; break; } }
+        for (const c of C) {
+          if (c.score < need) break; if (c.key === "quiet" && silent < rules.max) continue;
+          const o = c.build(); if (!o || !o.parts || !o.parts.length || o.parts.some(p => "u" in p && !p.u)) continue;
+          if (this.said.has(this.caption(o.parts))) { this.memo(c.key + ":dup"); continue; }   // already said this race: say the next best thing instead
+          out = o; out.pri = 3; out.key = c.key; break;
+        }
         // a second, related observation in the same breath (mid-race only): "…, and Midnight Legend is improving out wider"
         if (out && (st === "mid") && out.parts.length <= 2 && this.rng() < 0.55) {
           const used = new Set((out.who || []).filter(Boolean)), c2 = C.find(c => c.key !== out.key && c.key !== "quiet" && c.key !== "order" && c.score >= 3.6 && (!c.h || !used.has(c.h)) && !/lead|breakaway|margin|marker/.test(c.key));

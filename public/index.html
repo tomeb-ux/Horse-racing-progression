@@ -175,6 +175,11 @@ kbd{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);bord
 .rchip.bal:not(.on){display:none;} .rchip.bal.on{color:#ffb347;border-color:rgba(255,179,71,0.6);} .rchip.bal.bad{color:#ff6a4d;border-color:rgba(255,106,77,0.7);animation:goPulse .3s ease-in-out infinite alternate;}
 .rchip.knack.on{color:#5fe08a;border-color:rgba(95,224,138,0.6);}
 .start-eff{margin-top:6px;font-size:11px;color:var(--fg-dim);letter-spacing:0.08em;text-transform:uppercase;}
+.sm-stages{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint,rgba(255,255,255,.35));margin-bottom:4px;}
+.sm-stages span.on{color:var(--accent);font-weight:700;} .sm-stages span.done{color:var(--good,#5fe08a);}
+.sm-end{position:absolute;top:17px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-dim);} .sm-end.l{left:0;} .sm-end.r{right:0;}
+#smTrack{margin-bottom:17px;} #startMeter.stride .sm-end{display:none;}
+.sm-kick{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 2px;background:rgba(255,255,255,.18);vertical-align:middle;} .sm-kick.g{background:#5fe08a;} .sm-kick.p{background:#ffd54a;} .sm-kick.b{background:#ff6a4d;}
 .start-eff b{color:var(--fg);font-family:var(--font-d);}
 #lookBack{position:absolute;top:calc(50% - 160px);left:50%;transform:translateX(-50%);font-family:var(--font-d);font-weight:800;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;background:rgba(10,16,13,0.6);border:1px solid var(--panel-line);padding:4px 12px;border-radius:999px;opacity:0;transition:opacity .25s;}
 #lookBack.on{opacity:1;}
@@ -457,8 +462,10 @@ body.touch #touchUI{display:flex;}
         </table>
         <p><b>Travelling well.</b> Every horse has a hidden efficiency zone — the lighter band on the effort bar. Inside it the horse cruises; above it stamina drains sharply and <b>fatigue</b> builds. Fatigue never recovers mid-race: it lowers top speed, dulls acceleration and blunts your finish. The zone shrinks as the horse tires. Stayers hold a higher zone than sprinters, which is why a sprinter must be nursed over a long trip.</p>
         <p><b>Sprint reserve</b> is the finishing burst. Hard effort, urging and driving unlock it, but it only improves how well the horse accesses what it has left — an exhausted horse cannot sprint, however hard you ride.</p>
-        <p><b>The start</b> has two parts. <i>1 · Get ready:</i> while the horses load and the countdown runs, a green sweet spot drifts along the start meter. <b>Hold</b> <kbd>Space</kbd> to raise your marker and <b>release</b> it to let the marker sink; keeping it in the green builds <b>readiness</b> (a calm horse gives you a wider green). <i>2 · React:</i> the gates open after an unpredictable pause — press <kbd>Space</kbd> again the instant they do. Readiness and reaction time together decide the break: <b>PERFECT</b> (worth about a length or more), <b>GOOD</b>, <b>SLOW AWAY</b> (several lengths) or <b>MISSED THE START</b> (stumbles, near the back). Pressing before you could have seen the gates counts as a guess. Your horse's starting ability and temperament shift the odds, and rivals can miss the break too. It only affects how quickly the horse gets going — never its top speed — and it matters most in sprints. Use <kbd>W</kbd>/<kbd>S</kbd> beforehand to set your <b>start effort</b>: bolder jumps quicker but costs energy.</p>
-        <p><b>The final drive:</b> inside the last 450 m a pin sweeps side to side. Tap <kbd>Space</kbd> each time it passes through the green. Consecutive good taps build <b>momentum</b>: <i>Finding rhythm</i> (1–2) → <i>Strong drive</i> (3–4) → <i>Powerful finish</i> (5–6) → <i>Perfect rhythm</i> (7+). The more accurate the taps, the more of its remaining power the horse can use — a perfect drive is worth several lengths. A slightly early or late tap only dents momentum; a tap in the grey breaks the streak, and two in a row unbalance the horse. Momentum can only spend what is left: a horse you ran into the ground earlier gains very little from it.</p>
+        <p><b>The start</b> has three stages. <i>1 · Settle:</i> in the stalls your horse shifts its weight — leaning on the gate or sitting back. Keep the pin in the green with <kbd>W</kbd> (weight forward) and <kbd>S</kbd> (sit back); a balanced horse builds <b>readiness</b>. Restless, fractious horses move more; composed ones are easier. <i>2 · Jump:</i> there is no countdown — the gates open after an unpredictable pause. Press <kbd>Space</kbd> the instant they open. Going early makes the horse anticipate the start (readiness lost, unsettled) but one mistake never ruins the race; reacting late gives a slightly slower jump. Readiness, reaction, and the horse's own starting ability and composure decide the break: <b>PERFECT</b>, <b>GOOD</b>, <b>SLOW AWAY</b> or <b>MISSED THE START</b>. <i>3 · Into stride:</i> for the first four strides, tap <kbd>Space</kbd> as the pin crosses the green — each push timed with the stride builds acceleration (worth about a length); a mistimed or frantic push wastes energy.</p>
+        <p><b>Riding.</b> <kbd>W</kbd>/<kbd>S</kbd> set the effort — a tap is a fine 5% step, holding moves it smoothly: conserve, cruise, press forward or commit flat out. <kbd>E</kbd> settles the horse: it relaxes, keeps its rhythm and saves energy (an eager horse takes longer to settle). <kbd>Q</kbd> is a firm check for traffic — real momentum is lost, and in the final drive it breaks your rhythm. <kbd>Space</kbd> mid-race urges: a nudge, not a sprint (keep nagging and it stops working). <kbd>Shift</kbd> drives: the all-out ride that extracts the most in the finish, but wasteful if used too early or for too long. <kbd>A</kbd>/<kbd>D</kbd> steer — a tap nudges a quarter of a lane, holding moves decisively; a sharp move at a gallop, above all in a bend, costs speed and balance.</p>
+        <p><b>Every horse rides differently.</b> Some are eager and hard to settle, some get nervous among other runners, some answer urging at once but tire if over-asked, some take a while to wind up but then keep going, some stand like statues in the stalls. It comes from their attributes — so training changes it — plus a temperament of their own; the Quick Race card and the start panel tell you what to expect.</p>
+        <p><b>The final drive:</b> inside the last 450 m a pin sweeps side to side. Tap <kbd>Space</kbd> each time it passes through the green. Consecutive good taps build <b>momentum</b>: <i>Finding rhythm</i> → <i>Strong drive</i> → <i>Powerful finish</i> → <i>Perfect rhythm</i>. The rhythm only turns into speed if you are asking the horse to sprint (high effort) and it has room — boxed in, it is wasted. Driving (<kbd>Shift</kbd>) in rhythm adds to it, but a mistimed tap while driving unbalances the horse more. Mashing the key does nothing but waste energy and break the stride. Momentum can only spend what is left: a horse you ran into the ground earlier gains very little from it.</p>
         <p><b>Position.</b> On the bends the inside rail is genuinely shorter: every lane wider covers more ground, and the HUD counts the metres you have given away (<i>+N m wide</i>). But the rail is where you get <b>pocketed</b> — a boxed-in horse cannot run past the one in front. Racing wide gives you clear room to pass at the cost of ground. Hold <kbd>A</kbd> or <kbd>D</kbd> to drift across. Calls such as <i>INSIDE BLOCKED</i>, <i>OUTSIDE CLEAR</i>, <i>GAP OPENING</i>, <i>RIVAL CLOSING</i> and <i>LOSING GROUND WIDE</i> tell you what is happening around you, and the radar at the bottom right shows horses on your inside, outside, in front (red when blocking) and closing from behind (flashing).</p>
         <p><b>Balance and incidents.</b> A galloping horse can only take so much sideways load. Steering hard through a bend at speed, weaving, snatching up with <kbd>Q</kbd> mid-bend, leaning on a rival (advanced steering) or clipping heels all unsettle it — more so on soft or heavy ground, for a tired horse or a less agile one. A <b>Balance</b> chip appears when it's unsettled, with warnings: <i>DANGEROUS TURN</i>, <i>UNBALANCED</i>, <i>LOSING STRIDE</i>. Straighten up and ease off and it recovers; keep pushing and it will stumble (costing speed and control) and, with <b>Full incidents</b> on, it can fall — out of the race, a DNF. Speed alone is never dangerous. Assisted steering refuses to push into a horse alongside; advanced steering lets you force it — and pay for it. Set it in Settings → Racing incidents (Off · Stumbles only · Full); the same rules apply to every runner.</p>
         <p><b>Race phases.</b> The phase tag under the timer follows the race: the <b>opening</b> scramble for position, the <b>middle</b> where you save energy and hold your place, the <b>final bend</b> where rival riders decide whether to hold the rail, angle out for a run or follow a move, then the <b>home straight</b> and the <b>final 200 m</b>. The rhythm drive starts 450 m out.</p>
@@ -502,14 +509,15 @@ body.touch #touchUI{display:flex;}
         <div class="effort-fill" id="hEffFill" style="width:50%;"></div>
         <div class="effort-pin" id="hEffPin" style="left:50%;"></div>
       </div>
-      <div class="effort-foot"><span id="hudKeys">W/S effort · E settle · Q check · Space urge · Shift drive</span><span class="comf" id="hComfTxt"></span></div>
+      <div class="effort-foot"><span id="hudKeys">W/S effort (tap = fine) · E settle · Q check · Space urge · Shift drive · A/D steer (tap = nudge)</span><span class="comf" id="hComfTxt"></span></div>
       <div class="ride-row"><span class="rchip settle" id="rcSettle">Settled <i><b id="rcSettleB"></b></i></span><span class="rchip keen" id="rcKeen">Keen <i><b id="rcKeenB"></b></i></span><span class="rchip check" id="rcCheck">Checking</span><span class="rchip side" id="rcSide">No room</span><span class="rchip knack" id="rcKnack">In its element</span><span class="rchip bal" id="rcBal">Balance <i><b id="rcBalB"></b></i></span></div>
     </div>
     <div class="panel tmeter" id="startMeter" hidden>
-      <div class="tm-label" id="smLabel">GET READY · hold <kbd>Space</kbd> to raise the marker, release to drop — keep it in the green</div>
-      <div class="tm-track start"><div class="sm-zone" id="smZone"></div><div class="tm-pin" id="smPin"></div></div>
-      <div class="sm-ready"><span>Readiness</span><div class="sm-rbar"><i id="smReady"></i></div><b id="breakTxt"></b></div>
-      <div class="start-eff">Start effort <b id="startEffTxt">55%</b> · W/S to set · higher jumps faster but costs energy</div>
+      <div class="sm-stages"><span id="smS1">1 · Settle</span><span id="smS2">2 · Jump</span><span id="smS3">3 · Into stride</span></div>
+      <div class="tm-label" id="smLabel">IN THE STALLS · keep your horse balanced with <kbd>W</kbd> / <kbd>S</kbd></div>
+      <div class="tm-track start" id="smTrack"><span class="sm-end l" id="smEndL">sitting back</span><span class="sm-end r" id="smEndR">on the gate</span><div class="sm-zone" id="smZone"></div><div class="tm-pin" id="smPin"></div></div>
+      <div class="sm-ready"><span id="smRdyLbl">Readiness</span><div class="sm-rbar"><i id="smReady"></i></div><b id="breakTxt"></b></div>
+      <div class="start-eff" id="smTraits"></div>
     </div>
     <div class="panel tmeter" id="rhythmBar" hidden>
       <div class="tm-label">FINAL DRIVE · tap <kbd>Space</kbd> as the pin crosses the green <b id="comboTxt"></b></div>
@@ -1927,13 +1935,13 @@ const JK_PARENT = { torso: null, head: "torso", uaL: "torso", uaR: "torso", faL:
 function jockeyPointSet() { const o = {}; ["P", "S", "N", "H", "shoL", "shoR", "elbL", "elbR", "hanL", "hanR", "hipL", "hipR", "kneL", "kneR", "ftL", "ftR", "whip", "face"].forEach(k => o[k] = new THREE.Vector3()); return o; }
 const _jkTmp = { pole: new THREE.Vector3(), a: new THREE.Vector3() };
 // where every joint of the rider should be (body-bone space). ride 0..3, rest/settle 0..1, whipK: stroke progress 0..1 (or <0 when idle)
-const _jkX = { curv: 0, acc: 0, fat: 0, cel: 0 };                 // extra riding context for the pose (set by animateHorse)
+const _jkX = { curv: 0, acc: 0, fat: 0, cel: 0, pulse: 0, poise: 0, jolt: 0 };                 // extra riding context for the pose (set by animateHorse)
 function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
   const r = clamp(ride, 0, 3), w1 = clamp(r, 0, 1), w2 = clamp(r - 1, 0, 1), w3 = clamp(r - 2, 0, 1);
   const X = _jkX, accN = clamp(X.acc / 2.5, 0, 1) * (1 - rest), tf = clamp((X.fat - 0.45) * 2, 0, 1) * w2, cv = clamp(X.curv, -0.4, 0.4);
   const push = (w2 > 0 ? Math.sin((phase - 0.45) * TAU) : Math.sin((phase - 0.45) * TAU) * 0.4) * (1 + 0.55 * tf);
   const calm = Math.max(settle, 0) * (1 - rest);
-  o.P.set(-0.07 + 0.04 * w2 + 0.05 * w3 + push * (0.015 * w1 + 0.03 * w2 + 0.04 * w3) - 0.08 * rest + 0.035 * accN, 0.64 - 0.03 * w2 - 0.045 * w3 - bob * 0.6 - 0.17 * rest + 0.01 * calm - 0.035 * accN - 0.02 * tf, -lat * 0.04 - cv * 0.1);
+  o.P.set(-0.07 + 0.04 * w2 + 0.05 * w3 + push * (0.015 * w1 + 0.03 * w2 + 0.04 * w3) - 0.08 * rest + 0.035 * accN + 0.05 * X.pulse + 0.05 * X.poise, 0.64 - 0.03 * w2 - 0.045 * w3 - bob * 0.6 - 0.17 * rest + 0.01 * calm - 0.035 * accN - 0.02 * tf - 0.03 * X.pulse, -lat * 0.04 - cv * 0.1 + 0.05 * X.jolt);
   const lean = lerp(1.2 + 0.08 * w1 + 0.06 * w2 + 0.06 * w3 + push * (0.03 * w2 + 0.06 * w3), 0.42, rest) + 0.03 * calm + 0.08 * accN;
   o.S.set(o.P.x + Math.sin(lean) * 0.47, o.P.y + Math.cos(lean) * 0.47, o.P.z - cv * 0.05);
   o.N.set(o.S.x + Math.sin(lean - 0.6) * 0.07, o.S.y + Math.cos(lean - 0.6) * 0.07, o.S.z);
@@ -1945,7 +1953,7 @@ function jockeyPoints(o, bob, ride, phase, pump, lat, rest, settle, whipK) {
     const ft = o["ft" + L].set(0.13 - 0.06 * rest, -0.01 - 0.2 * rest, sd * (0.355 + 0.02 * rest));   // short irons: the foot sits beside the girth
     ik2(hip, ft, 0.42, 0.40, _jkTmp.pole.set(1, 0.5, sd * 0.16), o["kne" + L]);
     const sho = o["sho" + L].set(o.S.x - 0.03, o.S.y - 0.03, o.S.z + sd * 0.165);
-    let hx = lerp(0.72 + pump * 0.035 * (1 - w2) + push * (0.05 * w2 + 0.12 * w3) - 0.04 * calm + 0.06 * accN, 0.40, rest), hy = lerp(0.5 - 0.03 * calm + 0.02 * w3, 0.62, rest), hz = sd * 0.072;
+    let hx = lerp(0.72 + pump * 0.035 * (1 - w2) + push * (0.05 * w2 + 0.12 * w3) - 0.04 * calm + 0.06 * accN + 0.12 * X.pulse, 0.40, rest), hy = lerp(0.5 - 0.03 * calm + 0.02 * w3 - 0.04 * X.pulse, 0.62, rest), hz = sd * 0.072;
     hx += w3 > 0.5 ? Math.sin((phase - 0.45) * TAU + sd * 0.9) * 0.05 * w3 : 0;
     if (sd < 0 && whipK >= 0) {                                                       // the whip hand: back and up, then down
       const up = Math.sin(Math.min(1, whipK / 0.45) * Math.PI / 2) * (whipK < 0.45 ? 1 : 1 - (whipK - 0.45) / 0.55);
@@ -2471,7 +2479,10 @@ function animateHorse(g, ph, speedN, eAct, fat, ride, curv, dt, h, lat, acc, mom
     u.legs.forEach(l => l.b.forEach(b => b.rotation.set(0, 0, 0)));
     earPose(u, 0, 0, dt || 0.016);
     u.bob = 0;
-    _jkX.curv = 0; _jkX.acc = 0; _jkX.fat = 0;
+    // in the stalls: the horse rocks with its weight (the player's balance task) and the rider moves with it
+    const pz = h && h.st && !h.started ? h.st.poise || 0 : 0;
+    if (pz) { B.body.rotation.z = -pz * 0.05; B.body.position.x = pz * 0.06; B.neck1.rotation.z += pz * 0.12; }
+    _jkX.curv = 0; _jkX.acc = 0; _jkX.fat = 0; _jkX.pulse = 0; _jkX.jolt = 0; _jkX.poise = pz;
     poseJockey(u, 0, 0, 0, 0, 0, 0, u.rest, u.settle, dt);
     return;
   }
@@ -2508,7 +2519,7 @@ function animateHorse(g, ph, speedN, eAct, fat, ride, curv, dt, h, lat, acc, mom
   u.flex += (flexT - u.flex) * Math.min(1, dt * 25);
   const pitchT = (Math.sin((phase - 0.12) * TAU) * 0.035 * (0.6 + s) + Math.sin((phase - 0.5) * TAU) * 0.015) * (1 + 0.6 * f) * (1 + 0.3 * mom) - clamp(acc, -2, 3) * 0.006 - 0.025 * accN + 0.03 * u.rest;
   u.pitch += (pitchT - u.pitch) * Math.min(1, dt * 20);
-  const rollT = -curv * 0.9 + lat * 0.07 + Math.sin(phase * TAU) * 0.015 * s + (f > 0.6 ? Math.sin(phase * TAU * 0.5) * 0.035 * (f - 0.6) : 0);
+  const rollT = -curv * 0.9 + lat * 0.11 + Math.sin(phase * TAU) * 0.015 * s + (f > 0.6 ? Math.sin(phase * TAU * 0.5) * 0.035 * (f - 0.6) : 0);
   u.roll += (rollT - u.roll) * Math.min(1, dt * 7);
   B.body.position.set(Math.sin((phase - 0.3) * TAU) * 0.03 * s, 1.30 + u.bob - 0.035 * accN - 0.09 * stV, 0);
   B.body.rotation.set(u.roll + 0.08 * stV * Math.sin(performance.now() / 90), 0, u.pitch - 0.16 * stV);
@@ -2532,6 +2543,8 @@ function animateHorse(g, ph, speedN, eAct, fat, ride, curv, dt, h, lat, acc, mom
   u.stanceNow = stance;
   plantHooves(g, u, stance);
   _jkX.curv = curv; _jkX.acc = acc + 4 * stV; _jkX.fat = f;
+  u.pulse = Math.max(0, (u.pulse || 0) - dt * 3.5); _jkX.pulse = u.pulse; _jkX.poise = 0;
+  _jkX.jolt = h && h.penT > 0 ? Math.sin(h.penT * 30) * Math.min(1, h.penT * 2) : 0;   // a broken stride: the rider is thrown about
   poseJockey(u, s, ride, phase, pump, f, lat, u.rest, u.settle, dt);
 }
 
@@ -3058,11 +3071,10 @@ const audio = (() => {
 })();
 
 /* ---------- Input ---------- */
-const keys = {};
+const keys = {}, keyDownT = {};
 function spacePressed() {
   if (!race || ui.state !== "racing") return;
   if (race.player.fallen) return;
-  if (race.state === "load" || race.state === "count") { race.st.hold = true; return; }   // tracking the sweet spot
   if (MPC()) { MPC().press(); return; }                                                  // online: the server decides
   pressFeedback(riderPress(race, race.player));
 }
@@ -3077,15 +3089,22 @@ function pressFeedback(r) {
     } else if (r.res === "ok") audio.tapGood(r.a * 0.5, 0);
     else { audio.tapBad(); hudFx.missT = 0.35; if (r.missRun >= 2) toast("UNBALANCED", "bad", 0.9); else if (r.lv0 >= 2) toast("RHYTHM BROKEN", "warn", 0.9); }
   } else if (r.kind === "urge") { audio.urge(); if (r.heat > 4.5) toast("HORSE RESENTING IT", "warn", 1.2); }
+  else if (r.kind === "early") { if (!r.repeat) { audio.tapBad(); toast(r.n >= 2 ? "ANTICIPATING AGAIN — HORSE UNSETTLED" : "TOO EARLY — HE'S ANTICIPATING THE START", "warn", 1.3); cam.kick = 0.5; } }
+  else if (r.kind === "stride") {
+    startUI.kicks.push(r.res); if (r.res === "perfect" || r.res === "good") audio.tapGood(r.a, 1); else { audio.tapBad(); if (r.res === "rushed") toast("TOO FAST — WASTING ENERGY", "warn", 0.9); }
+  }
 }
+const startUI = { kicks: [] };
 addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (k === " " || (ui.state === "racing" && "eqr".includes(k) && k.length === 1)) e.preventDefault();
   if (ui.state === "replay" && (k.startsWith("arrow") || k === "home")) e.preventDefault();
   if (k === "tab") { e.preventDefault(); if (ui.state === "racing") toggleStats(); return; }
   if (keys[k]) return;
-  keys[k] = true;
+  keys[k] = true; keyDownT[k] = performance.now();
   audio.ensure();
+  // effort: a tap of W/S is a fine 5% step; holding keeps it moving (see handlePlayerInput)
+  if ((k === "w" || k === "s") && ui.state === "racing" && race && race.state === "running" && !race.player.bot) riderInput.effort = clamp(riderInput.effort + (k === "w" ? 0.05 : -0.05), 0, 1);
   if (e.key === "F8") { e.preventDefault(); PERF.on = !PERF.on; $("perfOv").hidden = !PERF.on; PERF.t = 0; return; }   // performance overlay (F9 = collider view)
   if (k === "escape") { handleEsc(); return; }
   if (k === "c" && ui.state === "racing") { camMode = (camMode + 1) % 3; cam.shotIdx = -1; $("camLabel").textContent = CAM_NAMES[camMode]; }
@@ -3135,14 +3154,20 @@ document.querySelectorAll(".tbtn").forEach(b => {
 let aHeld = false, dHeld = false, laneDenyT = 0, laneRepT = 0, wasCheck = false;
 const lookBack = { k: 0 };
 const hudFx = { hitT: 0, missT: 0 };
-const riderInput = { effort: 0.55, steer: 0, settle: false, check: false, drive: false, hold: false, adv: false };
+const riderInput = { effort: 0.55, steer: 0, settle: false, check: false, drive: false, hold: false, adv: false, poise: 0 };
 const MPC = () => (typeof MP !== "undefined" && MP.racing) ? MP : null;   // the multiplayer client, when in an online race
 function handlePlayerInput(dt) {
   const p = race.player;
   if (p.bot || p.fallen) return;
   // the rider's request this frame (multiplayer sends the same thing to the server)
-  if (keys.w) riderInput.effort = Math.min(1, riderInput.effort + 0.5 * dt);
-  if (keys.s) riderInput.effort = Math.max(0, riderInput.effort - 0.6 * dt);
+  const now = performance.now(), held = k => keys[k] && now - (keyDownT[k] || now) > 220;
+  const inStalls = race.state === "load" || race.state === "count";
+  // in the stalls W/S shift the horse's weight forward / back; in the race they set the effort (tap = 5%, hold = smooth)
+  riderInput.poise = inStalls ? (keys.w ? 1 : 0) - (keys.s ? 1 : 0) : 0;
+  if (!inStalls) {
+    if (held("w")) riderInput.effort = Math.min(1, riderInput.effort + 0.45 * dt);
+    if (held("s")) riderInput.effort = Math.max(0, riderInput.effort - 0.55 * dt);
+  }
   // screen-relative steering: D always moves the horse to ITS right (the right of the screen when riding forwards),
   // A to its left — on every course. The simulation works in lanes from the inside rail, so the key is converted with
   // the course's handedness at the horse (sideS: +1 = the outside is on the horse's right, -1 = on its left).
@@ -3248,20 +3273,27 @@ function updateMeters() {
   const p = race.player;
   const sm = $("startMeter"), rb = $("rhythmBar");
   const S = race.st;
-  const showStart = !p.bot && (race.state === "load" || race.state === "count" || (race.state === "running" && race.clock < 1.6));
+  const stride = race.state === "running" && S.launched && p.strideWin && p.strideWin();
+  const showStart = !p.bot && (race.state === "load" || race.state === "count" || (race.state === "running" && (!S.launched || stride || race.clock < 1.2)));
   sm.hidden = !showStart;
   if (showStart) {
-    $("startEffTxt").textContent = Math.round(p.effort * 100) + "%";
-    $("smPin").style.left = (S.m * 100).toFixed(1) + "%";
-    const zl = $("smZone").style; zl.left = ((S.z - S.zone) * 100).toFixed(1) + "%"; zl.width = (S.zone * 200).toFixed(1) + "%";
-    $("smReady").style.width = (S.R * 100).toFixed(0) + "%";
-    const go = S.open && !S.launched;
-    sm.className = "panel tmeter" + (S.aligned && !S.open ? " aligned" : "") + (go ? " go" : "");
-    $("smLabel").innerHTML = S.launched ? (START_CATS[S.cat].label + " · " + S.rt.toFixed(2) + " s")
-      : go ? "GATES OPEN — PRESS <kbd>SPACE</kbd>!"
-      : race.state === "load" ? "LOADING · hold <kbd>Space</kbd> to raise the marker, release to drop — keep it in the green"
-      : "GET READY · keep the marker in the green · then react the instant the gates open";
-    $("breakTxt").textContent = Math.round(S.R * 100) + "%";
+    const go = S.open && !S.launched, st3 = S.launched;
+    $("smS1").className = race.state === "running" ? "done" : "on"; $("smS2").className = st3 ? "done" : go ? "on" : ""; $("smS3").className = stride ? "on" : st3 ? "done" : "";
+    if (!startUI.traitsFor || startUI.traitsFor !== p) { startUI.traitsFor = p; startUI.kicks = []; $("smTraits").textContent = (p.rp ? SIM_EXPORTS.rideTraits(p.rp).join(" · ") : ""); }
+    const zl = $("smZone").style;
+    if (st3) {                                       // stage 3: push with the stride — the pin is the stride, the green the drive phase
+      const ph = ((p.phase % 1) + 1) % 1, u = (ph + 0.5) % 1;   // drive phase (0.1) shown near the middle
+      $("smPin").style.left = (u * 100).toFixed(1) + "%"; zl.left = ((0.6 - 0.2) * 100).toFixed(1) + "%"; zl.width = "40%";
+      sm.className = "panel tmeter stride" + (p.strideAcc() > 0.45 ? " aligned" : "");
+      $("smLabel").innerHTML = stride ? `INTO STRIDE · tap <kbd>Space</kbd> as the pin crosses the green ${startUI.kicks.map(k => `<i class="sm-kick ${k === "perfect" ? "p" : k === "good" ? "g" : "b"}"></i>`).join("")}` : START_CATS[S.cat].label + " · " + S.rt.toFixed(2) + " s";
+      $("smRdyLbl").textContent = "Drive"; $("smReady").style.width = (p.jumpPush * 100).toFixed(0) + "%"; $("breakTxt").textContent = Math.round(p.jumpPush * 100) + "%";
+    } else {                                         // stages 1–2: the horse's balance in the stalls, then the jump
+      $("smPin").style.left = ((0.5 + S.poise / 2) * 100).toFixed(1) + "%"; zl.left = ((0.5 - S.zone / 2) * 100).toFixed(1) + "%"; zl.width = (S.zone * 100).toFixed(1) + "%";
+      sm.className = "panel tmeter" + (S.aligned && !S.open ? " aligned" : "") + (go ? " go" : "");
+      const lean = S.poise > S.zone / 2 ? "leaning on the gate — ease him back with S" : S.poise < -S.zone / 2 ? "sitting back — bring his weight forward with W" : "balanced — hold him there";
+      $("smLabel").innerHTML = go ? "GATES OPEN — <kbd>SPACE</kbd>!" : race.state === "load" ? `LOADING · ${lean}` : `SET · ${lean} · jump when the gates open`;
+      $("smRdyLbl").textContent = "Readiness"; $("smReady").style.width = (S.R * 100).toFixed(0) + "%"; $("breakTxt").textContent = Math.round(S.R * 100) + "%";
+    }
   }
   const showR = race.state === "running" && !p.finished && p.started && (race.dist - p.progress) <= RHYTHM_AT;
   rb.hidden = !showR;
@@ -4001,6 +4033,7 @@ const raceHooks = {
     else if (cat === "GOOD") audio.tapGood(0.7, 1);
   },
   tick: () => audio.tick(),
+  ridePulse: (h) => { if (h && h.mesh) h.mesh.userData.pulse = 1; },
   lead: (L, prev) => { if (race && race.dist - race.player.progress > 30) toast(L.isPlayer ? "YOU TAKE THE LEAD!" : "NEW LEADER · " + L.def.name.toUpperCase(), L.isPlayer ? "gold" : "info"); },
   photo: () => toast("PHOTO FINISH", "gold", 2.2),
   incident: (type, h, other) => {
@@ -4254,7 +4287,8 @@ $("resCareer").onclick = () => { clearRaceMeshes(); race = null; CAREER.open(); 
 // horse choice lives inside Quick Race now
 function buildSetupHorse() {
   const r = ROSTER[settings.playerHorse], el = $("setupHorse"); if (!el) return;
-  el.innerHTML = `<span class="sw" style="background:${r.silk}"></span><span class="nm"><b>${r.name}</b><small>${r.role}</small></span><button class="btn small" id="setupHorseBtn">Change horse</button>`;
+  const traits = SIM_EXPORTS.rideTraits(ridePersonality(r)).join(" · ");
+  el.innerHTML = `<span class="sw" style="background:${r.silk}"></span><span class="nm"><b>${r.name}</b><small>${r.role} · rides: ${traits}</small></span><button class="btn small" id="setupHorseBtn">Change horse</button>`;
   $("setupHorseBtn").onclick = () => { buildHorseGrid(); show("select"); };
 }
 

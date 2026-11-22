@@ -1,5 +1,24 @@
 # Final Furlong — change log
 
+## Update: ride the horse — a three-stage start, distinct riding actions, horses with character
+- **The start**: 1 · settle the horse in the stalls (W/S keep its shifting weight balanced; readiness builds), 2 · jump
+  the instant the gates open (no countdown; going early makes it anticipate — costly, never ruinous), 3 · push it into
+  its stride with Space on the first four strides (well timed ≈ a length; frantic pushing wastes energy). Starting
+  ability, composure and temperament matter as well as the rider.
+- **Riding actions** each do something distinct: W/S effort in fine steps; settle relaxes and saves energy; check is a
+  firm pull that really costs momentum (and breaks the finishing rhythm); urge is a nudge that stops working if you
+  nag; drive is all-out — strongest in the finish, wasteful early or for too long; steering taps nudge ¼ lane, holding
+  moves decisively, and a sharp move at a gallop costs speed in a bend.
+- **Horses ride differently** (from their attributes, so training changes them, plus their own temperament): eager and
+  hard to settle, nervous in traffic, quick to respond but tiring if over-asked, slow to wind up then relentless, cool or
+  fractious in the stalls. Shown on the Quick Race card and at the start.
+- **Final drive**: the rhythm only turns into speed at high effort with room to run; driving in rhythm adds to it;
+  mashing wastes energy and breaks the stride.
+- **Jockey**: the rider rocks with the horse in the stalls, pushes with each stride and rhythm tap, sits back to check,
+  is thrown about on a broken stride.
+- Commentary: no dead air on the turn; a run through the field never runs on into the straight.
+- Tests: `tests/riding-control.js` (19 checks of the mechanics), `tests/start-browser.js` (the start in the real game).
+
 ## Update: a race caller who tells the story of the race, in your new ElevenLabs commentator voice
 - **New commentary director**: instead of announcing the leader over and over, the caller watches the whole race —
   margins and whether they are growing or coming back, the groups, the pace, horses improving, boxed in, wide or under
