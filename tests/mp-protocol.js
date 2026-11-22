@@ -32,6 +32,7 @@ const wait = async (c, type, ms = 5000, pred) => { const t0 = Date.now(); while 
   d.send({ type: 'ready', ready: true }); await sleep(150);
   a.send({ type: 'start' });
   const rs = await wait(a, 'raceStart'); await wait(b, 'raceStart'); await wait(c, 'raceStart'); await wait(d, 'raceStart');
+  for (const x of [a, b, c, d]) x.send({ type: 'loaded' });   // each browser reports the race is built
   console.log('race start: seed', rs.cfg.seed, 'humans', rs.cfg.humans, 'seats', rs.slots, 'names', rs.names.join('/'), 'field', rs.horses.length, 'dist', rs.cfg.distance);
   // ride: Alice holds Space during load/count; both press on GO; then race at sensible effort, tapping in the last 450 m
   let gate = false, aDone = false, bDone = false, t0 = Date.now();

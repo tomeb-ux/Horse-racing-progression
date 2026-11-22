@@ -17,7 +17,7 @@ const wait = async (c, type, ms = 5000, pred) => { const t0 = Date.now(); while 
   a.send({ type: 'settings', settings: { chaos: 'yes' } }); console.log('bad chaos value →', (await wait(a, 'error')).code);
   a.send({ type: 'settings', settings: { chaos: true, dist: 1600, field: 12 } }); await sleep(200);
   a.send({ type: 'ready', ready: true }); b.send({ type: 'ready', ready: true }); await sleep(200); a.send({ type: 'start' });
-  const rs = await wait(a, 'raceStart'); await wait(b, 'raceStart');
+  const rs = await wait(a, 'raceStart'); await wait(b, 'raceStart'); a.send({ type: 'loaded' }); b.send({ type: 'loaded' });
   console.log('race cfg: chaos', rs.cfg.chaos, '· incidents', rs.cfg.incidents, '· field', rs.horses.length);
   // Alice rides up level with the nearest live AI horse; one kick, on the correct side, when truly alongside
   let kicked = null;

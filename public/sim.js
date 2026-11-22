@@ -413,10 +413,11 @@ class Horse {
   // when the hind legs drive (stride phase near 0.1); a push there builds acceleration, anywhere else wastes energy.
   strideWin() { return this.started && !this.finished && this.kicks < 4 && this.strideN() < 4.6 && this.st && this.st.launched; }
   strideN() { return this.phase - (this.phase0 != null ? this.phase0 : this.phase); }
-  strideAcc() { const ph = ((this.phase % 1) + 1) % 1, d = Math.min(Math.abs(ph - 0.1), Math.abs(ph - 1.1)); return Math.max(0, 1 - d / STRIDE_W); }
-  strideKick(race) {
+  strideAcc(phase) { const ph = (((phase != null ? phase : this.phase) % 1) + 1) % 1, d = Math.min(Math.abs(ph - 0.1), Math.abs(ph - 1.1)); return Math.max(0, 1 - d / STRIDE_W); }
+  // back: how long ago the rider saw the moment they pressed (online lag) — judged at the stride they were looking at
+  strideKick(race, back) {
     if (!this.strideWin()) return null;
-    const n = Math.floor(this.strideN()), a = this.strideAcc();
+    const n = Math.floor(this.strideN()), a = this.strideAcc(this.phase - (back || 0) * this.v / Math.max(0.5, this.strideLen()));
     if (n === this.kickLastStride) { this.S = Math.max(0, this.S - 0.6); this.urgeHeat += 0.5; this.jumpPush = Math.max(0, this.jumpPush - 0.05); return { kind: "stride", res: "rushed", a: 0, n: this.kicks }; }
     this.kickLastStride = n; this.kicks++;
     if (a >= STRIDE_OK) { this.jumpPush = Math.min(1, this.jumpPush + 0.16 + 0.12 * a); race.emit("ridePulse", this, "push"); return { kind: "stride", res: a > 0.8 ? "perfect" : "good", a, n: this.kicks }; }
@@ -426,9 +427,10 @@ class Horse {
   // time to the line at the current speed (the lunge is timed against this)
   ttl() { return Math.max(0, this.raceDist - this.progress) / Math.max(1, this.v); }
   lungeExt() { const t = this.lungeT; if (t == null) return 0; return t < LUNGE_UP ? t / LUNGE_UP : t < LUNGE_HOLD ? 1 : Math.max(0, 1 - (t - LUNGE_HOLD) / (LUNGE_END - LUNGE_HOLD)); }
-  lunge(race) {
+  // back (online): the press is dated to the moment the rider saw — the stretch started that long ago
+  lunge(race, back) {
     if (this.lungeT != null || this.finished || !this.started || this.fallen) return null;
-    const ttl = this.ttl(); this.lungeT = 0; this.lungeTtl = ttl;
+    back = back || 0; const ttl = this.ttl() + back; this.lungeT = back; this.lungeTtl = ttl;
     if (race) race.emit("ridePulse", this, "lunge");
     // at the line it will be stretched by: (what the press will be worth)
     const tl = ttl, ext = tl < LUNGE_UP ? tl / LUNGE_UP : tl < LUNGE_HOLD ? 1 : Math.max(0, 1 - (tl - LUNGE_HOLD) / (LUNGE_END - LUNGE_HOLD));
@@ -1265,13 +1267,14 @@ class Race {
     // riders: one (single-player) or several (multiplayer) humans first, AI jockeys fill the rest of the field
     // the human horse(s): roster index, or a full custom def (career mode) via cfg.playerDef
     const humanIdx = cfg.humans && cfg.humans.length ? cfg.humans.slice(0, 12) : [cfg.playerHorse];
-    const humanDefs = cfg.playerDef ? [cfg.playerDef] : humanIdx.map(i => ROSTER[i]);
+    // (multiplayer: cfg.humanDefs[k] is rider k's own career horse, or null for a roster horse)
+    const humanDefs = cfg.playerDef ? [cfg.playerDef] : humanIdx.map((i, k) => (cfg.humanDefs && cfg.humanDefs[k]) || ROSTER[i]);
     const nh = cfg.allBots ? 0 : humanDefs.length;
     // opponents: from the roster, optionally scaled for a career difficulty tier (cfg.oppScale) so early fields are
     // beatable and feature-race fields are elite. A custom player isn't in the roster, so nothing is excluded for it.
     // cfg.oppDefs (career championship): the exact opponent horses — each AI stable's runner, already rated for the race
     let opps = Array.isArray(cfg.oppDefs) && cfg.oppDefs.length ? cfg.oppDefs.slice(0, cfg.field - humanDefs.length)
-      : pickOpponents(cfg.playerDef ? [] : humanIdx, cfg.field - humanDefs.length, cfg.fixedOpponents, this.rng);
+      : pickOpponents(cfg.playerDef ? [] : humanIdx.filter(i => i >= 0 && ROSTER[i]), cfg.field - humanDefs.length, cfg.fixedOpponents, this.rng);
     if (!cfg.oppDefs && cfg.oppScale && cfg.oppScale !== 1) opps = opps.map(d => scaleDef(d, cfg.oppScale));
     const defs = humanDefs.concat(opps);
     defs.forEach((def, i) => {
@@ -2118,9 +2121,10 @@ function riderPress(race, h, opt) {
   if (race.state === "load" || race.state === "count") return race.earlyPress(h);
   if (race.state !== "running") return null;
   if (h.st && !h.st.launched) { h.st.hold = false; race.launch(false, h, opt.rt); return { kind: "launch", cat: h.st.cat, rt: h.st.rt, early: h.st.early }; }
-  const sk = h.strideKick(race); if (sk) return sk;                  // the first strides: pushing the horse into its stride
+  const lag = opt.tSeen != null ? clamp(race.clock - opt.tSeen, 0, 0.6) : 0;
+  const sk = h.strideKick(race, lag); if (sk) return sk;             // the first strides: pushing the horse into its stride
   if (race.clock < 1.6) return null;
-  if (!h.finished && h.started && h.lungeT == null && h.ttl() <= LUNGE_TTL) return h.lunge(race);   // the final strides: one lunge
+  if (!h.finished && h.started && h.lungeT == null && h.ttl() + lag <= LUNGE_TTL) return h.lunge(race, lag);   // the final strides: one lunge
   if (!h.finished && h.started && (race.dist - h.progress) <= RHYTHM_AT) {
     const back = opt.tSeen != null ? clamp(race.clock - opt.tSeen, 0, h.rhythmT) : 0;
     const pinT = h.rhythmT - back, u = (pinT / (RHYTHM_PERIOD / 2)) % 2, pin = u < 1 ? u : 2 - u;

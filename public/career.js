@@ -123,6 +123,10 @@ const CAREER = (() => {
       offRaces: Math.max(0, h.offRaces | 0), offWins: Math.max(0, h.offWins | 0), champPts: Math.max(0, h.champPts | 0), majors: Math.max(0, h.majors | 0),
       prize: Math.max(0, +h.prize || 0), trained: Math.max(0, h.trained | 0),
       history: Array.isArray(h.history) ? h.history.filter(e => e && typeof e === "object").slice(-40) : [],
+      // online races (multiplayer): a record only — no experience, training points or championship points
+      online: (() => { const o = h.online && typeof h.online === "object" ? h.online : {};
+        return { runs: Math.max(0, o.runs | 0), wins: Math.max(0, o.wins | 0), places: Math.max(0, o.places | 0),
+          last: Array.isArray(o.last) ? o.last.filter(e => e && typeof e === "object").slice(-10).map(e => ({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: e.d | 0 })) : [] }; })(),
     };
   }
 
@@ -722,6 +726,7 @@ const CAREER = (() => {
       body: `
         <div class="car-stat"><div><b>${h.races}</b><span>Starts</span></div><div><b>${h.wins}</b><span>Wins</span></div><div><b>${h.podiums}</b><span>Placings</span></div>
           <div><b>${majors.length}</b><span>Major wins</span></div><div><b>${h.champPts}</b><span>Champ pts</span></div><div><b>${formStr(h, 5)}</b><span>Recent form</span></div></div>
+        ${h.online && h.online.runs ? `<div class="sd-sec"><div class="car-sub">Online races (record only)</div><div style="font-size:13px">${h.online.runs} run${h.online.runs === 1 ? "" : "s"} · ${h.online.wins} win${h.online.wins === 1 ? "" : "s"} · ${h.online.places} placing${h.online.places === 1 ? "" : "s"}</div>${h.online.last.slice().reverse().slice(0, 5).map(e => `<div class="car-res"><span>${e.dist ? fmtDist(e.dist) : ""} · vs ${esc(e.vs || "friends")}</span><span>${e.dnf ? "DNF" : ordinal(e.place) + " of " + e.field}</span></div>`).join("")}</div>` : ""}
         <div class="sd-sec"><div class="car-sub">Racing profile</div>
           <div style="font-size:13px">Now: <b>${st.label}</b> · best at ${bestDistances(h.attrs).text}<br>Potential: <b>${pst.label}</b> · ${bestDistances(h.pot).text}</div>
           <div class="car-prof">${profileLines(h.pot).map(t => `<span>${esc(t)}</span>`).join("")}</div></div>
@@ -1150,6 +1155,15 @@ const CAREER = (() => {
 
   // ---------- entry ----------
   function open() { load(); race = null; hidePanel(); openHub(); }
-  return { open, onResult, load, hidePanel, get data() { return C; },
+  // multiplayer: your career horses (real ratings), and the online record (no experience, points or prize money)
+  function onlineHorses() { load(); return C.horses.map((h, i) => ({ i, id: h.id, name: h.name, rating: rating(h), role: detectStyle(h.attrs).label, silk: h.silk, def: toDef(h) })); }
+  function recordOnline(hid, e) {
+    load(); const h = C.horses.find(x => x.id === hid); if (!h) return false;
+    const o = h.online || (h.online = { runs: 0, wins: 0, places: 0, last: [] });
+    o.runs++; if (!e.dnf && e.place === 1) o.wins++; if (!e.dnf && e.place >= 1 && e.place <= 3) o.places++;
+    o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
+    save(); return true;
+  }
+  return { open, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline,
     _test: { enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

@@ -2,13 +2,7 @@
 
 A 3D horse-racing game for the browser (three.js). Single-player runs anywhere, including from one HTML file.
 
-> **Multiplayer is temporarily disabled** while single-player is being polished. All the online code (`public/mp.js`,
-> `server/rooms.js`, `server/race-server.js`, `server/protocol.js`) is kept unchanged; the menu button is hidden and
-> shared `?join=` links are ignored. Developers can switch it back on for a session with `?mp=1` in the page URL, or
-> permanently with `FF_FEATURES.multiplayer = true` in `public/index.html`. The sections below about online races
-> describe that parked code.
-
-**Private online races** (parked) let 2–6 friends ride against each other, with AI runners filling the rest of the field. They need the small Node
+**Private online races** let 2–6 friends ride against each other, with AI runners filling the rest of the field. They need the small Node
 server in this project, because the server runs the race.
 
 ```
@@ -241,7 +235,9 @@ If the game page is hosted separately (say, on a static host) and the server els
    with **Copy Code** and **Copy Link** buttons.
 2. They send the link (`https://…/?join=ABC123`) or just the code to up to 5 friends.
 3. Each friend opens the link (the code is filled in) or opens the site → **Multiplayer** → types the code → **Join Race**.
-4. Everyone picks a different horse. The host chooses distance, going, number of runners (AI fill the places the riders
+4. Everyone picks a different horse — a Quick Race horse, or **one of your own career horses** (listed first if you have a
+   career save). A career horse races at its real ratings, and everyone in the lobby sees its rating. Online races go on
+   its record as *online races* only: no experience, training points, championship points or career starts. The host chooses distance, going, number of runners (AI fill the places the riders
    don't), AI skill and incidents. Everyone presses **Ready**, then the host presses **Start Race**. Changing a horse or
    a setting un-readies everyone. If the host leaves, the next rider becomes host.
 5. If your horse falls, the camera follows a rider who is still racing. Press **A / D** (or **← / →**) to switch
@@ -255,7 +251,7 @@ If the game page is hosted separately (say, on a static host) and the server els
 |---|---|
 | W / S | In the stalls: keep the horse balanced (weight forward / sit back). In the race: effort (tap = 5% step, hold = smooth) |
 | A / D | Steer left / right (D always moves your horse to its right, on every course); a tap nudges ¼ lane, holding moves decisively |
-| Space | Press the instant the gates open (no countdown; early = the horse anticipates), then tap with the first four strides to push into stride. Mid-race: urge (a nudge). Final drive: tap on the rhythm |
+| Space | Press the instant the gates open (no countdown; early = the horse anticipates), then tap with the first four strides to push into stride. Mid-race: urge (a nudge). Final drive: tap on the rhythm. The final strides: one lunge at the line (up to 0.8 m) |
 | Shift | Drive — all-out; strongest in the finish, wasteful early or for too long |
 | E / Q | Settle (relax, keep rhythm, save energy) / check (a firm pull for traffic — loses momentum) |
 | C | Camera |
@@ -347,6 +343,8 @@ node tests/eleven-plan.js        # every phrase and horse name recorded in the n
 node tests/season_balance.js 10 # division balance with the real race engine (multi-process)
 node tests/career_difficulty.js 100 3   # career difficulty vs Quick Race Hard (new horse, normal, finals)
 node tests/riding-control.js     # the start, riding actions, steering, personalities, final drive and the lunge
+PORT=8095 node tests/replay-lunge-browser.js   # (server running) the replay puts every nose on the line; the lunge is visible
+PORT=8095 node tests/mp-career.js              # (server running) online race with a career horse, the new start and the lunge
 PORT=8095 node tests/career-browser.js   # (server running) career, chaos isolation, save migration and spoken commentary in a real browser
 npm run test:protocol
 ```

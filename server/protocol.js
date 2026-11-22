@@ -1,6 +1,6 @@
 'use strict';
 // Message formats and validation for the Final Furlong multiplayer protocol (JSON text frames, plus one binary replay frame).
-// Client → server: hello, create, join, rejoin, leave, pick, ready, settings, start, input, press, ping, spr
+// Client → server: hello, create, join, rejoin, leave, pick, pickCareer, ready, settings, start, loaded, input, press, kick, ping, spr
 // Server → client: welcome, lobby, error, raceStart, snap, ev, pressres, results, replayMeta (+binary), pong, sp, peer
 const crypto = require('crypto');
 
@@ -50,9 +50,41 @@ function cleanInput(o) {
     dl: Number.isFinite(Number(o.dl)) ? Math.min(0.5, Math.max(0, Number(o.dl))) : 0,   // the client's display delay (s); bounded
     sm: Number.isFinite(Number(o.sm)) ? Math.min(1, Math.max(0, Number(o.sm))) : null,   // start marker as shown on screen
     settle: !!o.settle, check: !!o.check, drive: !!o.drive, hold: !!o.hold, adv: !!o.adv,
+    poise: o.poise === 1 || o.poise === -1 ? o.poise : 0,                                  // W / S balancing the horse in the stalls
   };
 }
+// a rider's own career horse, as sent by their browser: only the fields the race and the renderer use, every value
+// checked and bounded. Its abilities are its real ratings (everyone in the lobby sees them).
+const ATTR_KEYS = ['top', 'acc', 'end', 'spr', 'rec', 'tem', 'agi', 'sta'];
+const STYLES = ['front', 'aggro', 'stalk', 'mid', 'steady', 'closer', 'cons'];
+const HEX = /^#[0-9a-fA-F]{6}$/, TOKEN = /^[#0-9a-zA-Z_\-]{1,16}$/;
+function cleanLook(o) {
+  const out = {};
+  if (!o || typeof o !== 'object') return out;
+  for (const k of Object.keys(o).slice(0, 40)) {
+    if (!/^[a-zA-Z]{1,16}$/.test(k)) continue;
+    const v = o[k];
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.max(-100, Math.min(0xffffff, v));
+    else if (typeof v === 'string' && TOKEN.test(v)) out[k] = v;
+    else if (typeof v === 'boolean') out[k] = v;
+    else if (Array.isArray(v) && v.length <= 4 && v.every(x => Number.isInteger(x) && x >= 0 && x <= 5)) out[k] = v.slice();
+  }
+  return out;
+}
+function cleanDef(d) {
+  if (!d || typeof d !== 'object' || !d.attrs || typeof d.attrs !== 'object') return null;
+  const attrs = {};
+  for (const k of ATTR_KEYS) { const v = Number(d.attrs[k]); if (!Number.isFinite(v)) return null; attrs[k] = Math.max(30, Math.min(99, Math.round(v))); }
+  const name = String(d.name == null ? '' : d.name).replace(/[^\p{L}\p{N} _.\-']/gu, '').trim().slice(0, 24);
+  if (!name) return null;
+  const col = (c, f) => typeof c === 'string' && HEX.test(c) ? c : f;
+  const coat = Number.isInteger(d.coat) && d.coat >= 0 && d.coat <= 0xffffff ? d.coat : 0x7a4a28;
+  return { name, role: String(d.role || 'Career horse').replace(/[^\p{L}\p{N} \-]/gu, '').slice(0, 24), style: STYLES.includes(d.style) ? d.style : 'mid', say: '',
+    coat, silk: col(d.silk, '#2c5aa0'), silk2: col(d.silk2, '#ffffff'), silkPat: typeof d.silkPat === 'string' && /^[a-z]{1,12}$/.test(d.silkPat) ? d.silkPat : 'plain',
+    look: cleanLook(d.look), attrs, career: true };
+}
+const ratingOf = d => Math.round(ATTR_KEYS.reduce((s, k) => s + d.attrs[k], 0) / ATTR_KEYS.length);
 const DEFAULT_SETTINGS = { dist: 1600, going: 'good', diff: 'medium', incidents: 'full', field: 12, chaos: false };
 const MAX_PLAYERS = 6;                        // riders per private room (the rest of the field is AI)
 
-module.exports = { MAX_PLAYERS, CODE_LEN, newCode, newToken, newSeed, cleanName, cleanCode, cleanSettings, cleanInput, DEFAULT_SETTINGS, DISTANCES, GOINGS, DIFFS, INCIDENTS, FIELDS };
+module.exports = { cleanDef, ratingOf, MAX_PLAYERS, CODE_LEN, newCode, newToken, newSeed, cleanName, cleanCode, cleanSettings, cleanInput, DEFAULT_SETTINGS, DISTANCES, GOINGS, DIFFS, INCIDENTS, FIELDS };

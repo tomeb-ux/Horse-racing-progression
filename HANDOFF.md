@@ -69,6 +69,13 @@ Gotchas: after `npm install`, delete `node_modules/playwright*` (use the preinst
 voices (tests stub `speechSynthesis`). The build container has no outbound web access (reference sites were unreachable).
 
 ## Status
+Latest: multiplayer re-enabled (FF_FEATURES.multiplayer = true). Career horses online: `pickCareer` (server/protocol.js
+cleanDef — every field bounded), `cfg.humanDefs` in sim.js Race, `CAREER.onlineHorses()` / `CAREER.recordOnline()`
+(h.online — record only). The server holds the race until every client sends `loaded` (≤ 10 s). Online stall balance:
+the client runs `race.trackOne` locally for display, the server decides. Lunge/stride presses are dated to the moment
+seen (`lag` in riderPress). REC_F = 15 (lunge stretch); the replay places noses at progress + LUNGE_M × stretch. Turf
+particles (FX) removed. Parade: `presentation.js` walkLeg/animateWalk, makeStrapper/poseStrapper, dressLawn.
+
 Smoothness / start / finish / career difficulty (latest): render interpolation between fixed sim steps (`visPrev` /
 `visBegin` / `visEnd` in index.html frame(); F7 toggles with F8 on; measure with `tools/smooth.js`). Start cues
 (`startCue`, `#smKeyS/W`; easier stalls in `sim.js trackOne`; push window `STRIDE_W/STRIDE_OK`). Finish: the lunge (`Horse.lunge`, LUNGE_*; AI riders via `lungeAim`). Career:

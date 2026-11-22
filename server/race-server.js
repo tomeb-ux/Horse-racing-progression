@@ -7,7 +7,8 @@ const SIM = require('../public/sim.js');
 const { Race, ROSTER, SIM_DT, REC_F, applyRiderInput, riderPress, riderKick, Bot } = SIM;
 
 const SNAP_MS = 45;              // 20 snapshots per second
-const AI_TAKEOVER_S = 20;        // a disconnected rider has this long to come back before an AI jockey rides the horse home
+const AI_TAKEOVER_S = 20;
+const LOAD_WAIT_MS = 10000;     // the longest the race waits for a rider's browser to finish loading it        // a disconnected rider has this long to come back before an AI jockey rides the horse home
 const r3 = x => Math.round(x * 1000) / 1000;
 
 class RaceSession {
@@ -17,8 +18,8 @@ class RaceSession {
     // the riders, in seat order: rider k rides race.horses[k]; AI jockeys fill the rest of the field
     this.slots = P.map((p, i) => p ? i : -1).filter(i => i >= 0);
     this.hiOf = {}; this.slots.forEach((slot, k) => { this.hiOf[slot] = k; });
-    this.cfg = { distance: s.dist, field: Math.max(s.field, this.slots.length), diff: s.diff, going: s.going, incidents: s.chaos ? 'full' : s.incidents, chaos: !!s.chaos, humans: this.slots.map(i => P[i].horse),
-      seed: room.nextSeed(), assist: false, unlimited: false, playerHorse: P[this.slots[0]].horse };
+    this.cfg = { distance: s.dist, field: Math.max(s.field, this.slots.length), diff: s.diff, going: s.going, incidents: s.chaos ? 'full' : s.incidents, chaos: !!s.chaos, humans: this.slots.map(i => P[i].horse), humanDefs: this.slots.map(i => P[i].career || null),
+      seed: room.nextSeed(), assist: false, unlimited: false, playerHorse: Math.max(0, P[this.slots[0]].horse) };
     const hooks = {};
     this.events = [];
     this.race = new Race(Object.assign({}, this.cfg, { hooks }));
@@ -46,13 +47,19 @@ class RaceSession {
   }
   start() {
     this.send(null, this.startMsg());
+    // the race (the loading of the stalls) only begins once every rider's browser has built the course and the horses —
+    // a slower computer must not miss its start. Bounded: after LOAD_WAIT_MS the race starts anyway.
+    this.waiting = new Set(this.slots); this.waitUntil = performance.now() + LOAD_WAIT_MS;
     this.timer = setInterval(() => this.tick(), 1000 / 60);
   }
+  loaded(slot) { if (this.waiting) { this.waiting.delete(slot); } }
   stop() { this.closed = true; clearInterval(this.timer); }
   setInput(slot, inp) { const k = this.hiOf[slot]; if (inp && k != null) this.inputs[k] = inp; }
   // Space: gate reaction or rhythm tap judged at the moment the rider saw it, bounded by their measured latency
   press(slot, msg, rttMs) {
-    const k = this.hiOf[slot], h = this.slotHorse[k], race = this.race; if (!h || h.bot || race.state !== 'running') return;
+    const k = this.hiOf[slot], h = this.slotHorse[k], race = this.race; if (!h || h.bot) return;
+    if (race.state === 'load' || race.state === 'count') { const res = riderPress(race, h, {}); if (res) this.send(slot, { type: 'pressres', r: res }); return; }   // going too early
+    if (race.state !== 'running') return;
     const lagS = Math.min(0.6, (rttMs || 150) / 1000 + 0.15 + 0.12);      // round trip + render buffer + slack
     const clock = race.clock;
     let rt = Number(msg.rt), tSeen = Number(msg.tSeen);
@@ -75,6 +82,11 @@ class RaceSession {
   tick() {
     if (this.closed) return;
     const now = performance.now(), race = this.race;
+    if (this.waiting) {                                   // still loading somewhere: hold the race at the very start
+      for (const s of [...this.waiting]) { const p = this.room.players[s]; if (!p || !p.ws || p.ws.readyState !== 1) this.waiting.delete(s); }
+      if (this.waiting.size && now < this.waitUntil) { this.lastTick = now; if (now - this.lastSnap >= SNAP_MS) { this.lastSnap = now; this.broadcastSnap(now); } return; }
+      this.waiting = null; this.lastTick = now;
+    }
     this.acc += Math.min(0.25, (now - this.lastTick) / 1000); this.lastTick = now;
     for (let s = 0; s < this.slotHorse.length; s++) {   // late starters: a rider's own latency extends the auto-start deadline (bounded)
       const p = this.room.players[this.slots[s]]; this.slotHorse[s].lagAllow = Math.min(0.6, ((p && p.rtt) || 150) / 1000 + 0.15);
@@ -105,7 +117,7 @@ class RaceSession {
     const H = race.horses.map(h => {
       const fl = (h.finished ? 1 : 0) | (h.dnf ? 2 : 0) | (h.started ? 4 : 0) | (h.fallen ? 8 : 0) | ((h.fallKind === 'trip' ? 1 : h.fallKind === 'side' ? 2 : 0) << 4);
       return [r3(h.progress), r3(h.laneF), r3(h.latV), r3(h.v), r3(h.phase), r3(h.eAct), r3(h.F), r3(SIM.rideLevel(h)), r3(h.mom), r3(h.accel), r3(h.restrainLvl), r3(h.relax), r3(h.stumV), r3(h.fallen ? h.fallT : 0),
-        h.rank, fl, h.fallDir || 1, r3(h.vFall || 0)];
+        h.rank, fl, h.fallDir || 1, r3(h.vFall || 0), r3(h.lungeExt())];
     });
     const P = this.slotHorse.map((h, k) => k !== mine ? { S: r3(h.S), SR: r3(h.SR), effort: r3(h.effort), ai: h.aiTook != null ? 1 : 0 } : ({
       effort: r3(h.effort), S: r3(h.S), F: r3(h.F), SR: r3(h.SR), streak: h.streak, mom: r3(h.mom), keen: r3(h.keen), relax: r3(h.relax), restrain: h.restrain ? 1 : 0,
@@ -113,8 +125,9 @@ class RaceSession {
       rhythmT: r3(h.rhythmT), missRun: h.missRun, penT: r3(h.penT), urgeHeat: r3(h.urgeHeat), aDem: r3(h.aDem || 0), cap: r3(h.cap || 0), onBend: h.onBend ? 1 : 0, lowStab: r3(h.lowStab),
       groundLost: r3(h.groundLost), accel: r3(h.accel), finishTime: h.finishTime || null, ai: h.aiTook != null ? 1 : 0, startCat: h.startCat || null,
       overtakes: h.stat.overtakes, lost: h.stat.lost,
-      kickUsed: h.kickUsed ? 1 : 0,
-      st: h.st ? { z: r3(h.st.z), m: r3(h.st.m), R: r3(h.st.R), open: h.st.open ? 1 : 0, launched: h.st.launched ? 1 : 0, cat: h.st.cat, rt: h.st.rt, aligned: h.st.aligned ? 1 : 0, zone: r3(h.st.zone), t: r3(h.st.t) } : null,
+      kickUsed: h.kickUsed ? 1 : 0, kicks: h.kicks, ph0: h.phase0 != null ? r3(h.phase0) : null, jp: r3(h.jumpPush), lt: h.lungeT != null ? r3(h.lungeT) : null,
+      st: h.st ? { z: r3(h.st.z), m: r3(h.st.m), R: r3(h.st.R), open: h.st.open ? 1 : 0, launched: h.st.launched ? 1 : 0, cat: h.st.cat, rt: h.st.rt, aligned: h.st.aligned ? 1 : 0, zone: r3(h.st.zone), t: r3(h.st.t),
+        poise: r3(h.st.poise), pv: r3(h.st.pv), early: h.st.early } : null,
     }));
     return { type: 'snap', s: now, c: r3(race.clock), state: race.state, countT: r3(race.countT), loadT: r3(race.loadT), lp: r3(race.leaderProgress), H, P, ev: this.lastEv || [] };
   }

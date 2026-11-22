@@ -637,8 +637,8 @@ body.touch #touchUI{display:flex;}
    bot jockeys · race controller · balance tests) · renderer & world ·
    horse models & gait · particles · cameras · audio · HUD · menus · loop.
    ===================================================================== */
-/* feature switches: multiplayer is parked for now (see the note by btnMP) */
-const FF_FEATURES = { multiplayer: /[?&]mp=1\b/.test(location.search) };
+/* feature switches */
+const FF_FEATURES = { multiplayer: true };
 /* the simulation core lives in sim.js (shared with the multiplayer server) */
 
 
@@ -4346,9 +4346,7 @@ $("pauseQuit").onclick = quitToMenu;
 $("resAgain").onclick = () => startRace(Object.assign({}, lastRaceCfg));
 $("resMenu").onclick = () => { if (typeof MP !== "undefined" && MP.inRoom) MP.leave(); quitToMenu(); };
 $("resLobby").onclick = () => MP.backToLobby();
-// MULTIPLAYER IS TEMPORARILY DISABLED while single-player is polished. The online code (mp.js, server/ rooms, protocol,
-// race server) is preserved unchanged; the menu entry is hidden and shared ?join= links are ignored. Developers can
-// re-enable it for one session with ?mp=1, or permanently by setting FF_FEATURES.multiplayer = true.
+// Multiplayer: private online races (mp.js, server/). Needs the hosted version (the single-file build has no server).
 $("btnMP").hidden = !FF_FEATURES.multiplayer;
 $("btnMP").onclick = () => { if (FF_FEATURES.multiplayer) MP.open(); };
 $("resReplay").onclick = () => startReplay("finish", false);

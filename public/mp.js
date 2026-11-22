@@ -161,13 +161,25 @@ const MP = (() => {
     $m("mpCodeBig").textContent = L.code;
     const me = L.players[M.slot], host = L.host === M.slot, here = L.players.filter(Boolean), others = L.players.filter((p, i) => p && i !== M.slot);
     M.names = L.players.map(p => p ? p.name : "");
-    $m("mpPlayers").innerHTML = L.players.map((p, i) => p ? `<div class="mp-p${i === M.slot ? " me" : ""}"><span class="rd ${p.ready ? "on" : "off"}">${p.connected ? (p.ready ? "READY" : "NOT READY") : "DISCONNECTED"}</span><b>${esc(p.name)}</b>${i === L.host ? " · host" : ""}${i === M.slot ? " · you" : ""}<br>${ROSTER[p.horse] ? esc(ROSTER[p.horse].name) + " · " + ROSTER[p.horse].role : ""}</div>` : "").join("")
+    $m("mpPlayers").innerHTML = L.players.map((p, i) => p ? `<div class="mp-p${i === M.slot ? " me" : ""}"><span class="rd ${p.ready ? "on" : "off"}">${p.connected ? (p.ready ? "READY" : "NOT READY") : "DISCONNECTED"}</span><b>${esc(p.name)}</b>${i === L.host ? " · host" : ""}${i === M.slot ? " · you" : ""}<br>${p.career ? `★ ${esc(p.career.name)} · career horse · rating <b>${p.career.rating}</b>` : ROSTER[p.horse] ? esc(ROSTER[p.horse].name) + " · " + ROSTER[p.horse].role + " · rating " + rosterRating(p.horse) : ""}</div>` : "").join("")
       + (here.length < L.players.length ? `<div class="mp-p"><b>${here.length < 2 ? "Waiting for a friend…" : "Room for " + (L.players.length - here.length) + " more"}</b><br>Send them the code or the link.</div>` : "");
     const hz = $m("mpHorses"); hz.innerHTML = "";
+    // your own career horses first (they race at their real ratings), then the Quick Race horses
+    const mine = typeof CAREER !== "undefined" && CAREER.onlineHorses ? CAREER.onlineHorses() : [];
+    if (mine.length) {
+      const lab = document.createElement("div"); lab.className = "mp-note"; lab.style.width = "100%"; lab.textContent = "Your career horses (real ratings — online races go on their record only):"; hz.appendChild(lab);
+      mine.forEach(c => {
+        const b = document.createElement("button"); b.className = "chip mp-career" + (me && me.career && me.career.name === c.name ? " sel" : "");
+        b.innerHTML = `<i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;background:${esc(c.silk)}"></i>★ ${esc(c.name)} · ${c.rating}`;
+        const taken = others.find(o => o.career && o.career.name.toLowerCase() === c.name.toLowerCase()); if (taken) { b.disabled = true; b.title = "Another rider has a horse with that name"; }
+        b.onclick = () => { M.careerHid = c.id; send({ type: "pickCareer", def: c.def }); }; hz.appendChild(b);
+      });
+      const lab2 = document.createElement("div"); lab2.className = "mp-note"; lab2.style.width = "100%"; lab2.textContent = "Quick Race horses:"; hz.appendChild(lab2);
+    }
     ROSTER.forEach((r, i) => {
-      const b = document.createElement("button"); b.className = "chip" + (me && me.horse === i ? " sel" : "");
-      b.textContent = r.name; const taken = others.find(o => o.horse === i); if (taken) { b.disabled = true; b.title = "Taken by " + taken.name; }
-      b.onclick = () => send({ type: "pick", horse: i }); hz.appendChild(b);
+      const b = document.createElement("button"); b.className = "chip" + (me && !me.career && me.horse === i ? " sel" : "");
+      b.textContent = r.name + " · " + rosterRating(i); b.dataset.name = r.name; const taken = others.find(o => !o.career && o.horse === i); if (taken) { b.disabled = true; b.title = "Taken by " + taken.name; }
+      b.onclick = () => { M.careerHid = null; send({ type: "pick", horse: i }); }; hz.appendChild(b);
     });
     const S = L.settings, sEl = $m("mpSettings"); sEl.innerHTML = "";
     const row = (label, opts, cur, key, fmt, off) => {
@@ -187,6 +199,7 @@ const MP = (() => {
     $m("mpStart").hidden = !host; $m("mpStart").disabled = !allReady;
     setStatus(here.length < 2 ? "Waiting for a friend to join…" : !allReady ? `${here.filter(p => p.ready).length}/${here.length} ready — everyone: pick a horse and press READY.` : host ? `All ${here.length} ready — start the race!` : `All ${here.length} ready — waiting for the host to start.`);
   }
+  const rosterRating = i => { const a = ROSTER[i] && ROSTER[i].attrs; return a ? Math.round(Object.values(a).reduce((x, y) => x + y, 0) / Object.values(a).length) : ""; };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   // ---------- the race ----------
   let tagEls = [], netEl = null, specEl = null;
@@ -203,13 +216,14 @@ const MP = (() => {
     const me = race.horses[myIdx];
     race.player = me; race.st = me.st; me.isPlayer = true; me.mpName = null;
     for (const k of M.rivals) { const rv = race.horses[k]; rv.isPlayer = false; rv.mpName = M.hn[k] || "Friend"; }
-    riderInput.effort = me.effort; M.startHold = { m: me.st.m, mv: 0 };
+    riderInput.effort = me.effort; M.rode = me.def && me.def.career ? { hid: M.careerHid, name: me.def.name } : null;
     camMode = settings.cam; netBanner(null);
     if (!netEl) { netEl = document.createElement("div"); netEl.id = "mpNet"; $("hud").appendChild(netEl); }
     tagEls.forEach(t => t.remove()); tagEls = M.rivals.map(() => { const t = document.createElement("div"); t.className = "mp-tag"; t.hidden = true; $("hud").appendChild(t); return t; });
     if (!specEl) { specEl = document.createElement("div"); specEl.id = "mpSpec"; $("hud").appendChild(specEl); }
     netEl.hidden = false; specEl.hidden = true;
     showMsg(m.resume ? "Reconnected" : "Online race · " + M.hn.join(" v "), 2.2);
+    send({ type: "loaded" });                                           // the course and horses are built: the server can load the stalls
   }
   function addSnap(m) {
     // how late snapshots arrive (one-way delay + jitter): the interpolation buffer is sized from the worst recent ones
@@ -241,6 +255,7 @@ const MP = (() => {
       h.restrainLvl = lerp2(A[10], B[10], u); h.relax = lerp2(A[11], B[11], u); h.stumV = lerp2(A[12], B[12], u); h.fallT = lerp2(A[13], B[13], u);
       h.rank = B[14]; const fl = B[15]; h.finished = !!(fl & 1); h.dnf = !!(fl & 2); h.started = !!(fl & 4); h.fallen = !!(fl & 8); h.fallDir = B[16]; h.vFall = B[17];
       h.fallKind = ["balance", "trip", "side"][(fl >> 4) & 3];
+      h.rpLunge = B[18] != null ? lerp2(A[18] || 0, B[18], u) : 0;              // a lunge at the line (drawn: the neck stretching out)
       if (h.fallen && h.fallT <= 0) h.fallT = 0.0001;
       race.route.point(h.progress, laneOff(h.laneF), h.pos);
     });
@@ -254,13 +269,16 @@ const MP = (() => {
       me.streak = Pb.streak; me.missRun = Pb.missRun; me.restrain = !!Pb.restrain; me.drive = !!Pb.drive; me.settle = !!Pb.settle; me.sideBlocked = Pb.sideBlocked; me.blocked = !!Pb.blocked; me.onBend = !!Pb.onBend;
       me.stat.overtakes = Pb.overtakes; me.stat.lost = Pb.lost; if (Pb.startCat) me.startCat = Pb.startCat;
       me.effort = riderInput.effort; me.kickUsed = !!Pb.kickUsed;
+      me.kicks = Pb.kicks | 0; if (Pb.ph0 != null) me.phase0 = Pb.ph0; me.jumpPush = Pb.jp || 0; me.lungeT = Pb.lt;
       if (Pb.st && me.st) {
-        const S = me.st; S.z = Pa && Pa.st ? lerp2(Pa.st.z, Pb.st.z, u) : Pb.st.z; S.R = Pb.st.R; S.open = !!Pb.st.open; S.launched = !!Pb.st.launched; S.cat = Pb.st.cat; S.rt = Pb.st.rt; S.zone = Pb.st.zone;
-        if (race.state === "load" || race.state === "count") {   // the marker responds to Space at once on screen (same rules as the server)
-          const H = M.startHold; H.mv += (riderInput.hold ? 2.7 : -2.4) * dt; H.mv *= Math.pow(0.02, dt); H.m += H.mv * dt;
-          if (H.m < 0) { H.m = 0; H.mv = Math.max(0, H.mv); } if (H.m > 1) { H.m = 1; H.mv = Math.min(0, H.mv); }
-          S.m = H.m; S.aligned = Math.abs(S.m - S.z) < S.zone;
-        }
+        const S = me.st; S.open = !!Pb.st.open; S.launched = !!Pb.st.launched; S.cat = Pb.st.cat; S.rt = Pb.st.rt; S.zone = Pb.st.zone; S.early = Pb.st.early | 0;
+        if ((race.state === "load" || race.state === "count") && !S.open) {
+          // the horse's balance in the stalls responds to W / S at once on screen: the same deterministic stall model the
+          // server runs, fed our keys; the server's own state (it decides the jump) pulls it back if they drift apart
+          S.poiseIn = riderInput.poise || 0; race.trackOne(S, dt, me);
+          if (Pb.st.poise != null) { S.poise += (Pb.st.poise - S.poise) * Math.min(1, dt * 1.5); S.pv += ((Pb.st.pv || 0) - S.pv) * Math.min(1, dt * 1.5); }
+          S.R += (Pb.st.R - S.R) * Math.min(1, dt * 3);
+        } else { S.R = Pb.st.R; if (Pb.st.poise != null) S.poise = Pb.st.poise; }
       }
     }
     for (const k of M.rivals) { const rv = race.horses[k], Pr = b.P[k]; if (rv && Pr) { rv.S = Pr.S; rv.SR = Pr.SR; rv.effort = Pr.effort; rv.aiRiding = !!Pr.ai; } }
@@ -278,9 +296,9 @@ const MP = (() => {
     updateSpectate(me, running);
     // send our controls (≈30 Hz, or at once on a change)
     const inp = { effort: Math.round(riderInput.effort * 1000) / 1000, steer: riderInput.steer, settle: riderInput.settle, check: riderInput.check, drive: riderInput.drive, hold: riderInput.hold, adv: riderInput.adv, dl: Math.round(M.delay) / 1000,
-      sm: race.st && !race.st.open ? Math.round(M.startHold.m * 1000) / 1000 : null };
-    const key = JSON.stringify([inp.effort, inp.steer, inp.settle, inp.check, inp.drive, inp.hold, inp.adv]), t = now();   // marker/delay ride along, they don't force a send
-    if (key !== M.lastInp || t - M.lastSend > (inp.sm != null ? 66 : 200)) { if (t - M.lastSend > 30 || key !== M.lastInp) { send({ type: "input", i: inp }); M.lastSend = t; M.lastInp = key; } }
+      poise: riderInput.poise || 0 };
+    const key = JSON.stringify([inp.effort, inp.steer, inp.settle, inp.check, inp.drive, inp.hold, inp.adv, inp.poise]), t = now();   // the delay rides along, it doesn't force a send
+    if (key !== M.lastInp || t - M.lastSend > 200) { if (t - M.lastSend > 30 || key !== M.lastInp) { send({ type: "input", i: inp }); M.lastSend = t; M.lastInp = key; } }
     // the other riders' horses: small name tags, and the connection readout
     const ai = M.rivals.map(k => race.horses[k]).filter(h => h && h.aiRiding).map(h => h.mpName);
     if (netEl) netEl.textContent = `ONLINE · ${Math.round(M.rtt)} ms` + (ai.length ? ` · AI riding ${ai.join(", ")}` : "");
@@ -353,6 +371,7 @@ const MP = (() => {
   // Space: the server judges it at the moment we saw it (our rendered race time), within the latency it measured
   function press() {
     const me = race.player; if (!me || me.fallen) return;
+    if (race.state === "load" || race.state === "count") { send({ type: "press" }); return; }   // too early: the server judges it
     if (race.state !== "running") return;
     send({ type: "press", rt: race.clock, tSeen: race.clock });
   }
@@ -389,6 +408,14 @@ const MP = (() => {
     const line = R.riders.slice().sort((x, y) => placeOf(x) - placeOf(y)).map(r => { const pl = R.order.findIndex(x => x[0] === r.i) + 1; return `${esc(r.name).toUpperCase()}${r.slot === M.slot ? " (YOU)" : ""} — ${r.dnf ? "DNF" : ordinal(pl).toUpperCase()}${r.ai != null ? " (AI rode from " + r.ai + " m)" : ""}`; }).join(" · ");
     let b = document.getElementById("resMPLine"); if (!b) { b = document.createElement("div"); b.id = "resMPLine"; b.className = "res-mp"; $("resPlace").insertAdjacentElement("afterend", b); }
     b.hidden = false; b.innerHTML = line;
+    // a career horse: the run goes on its record (online races only — no experience, points or prize money)
+    if (M.rode && M.rode.hid && typeof CAREER !== "undefined" && CAREER.recordOnline) {
+      const mine = R.riders.find(r => r.slot === M.slot);
+      if (mine) { const pl = R.order.findIndex(x => x[0] === mine.i) + 1;
+        const ok = CAREER.recordOnline(M.rode.hid, { place: pl, field: race.horses.length, dist: race.dist, dnf: !!mine.dnf, vs: R.riders.filter(r => r.slot !== M.slot).map(r => r.name).join(", ") });
+        if (ok) b.innerHTML += `<div style="font-size:12px;font-weight:400;color:var(--fg-dim);margin-top:4px">Added to ${esc(M.rode.name)}'s record (online races)</div>`; }
+      M.rode = null;
+    }
     $("resAgain").hidden = true; $("resNext").hidden = true; $("resLobby").hidden = false;
   }
   function backToLobby() { const b = document.getElementById("resMPLine"); if (b) b.hidden = true; $("resLobby").hidden = true; clearRaceMeshes(); race = null; show("mp"); renderLobby(); setMenuHorse(settings.playerHorse); }

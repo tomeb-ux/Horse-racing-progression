@@ -1,5 +1,27 @@
 # Final Furlong — change log
 
+## Update: multiplayer is back (with your career horses), a lunge you can see, a livelier parade
+- **Turf particles removed** completely (the pool of 420 clods was updated every frame, flying or not) — and the
+  setting with them.
+- **The lunge matters**: worth up to 0.8 m (about a neck). It is recorded in the race, so the replay shows each horse's
+  neck stretching out at the line and the jockey throwing the hands forward, and the replay's banner says what your
+  lunge was worth and whether a lunge decided the photo.
+- **Replay fixed**: the finish is timed on the stretched-out nose, but the replay drew the body's position, so at the
+  photo instant the horse sat up to half a metre short of the line while the result said it had won. The replay now
+  places every nose exactly where the timing says (checked: 0.0 cm at the line).
+- **Parade ring**: a more natural walk (the hoof breaks over at the toe, knees and hocks fold, the head nods with each
+  front foot, the barrel swings, keen horses toss their heads), strappers in the stable's colours who walk at each
+  horse's head holding the lead, owners and trainers in groups on the lawn, a garden bed and number boards; close-ups
+  are filmed from the lawn so the rail and strapper no longer block the horse.
+- **Multiplayer re-enabled** with everything above and the new riding: the stall balance (W/S, shown at once on your
+  screen and judged by the server), Space at the gates (an early press counts against you online too), pushes into
+  stride and the lunge — timed against the moment you saw, so lag doesn't cost you. The race only starts loading the
+  stalls once every rider's browser has built it (a slower computer no longer misses its start; at most 10 s).
+- **Career horses online**: pick one of your career horses in the lobby; it races at its real ratings and everyone
+  sees its rating. The result goes on its record as an online race (runs, wins, placings, recent online runs on its
+  profile) — no experience, training points, championship points or career starts.
+- Tests: `tests/mp-career.js` (13 checks), `tests/replay-lunge-browser.js` (9); every multiplayer suite updated.
+
 ## Update: smooth racing, a clearer start, a lunge at the line, and a career that stays hard
 - **Microstutter fixed at its cause.** The simulation runs at a fixed 120 steps per second and the screen draws at
   whatever the display does (60, 75, 90, 120, 144 Hz…); each frame used to draw the latest step, so the distance a horse

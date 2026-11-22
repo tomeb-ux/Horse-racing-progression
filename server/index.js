@@ -73,11 +73,13 @@ wss.on('connection', (ws, req) => {
     let err = null;
     switch (m.type) {
       case 'pick': err = room.pick(slot, m.horse); if (!err) room.broadcastLobby(); break;
+      case 'pickCareer': err = room.pickCareer(slot, m.def); if (!err) room.broadcastLobby(); break;
       case 'ready': err = room.setReady(slot, m.ready); if (!err) room.broadcastLobby(); break;
       case 'settings': err = room.setSettings(slot, m.settings); if (!err) room.broadcastLobby(); break;
       case 'start': err = room.start(slot); break;
       case 'leave': room.leave(slot); ws.room = null; ws.slot = null; return;
       case 'input': if (room.session) room.session.setInput(slot, P.cleanInput(m.i)); return;
+      case 'loaded': if (room.session) room.session.loaded(slot); return;
       case 'press': if (room.session) room.session.press(slot, m, room.players[slot].rtt); return;
       case 'kick': if (room.session) room.session.kick(slot, m.side === 1 || m.side === -1 ? m.side : 0); return;
       case 'debugFall': if (process.env.FF_TEST_HOOKS === '1' && room.session) room.session.debugFall(slot); return;   // automated tests only; off in production

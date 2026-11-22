@@ -25,15 +25,16 @@ class Room {
   }
   lobbyState() {
     return { type: 'lobby', code: this.code, state: this.state, host: this.host, settings: this.settings,
-      players: this.players.map((p, i) => p ? { slot: i, name: p.name, horse: p.horse, ready: p.ready, connected: !!(p.ws && p.ws.readyState === 1) } : null) };
+      players: this.players.map((p, i) => p ? { slot: i, name: p.name, horse: p.horse, ready: p.ready, connected: !!(p.ws && p.ws.readyState === 1),
+        career: p.career ? { name: p.career.name, rating: P.ratingOf(p.career), role: p.career.role, silk: p.career.silk } : null } : null) };
   }
   broadcastLobby() { this.send(null, this.lobbyState()); }
   touch() { this.touched = Date.now(); }
   addPlayer(ws, name) {
     const slot = this.players.findIndex(p => !p);
-    const used = this.players.filter(Boolean).map(p => p.horse);
+    const used = this.players.filter(Boolean).map(p => p.horse);   // (a career horse is −1: never clashes with a roster one)
     const horse = [4, 0, 2, 7, 8, 9, 1, 3, 5, 6, 10, 11].find(h => !used.includes(h));
-    this.players[slot] = { name: P.cleanName(name), token: P.newToken(), ws, horse, ready: false, rtt: 150, discAt: null };
+    this.players[slot] = { name: P.cleanName(name), token: P.newToken(), ws, horse, career: null, ready: false, rtt: 150, discAt: null };
     ws.room = this; ws.slot = slot;
     return slot;
   }
@@ -43,7 +44,15 @@ class Room {
     if (this.state !== 'lobby') return 'race-running';
     horse = +horse; if (!Number.isInteger(horse) || horse < 0 || horse >= ROSTER.length) return 'invalid-horse';
     if (this.players.some((p, i) => p && i !== slot && p.horse === horse)) return 'horse-taken';
-    this.players[slot].horse = horse; this.players[slot].ready = false; return null;
+    this.players[slot].horse = horse; this.players[slot].career = null; this.players[slot].ready = false; return null;
+  }
+  // a rider brings their own career horse (real ratings; its name must be unique in the race)
+  pickCareer(slot, def) {
+    if (this.state !== 'lobby') return 'race-running';
+    const d = P.cleanDef(def); if (!d) return 'invalid-horse';
+    const nm = d.name.toLowerCase();
+    if (ROSTER.some(r => r.name.toLowerCase() === nm) || this.players.some((p, i) => p && i !== slot && p.career && p.career.name.toLowerCase() === nm)) return 'horse-taken';
+    Object.assign(this.players[slot], { horse: -1, career: d, ready: false }); return null;
   }
   setReady(slot, on) { if (this.state !== 'lobby') return 'race-running'; this.players[slot].ready = !!on; return null; }
   setSettings(slot, o) {
@@ -58,7 +67,8 @@ class Room {
     if (here.length < 2) return 'need-two-players';
     if (!here.every(p => p.ws && p.ws.readyState === 1)) return 'player-disconnected';
     if (!here.every(p => p.ready)) return 'not-ready';
-    if (new Set(here.map(p => p.horse)).size !== here.length) return 'horse-taken';
+    const keys = here.map(p => p.career ? 'c:' + p.career.name.toLowerCase() : 'r:' + p.horse);
+    if (new Set(keys).size !== here.length) return 'horse-taken';
     this.state = 'racing'; this.lastResults = null;
     this.session = new RaceSession(this, (s, m, bin) => this.send(s, m, bin));
     this.session.onDone = () => {
