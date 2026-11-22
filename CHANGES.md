@@ -22,7 +22,7 @@
   horse calmer and readiness builds faster. Space when the gates open, as before. The stride pushes show their exact
   timing window — the green lights gold when a push now counts.
 - **The lunge.** In the final strides one **lunge** (Space as the pin crosses the gold) throws the horse at
-  the line — up to half a metre, a short head in a photo; too early and it's over before the line. The rival riders lunge
+  the line — up to 0.8 m, about a neck, in a photo; too early and it's over before the line. The rival riders lunge
   too, Hard jockeys more accurately.
 - **Career difficulty.** Every career jockey now rides at Hard, and rival stables bring their runners primed to your
   horse for each race (race-day only — their records and development are untouched, nobody is ever weakened). Measured

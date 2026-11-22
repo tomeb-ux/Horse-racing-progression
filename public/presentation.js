@@ -22,28 +22,121 @@ const PRESENT = (() => {
   // lateral-sequence walk: LH, LF, RH, RF a quarter-stride apart; each hoof is down ~62% of the stride
   const WALK_FOOT = [0.25, 0.75, 0.0, 0.5];          // FL, FR, HL, HR (legs order in buildHorse)
   const _w = [0, 0, 0, 0];
+  // one leg through the stride: t 0..1 from hoof-strike. Stance (62 %): the limb sweeps back under the body, the
+  // fetlock sinks as it takes the weight, then the heel lifts and the hoof breaks over at the toe. Swing: the knee (front)
+  // or hock (hind) folds, the hoof is carried forward and the limb reaches out straight just before it lands.
+  const smooth = x => x * x * (3 - 2 * x);
   function walkLeg(t, hind, A, out) {
     const st = 0.62;
-    if (t < st) { const u = t / st; out[0] = Math.asin(Math.sin(A) * (1 - 2 * u)); out[1] = hind ? 0.04 : 0.0; out[2] = hind ? 0.08 : 0; out[3] = 0.12 * Math.sin(u * Math.PI) - (u > 0.8 ? (u - 0.8) * 1.6 : 0); }
-    else { const u = (t - st) / (1 - st), k = Math.sin(u * Math.PI); out[0] = -A + 2 * A * (u * u * (3 - 2 * u));
-      if (!hind) { out[1] = 0.12 * k; out[2] = -1.05 * k; out[3] = -0.85 * k; } else { out[1] = -0.3 * k; out[2] = 0.75 * k; out[3] = -0.85 * k; } }
+    if (t < st) {
+      const u = t / st, load = Math.sin(Math.min(1, u / 0.85) * Math.PI), brk = u > 0.78 ? smooth((u - 0.78) / 0.22) : 0;
+      out[0] = Math.asin(Math.sin(A) * (1 - 2 * u));
+      out[1] = hind ? 0.05 + 0.05 * load : 0.02 * load;
+      out[2] = hind ? 0.1 + 0.08 * load : -0.18 * brk;
+      out[3] = 0.2 * load - 0.55 * brk;                       // fetlock sinks under load, then the heel lifts (break-over)
+    } else {
+      const u = (t - st) / (1 - st), fold = Math.sin(Math.min(1, u / 0.75) * Math.PI), reach = u > 0.6 ? smooth((u - 0.6) / 0.4) : 0;
+      out[0] = -A + 2 * A * smooth(u) + 0.05 * reach;
+      if (!hind) { out[1] = 0.16 * fold; out[2] = -1.15 * fold; out[3] = -0.95 * fold + 0.1 * reach; }
+      else { out[1] = -0.34 * fold; out[2] = 0.85 * fold; out[3] = -0.9 * fold + 0.08 * reach; }
+    }
     return out;
   }
   function animateWalk(g, phase, dt, opts) {
     const u = g.userData, B = u.B, L = u.look; if (!B) return;
     if (u.fallVis && typeof restoreFromFall === "function") restoreFromFall(u);
-    const ph = ((phase % 1) + 1) % 1;
-    u.legs.forEach((l, i) => { let t = ph - WALK_FOOT[i]; if (t < 0) t += 1; walkLeg(t, l.hind, l.hind ? 0.36 : 0.4, _w); for (let k = 0; k < 4; k++) l.b[k].rotation.z = _w[k]; });
-    const nod = Math.sin(ph * Math.PI * 4);
-    B.body.position.set(0, 1.30 + 0.012 * Math.cos(ph * Math.PI * 4), 0); B.body.rotation.set(Math.sin(ph * Math.PI * 2) * 0.012, 0, 0.004 * nod); B.pelvis.rotation.z = 0.01 * Math.sin(ph * Math.PI * 4 + 1);
-    B.neck1.rotation.set(0, 0, 0.02 - L.carriage + 0.045 * nod); B.neck2.rotation.set(0, 0, 0.01 * nod);
-    B.head.rotation.set(0, (opts && opts.look) || 0, -0.04 - 0.03 * nod);
-    B.tail1.rotation.set(Math.sin(ph * Math.PI * 2) * 0.12, 0, -0.05); B.tail2.rotation.set(Math.sin(ph * Math.PI * 2 - 0.6) * 0.1, 0, 0); B.tail3.rotation.set(0, 0, 0); B.tail4.rotation.set(0, 0, 0);
+    const ph = ((phase % 1) + 1) % 1, keen = (opts && opts.keen) || 0;
+    u.legs.forEach((l, i) => { let t = ph - WALK_FOOT[i]; if (t < 0) t += 1; walkLeg(t, l.hind, l.hind ? 0.34 : 0.38, _w); for (let k = 0; k < 4; k++) l.b[k].rotation.z = _w[k]; });
+    // the walk's head nod: down as each front foot takes the weight (twice a stride), the neck swinging with it
+    const fL = ((ph - WALK_FOOT[0]) % 1 + 1) % 1, fR = ((ph - WALK_FOOT[1]) % 1 + 1) % 1;
+    const nodF = x => x < 0.62 ? Math.sin(x / 0.62 * Math.PI) : 0, nod = Math.max(nodF(fL), nodF(fR));
+    const hL = ((ph - WALK_FOOT[2]) % 1 + 1) % 1, roll = Math.sin(hL * Math.PI * 2);       // the barrel swings away from the stepping hind leg
+    B.body.position.set(0, 1.30 + 0.014 * Math.cos(ph * Math.PI * 4) - 0.006 * nod, 0);
+    B.body.rotation.set(roll * 0.022, Math.sin(ph * Math.PI * 2) * 0.012, 0.006 * Math.cos(ph * Math.PI * 4));
+    B.pelvis.rotation.set(-roll * 0.03, 0, 0.012 * Math.sin(ph * Math.PI * 4 + 1));
+    const toss = keen ? Math.max(0, Math.sin((u.idleT = (u.idleT || 0) + dt) * 1.7 + keen * 9)) ** 8 * 0.18 * keen : 0;   // a keen horse tosses its head now and then
+    B.neck1.rotation.set(roll * 0.03, 0, 0.03 - L.carriage - 0.07 * nod + 0.04 + toss);
+    B.neck2.rotation.set(0, Math.sin(ph * Math.PI * 2) * 0.03, -0.025 * nod);
+    B.head.rotation.set(0, ((opts && opts.look) || 0) + Math.sin(ph * Math.PI * 2 + 0.5) * 0.05, -0.06 + 0.05 * nod - toss * 0.6);
+    const sw = Math.sin(ph * Math.PI * 2);
+    B.tail1.rotation.set(sw * 0.14, 0, -0.08); B.tail2.rotation.set(Math.sin(ph * Math.PI * 2 - 0.7) * 0.12, 0, 0.03); B.tail3.rotation.set(Math.sin(ph * Math.PI * 2 - 1.4) * 0.1, 0, 0.02); B.tail4.rotation.set(Math.sin(ph * Math.PI * 2 - 2.1) * 0.08, 0, 0);
     if (typeof earPose === "function") earPose(u, 0, 0, dt);
     u.bob = 0; u.blob.scale.set(1, 1, 1);
     _jkX.curv = 0; _jkX.acc = 0; _jkX.fat = 0; _jkX.cel = opts && opts.cel ? opts.cel : 0;
     poseJockey(u, 0, 0, ph, 0, 0, 0, opts && opts.rest != null ? opts.rest : 1, 0, dt);
     _jkX.cel = 0;
+  }
+
+  /* ---------- strappers: a stable hand at each horse's head, walking with it and holding the lead ---------- */
+  let SG = null;
+  function strapperParts() {
+    if (SG) return SG;
+    const leg = new THREE.CylinderGeometry(0.075, 0.06, 0.86, 8); leg.translate(0, -0.43, 0);
+    const arm = new THREE.CylinderGeometry(0.05, 0.042, 0.62, 7); arm.translate(0, -0.31, 0);
+    const torso = new THREE.CylinderGeometry(0.19, 0.16, 0.62, 10); torso.translate(0, 0.31, 0);
+    const head = new THREE.SphereGeometry(0.115, 12, 9), cap = new THREE.SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), brim = new THREE.BoxGeometry(0.16, 0.02, 0.12); brim.translate(0, 0, 0.11);
+    const shoe = new THREE.BoxGeometry(0.11, 0.07, 0.24); shoe.translate(0, -0.87, 0.04);
+    const M = c => new THREE.MeshLambertMaterial({ color: c });
+    SG = { leg, arm, torso, head, cap, brim, shoe, pants: M(0x2b2f36), skin: [M(0xe0b896), M(0xc68c62), M(0x8d5a3b)], shoeM: M(0x1b1b1b), rope: new THREE.LineBasicMaterial({ color: 0x5a3a22 }) };
+    return SG;
+  }
+  function makeStrapper(colour, i) {
+    const P = strapperParts(), G = new THREE.Group(), shirt = new THREE.MeshLambertMaterial({ color: new THREE.Color(colour || "#2c5aa0") }), skin = P.skin[i % 3];
+    const hip = new THREE.Group(); hip.position.y = 0.92; G.add(hip);
+    const legL = new THREE.Mesh(P.leg, P.pants), legR = new THREE.Mesh(P.leg, P.pants); legL.position.x = -0.1; legR.position.x = 0.1;
+    legL.add(new THREE.Mesh(P.shoe, P.shoeM)); legR.add(new THREE.Mesh(P.shoe, P.shoeM)); hip.add(legL, legR);
+    const torso = new THREE.Mesh(P.torso, shirt); hip.add(torso);
+    const head = new THREE.Mesh(P.head, skin); head.position.y = 0.76; hip.add(head);
+    const cap = new THREE.Mesh(P.cap, shirt); cap.position.y = 0.79; hip.add(cap); const brim = new THREE.Mesh(P.brim, shirt); brim.position.y = 0.79; hip.add(brim);
+    const armL = new THREE.Mesh(P.arm, shirt), armR = new THREE.Mesh(P.arm, shirt); armL.position.set(-0.22, 0.58, 0); armR.position.set(0.22, 0.58, 0);
+    const handR = new THREE.Object3D(); handR.position.y = -0.62; armR.add(handR); const handL = new THREE.Object3D(); handL.position.y = -0.62; armL.add(handL); hip.add(armL, armR);
+    [legL, legR, torso, head, armL, armR].forEach(m => { m.castShadow = true; });
+    const ropeG = new THREE.BufferGeometry(); ropeG.setAttribute("position", new THREE.BufferAttribute(new Float32Array(9), 3));
+    const rope = new THREE.Line(ropeG, P.rope); rope.frustumCulled = false;
+    return { G, hip, legL, legR, armL, armR, handR, handL, torso, rope, ph: i * 0.29 };
+  }
+  const _h = new THREE.Vector3(), _n = new THREE.Vector3();
+  function poseStrapper(s, x, y, z, yaw, walkPh, horse, leadRight) {
+    s.G.position.set(x, y, z); s.G.rotation.set(0, yaw, 0);
+    const a = Math.sin(walkPh * Math.PI * 2), bob = Math.abs(Math.cos(walkPh * Math.PI * 2));
+    s.hip.position.y = 0.92 + 0.025 * bob; s.legL.rotation.x = 0.42 * a; s.legR.rotation.x = -0.42 * a;
+    // the arm on the horse's side reaches forward to hold the lead under the bit; the other swings with the walk
+    const lead = leadRight ? s.armR : s.armL, free = leadRight ? s.armL : s.armR;
+    lead.rotation.set(-1.15 + 0.04 * a, 0, leadRight ? 0.2 : -0.2); free.rotation.set(-0.32 * a, 0, 0);
+    s.torso.rotation.y = 0.06 * a;
+    s.G.updateMatrixWorld(true);
+    // the lead: from the hand to the bit, sagging a little in the middle
+    (leadRight ? s.handR : s.handL).getWorldPosition(_h); const nose = horse.mesh.userData.nose; if (!nose) return;
+    nose.getWorldPosition(_n);
+    const A = s.rope.geometry.attributes.position.array;
+    A[0] = _h.x; A[1] = _h.y; A[2] = _h.z; A[6] = _n.x; A[7] = _n.y - 0.08; A[8] = _n.z;
+    A[3] = (_h.x + _n.x) / 2; A[4] = (_h.y + _n.y) / 2 - 0.14; A[5] = (_h.z + _n.z) / 2;
+    s.rope.geometry.attributes.position.needsUpdate = true;
+  }
+
+  /* ---------- the ring's lawn: owners and trainers in groups, a garden bed, the officials ---------- */
+  function dressLawn(ring) {
+    if (ring.userData.dressed) return; ring.userData.dressed = true;
+    const rx = ring.userData.rx, ry = ring.userData.ry, y0 = ring.userData.y0, rr = GFX.rand(rx * 7 | 0), spots = [];
+    // the connections: a cluster per runner's stable, standing about and watching the horses go round
+    const nG = 9;
+    for (let gI = 0; gI < nG; gI++) {
+      const a = gI / nG * Math.PI * 2 + 0.3, gx = Math.cos(a) * (rx - 10.5) * 0.92, gz = Math.sin(a) * (ry - 10.5) * 0.92, n = 3 + Math.floor(rr() * 4);
+      for (let k = 0; k < n; k++) { const ang = k / n * Math.PI * 2 + rr(), d = 0.7 + rr() * 0.5, x = gx + Math.cos(ang) * d, z = gz + Math.sin(ang) * d;
+        spots.push({ x, y: y0 + 0.03, z, rot: Math.atan2(-x, -z) + (rr() - 0.5) * 2.2, keen: rr() * 0.6 }); }
+    }
+    const lawnG = new THREE.Group(); ring.add(lawnG);
+    GFX.crowd(lawnG, spots, { seed: 71, always: true, fancy: 1 });
+    // a garden bed in the middle with the club's flowers, and a raised number board at each end
+    const bed = []; for (let i = 0; i < 26; i++) { const a = i / 26 * Math.PI * 2; bed.push({ x: Math.cos(a) * 3.2, z: Math.sin(a) * 1.8, s: 0.75, flower: [0xc8102e, 0xf6c445, 0xfff1e6, 0xf28bb0][i % 4] }); }
+    for (let i = 0; i < 9; i++) bed.push({ x: (i - 4) * 0.6, z: 0, s: 0.6, flower: 0xf6c445 });
+    const bg = new THREE.Group(); bg.position.y = y0 + 0.03; GFX.shrubs(bg, bed, 0x34552a, [0xc8102e, 0xf6c445, 0xfff1e6]); ring.add(bg);
+    const edge = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 6, 48), new THREE.MeshLambertMaterial({ color: 0xf4f1ea })); edge.rotation.x = -Math.PI / 2; edge.scale.set(4.1, 2.6, 1); edge.position.y = y0 + 0.06; ring.add(edge);
+    const post = new THREE.MeshLambertMaterial({ color: 0xf4f1ea }), board = new THREE.MeshLambertMaterial({ color: 0x1d3a2a });
+    for (const sx of [-1, 1]) { const g = new THREE.Group(); g.position.set(sx * (rx - 9), y0, 0);
+      const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.2, 0.1), post); p1.position.set(-0.9, 1.1, 0); const p2 = p1.clone(); p2.position.x = 0.9;
+      const b = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.9, 0.08), board); b.position.y = 1.9; b.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2; p1.castShadow = p2.castShadow = b.castShadow = true;
+      g.add(p1, p2, b); ring.add(g); }
   }
 
   /* ---------- UI ---------- */
@@ -103,9 +196,11 @@ const PRESENT = (() => {
     // the danger: the best-rated rivals
     const rivals = field.filter(h => h !== r.player).sort((a, b) => (ratingOf(b.def) || 0) - (ratingOf(a.def) || 0)).slice(0, 2);
     S.horses = field;
-    // strappers leading each horse (one instanced crowd, moved every frame)
+    // a strapper leading each horse (in the stable's colour), and the connections standing on the lawn
     S.group = new THREE.Group(); world.add(S.group);
-    S.strap = GFX.crowd(S.group, field.map(() => ({ x: 0, y: 0, z: 0, rot: 0, keen: 0 })), { seed: 9, always: true });
+    SG = null;                                                     // fresh shared parts (the group, and so these, is disposed after the parade)
+    S.straps = field.map((h, i) => { const st = makeStrapper(h.def.silk, i); S.group.add(st.G, st.rope); return st; });
+    dressLawn(ring);
     const meta = r.cfg.career || {}, venue = r.cfg.track === "flemington" ? "FLEMINGTON · MOUNTING YARD" : "ROYAL RANDWICK · THEATRE OF THE HORSE";
     S.ui.querySelector("#prKick").textContent = venue; S.ui.querySelector("#prTitle").textContent = (meta.name || (r.dist + " m race")).toUpperCase();
     S.ui.style.setProperty("--prc", meta.crown ? "#e8c35a" : "#9fd6ae"); S.ui.querySelector("#prWin").hidden = true;
@@ -117,23 +212,27 @@ const PRESENT = (() => {
     S.done = () => { if (race !== r) return; show("racing"); if (typeof COMM !== "undefined") COMM.begin(r, r.cfg); };   // the parade silenced the caller: start the race call afresh
     return true;
   }
-  const _q = new THREE.Vector3(), _q2 = new THREE.Vector3();
+  const _q = new THREE.Vector3(), _q2 = new THREE.Vector3(), _c0 = new THREE.Vector3();
   function ringPoint(u, out) { S.ring.userData.path(((u % 1) + 1) % 1, out); return out.applyMatrix4(S.ring.matrixWorld); }
   function paradeFrame(dt) {
     S.t += dt; S.walkT += dt;
     const n = S.horses.length, per = 2 * Math.PI * Math.sqrt(((S.ring.userData.rx - 2.25) ** 2 + (S.ring.userData.ry - 2.25) ** 2) / 2), spd = 1.6;
-    const dm = new THREE.Object3D();
+    const c0 = _c0.set(0, 0, 0).applyMatrix4(S.ring.matrixWorld);
     S.horses.forEach((h, i) => {
       const m = h.mesh; if (!m) return;
       const u = -(i / n + S.walkT * spd / per);                       // anticlockwise round the ring, evenly spaced
       ringPoint(u, P0); ringPoint(u - 0.002, P1);
       m.position.set(P0.x, P0.y, P0.z); const hx = P1.x - P0.x, hz = P1.z - P0.z; m.rotation.set(0, Math.atan2(hx, hz) - Math.PI / 2, 0);
-      animateWalk(m, (S.walkT * 0.9 + i * 0.37) % 1, dt, { rest: 1 });
-      // strapper at the horse's near-side shoulder, walking with it
-      const len = Math.hypot(hx, hz) || 1, fx = hx / len, fz = hz / len, sx = -fz, sz = fx;
-      dm.position.set(P0.x + fx * 0.9 + sx * 0.85, P0.y, P0.z + fz * 0.9 + sz * 0.85); dm.rotation.set(0, Math.atan2(fx, fz), 0); dm.updateMatrix(); S.strap.mesh.setMatrixAt(i, dm.matrix);
+      // cadence matched to the ground speed (a walking stride is about 1.75 m), so the hooves don't slide
+      const keen = h.rp ? Math.max(0, h.rp.eager - 0.45) * 1.6 : 0;
+      animateWalk(m, (S.walkT * spd / 1.75 + i * 0.37) % 1, dt, { rest: 1, keen });
+      // the strapper walks at the horse's head on the outside of the ring (the cameras look in from the lawn)
+      const len = Math.hypot(hx, hz) || 1, fx = hx / len, fz = hz / len;
+      let sx = -fz, sz = fx; if ((P0.x + sx - c0.x) ** 2 + (P0.z + sz - c0.z) ** 2 < (P0.x - c0.x) ** 2 + (P0.z - c0.z) ** 2) { sx = -sx; sz = -sz; }
+      const st = S.straps[i];
+      // (the strapper's right is (fz, −fx); the horse is on the opposite side to the offset)
+      poseStrapper(st, P0.x + fx * 1.3 + sx * 0.78, P0.y, P0.z + fz * 1.3 + sz * 0.78, Math.atan2(fx, fz), S.walkT * spd / 1.3 + st.ph, h, (-sx * fz + -sz * -fx) < 0);
     });
-    S.strap.mesh.instanceMatrix.needsUpdate = true;
     // shot list
     let acc = 0, si = 0; for (; si < S.shots.length; si++) { acc += S.shots[si].d; if (S.t < acc) break; }
     if (si >= S.shots.length) { finish(); return; }
@@ -144,9 +243,11 @@ const PRESENT = (() => {
       const a = (sh.k === "wide" ? 0.6 : 2.4) + S.t * 0.05, R = S.ring.userData.rx + 22;
       tp = _q2.set(Math.cos(a) * R, 11 + y0, Math.sin(a) * R * 0.8).applyMatrix4(S.ring.matrixWorld); tl = c.clone().setY(y0 + 0.5); fov = 42;
     } else {
-      const m = sh.h.mesh, yaw = m.rotation.y + Math.PI / 2, fx = Math.sin(yaw), fz = Math.cos(yaw), lt = S.t - (acc - sh.d), side = (si % 2 ? 1 : -1);
+      const m = sh.h.mesh, yaw = m.rotation.y + Math.PI / 2, fx = Math.sin(yaw), fz = Math.cos(yaw), lt = S.t - (acc - sh.d);
+      // always from the lawn side of the horse: the strapper and the outer rail are on the far side
+      const inX = c.x - m.position.x, inZ = c.z - m.position.z, side = (-fz * inX + fx * inZ) > 0 ? 1 : -1;
       const ang = 0.9 + lt * 0.09; const dx = Math.cos(ang) * fx * 6.2 - Math.sin(ang) * fz * side * 6.2, dz = Math.cos(ang) * fz * 6.2 + Math.sin(ang) * fx * side * 6.2;
-      tp = _q2.set(m.position.x + dx, m.position.y + 1.9, m.position.z + dz); tl = new THREE.Vector3(m.position.x + fx * 0.3, m.position.y + 1.55, m.position.z + fz * 0.3); fov = 30;
+      tp = _q2.set(m.position.x + dx, m.position.y + 2.3, m.position.z + dz); tl = new THREE.Vector3(m.position.x + fx * 0.3, m.position.y + 1.55, m.position.z + fz * 0.3); fov = 30;
     }
     if (cut) { CAM.pos.copy(tp); CAM.look.copy(tl); CAM.fov = fov; }
     CAM.pos.lerp(tp, Math.min(1, dt * 2.5)); CAM.look.lerp(tl, Math.min(1, dt * 4)); CAM.fov += (fov - CAM.fov) * Math.min(1, dt * 2);

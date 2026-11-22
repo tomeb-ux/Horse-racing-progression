@@ -873,7 +873,7 @@ const STRIDE_W = 0.27, STRIDE_OK = 0.4;
    (up to LUNGE_M) for a moment. Timed so the line comes while it is stretched (about 0.12–0.42 s before the line) it
    gains up to LUNGE_M; too early and it is over before the line and costs the horse its action. AI riders lunge too,
    as accurately as their skill allows. */
-const LUNGE_TTL = 0.9, LUNGE_M = 0.45, LUNGE_UP = 0.12, LUNGE_HOLD = 0.42, LUNGE_END = 0.72;
+const LUNGE_TTL = 0.9, LUNGE_M = 0.8, LUNGE_UP = 0.12, LUNGE_HOLD = 0.42, LUNGE_END = 0.72;
 const DIFF = {
   easy:   { iq: 0.2,  react: [1.0, 1.6],  pacingErr: 0.36, kickErr: 280, consistency: 0.42, rhythm: 0.2,  hold: 0 },
   medium: { iq: 0.46, react: [0.65, 1.1], pacingErr: 0.2,  kickErr: 160, consistency: 0.64, rhythm: 0.42, hold: 0 },
@@ -1716,7 +1716,7 @@ class Race {
       const d = R.d;
       d[o] = h.progress; d[o + 1] = h.laneF; d[o + 2] = h.latV; d[o + 3] = h.v; d[o + 4] = h.phase;
       d[o + 5] = h.eAct; d[o + 6] = h.F; d[o + 7] = rideLevel(h); d[o + 8] = h.mom; d[o + 9] = h.accel; d[o + 10] = h.restrainLvl; d[o + 11] = h.relax;
-      d[o + 12] = h.stumV; d[o + 13] = h.fallen ? h.fallT : 0;
+      d[o + 12] = h.stumV; d[o + 13] = h.fallen ? h.fallT : 0; d[o + 14] = h.lungeExt();
       o += REC_F;
     }
     R.head = (i + 1) % R.cap; if (R.n < R.cap) R.n++;
@@ -1791,7 +1791,7 @@ class Race {
     this.emit("done");
   }
 }
-const REC_F = 14;   // progress, laneF, latV, v, phase, eAct, F, ride, mom, accel, restraint, relax, stumble (visual), fall time
+const REC_F = 15;   // progress, laneF, latV, v, phase, eAct, F, ride, mom, accel, restraint, relax, stumble (visual), fall time, lunge stretch
 // jockey posture 0 settle · 1 cruise · 2 urge · 3 drive (continuous), from what the rider is doing
 function rideLevel(h) {
   let r;

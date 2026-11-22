@@ -124,7 +124,7 @@ function finish(seed, lunge, horse) {
     ok(Math.abs(p.laneF - lane0) < 0.05, `driven out in the straight with no steering, the horse keeps its line (moved ${Math.abs(p.laneF - lane0).toFixed(2)} lanes)`); }
   const none = m(null), good = m(0.27), early = m(0.85), late = m(0.04);
   const gain = (L) => (mean(none.map(x => x.t)) - mean(L.map(x => x.t))) * 16.5;
-  ok(gain(good) > 0.3 && gain(good) <= sim.LUNGE_M + 0.05 && good.every(x => x.res && x.res.kind === 'lunge' && x.res.res === 'perfect'), `a lunge timed for the line gains ${gain(good).toFixed(2)} m (a head is ~0.4 m)`);
+  ok(gain(good) > 0.3 && gain(good) <= sim.LUNGE_M + 0.05 && good.every(x => x.res && x.res.kind === 'lunge' && x.res.res === 'perfect'), `a lunge timed for the line gains ${gain(good).toFixed(2)} m (about a neck)`);
   ok(gain(early) < 0, `lunging too soon is over before the line and costs ground (${gain(early).toFixed(2)} m, "${early[0].res.res}")`);
   ok(gain(late) > 0 && gain(late) < gain(good), `lunging very late gains only part of it (${gain(late).toFixed(2)} m)`);
   // only one lunge: a second press in the final strides does nothing

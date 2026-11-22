@@ -425,7 +425,6 @@ body.touch #touchUI{display:flex;}
         <div class="opt-label">Shadows</div><div class="opt-row" id="optShadow"></div>
         <div class="opt-label">Crowd density</div><div class="opt-row" id="optCrowd"></div>
         <div class="opt-label">Scenery detail</div><div class="opt-row" id="optScenery"></div>
-        <div class="opt-label">Turf particles</div><div class="opt-row" id="optFx"></div>
         <div class="opt-label">Steering</div><div class="opt-row" id="optSteer"></div>
         <div style="font-size:11px;color:var(--fg-dim);max-width:420px;text-align:center;">Assisted: gentler, and refuses to steer into a horse alongside. Advanced: quicker, more precise lateral control — you judge the gaps (horses still can never overlap).</div>
         <div class="opt-label">Stamina assist</div><div class="opt-row" id="optAssist"></div>
@@ -479,7 +478,7 @@ body.touch #touchUI{display:flex;}
         <p><b>Riding.</b> <kbd>W</kbd>/<kbd>S</kbd> set the effort — a tap is a fine 5% step, holding moves it smoothly: conserve, cruise, press forward or commit flat out. <kbd>E</kbd> settles the horse: it relaxes, keeps its rhythm and saves energy (an eager horse takes longer to settle). <kbd>Q</kbd> is a firm check for traffic — real momentum is lost, and in the final drive it breaks your rhythm. <kbd>Space</kbd> mid-race urges: a nudge, not a sprint (keep nagging and it stops working). <kbd>Shift</kbd> drives: the all-out ride that extracts the most in the finish, but wasteful if used too early or for too long. <kbd>A</kbd>/<kbd>D</kbd> steer — a tap nudges a quarter of a lane, holding moves decisively; a sharp move at a gallop, above all in a bend, costs speed and balance.</p>
         <p><b>Every horse rides differently.</b> Some are eager and hard to settle, some get nervous among other runners, some answer urging at once but tire if over-asked, some take a while to wind up but then keep going, some stand like statues in the stalls. It comes from their attributes — so training changes it — plus a temperament of their own; the Quick Race card and the start panel tell you what to expect.</p>
         <p><b>The final drive:</b> inside the last 450 m a pin sweeps side to side. Tap <kbd>Space</kbd> each time it passes through the green. Consecutive good taps build <b>momentum</b>: <i>Finding rhythm</i> → <i>Strong drive</i> → <i>Powerful finish</i> → <i>Perfect rhythm</i>. The rhythm only turns into speed if you are asking the horse to sprint (high effort) and it has room — boxed in, it is wasted. Driving (<kbd>Shift</kbd>) in rhythm adds to it, but a mistimed tap while driving unbalances the horse more. Mashing the key does nothing but waste energy and break the stride. Momentum can only spend what is left: a horse you ran into the ground earlier gains very little from it.</p>
-        <p><b>The lunge.</b> In the final strides the bar becomes the run to the post: one press of <kbd>Space</kbd> throws your horse at the line — its head and neck stretch out for a moment. Press as the pin crosses the gold so the line comes while it is stretched: worth up to half a metre (a short head) in a photo. Too soon and the stretch is over before the line (and it loses its action); too late and you only get part of it. One lunge per race — the rival riders lunge too.</p>
+        <p><b>The lunge.</b> In the final strides the bar becomes the run to the post: one press of <kbd>Space</kbd> throws your horse at the line — its head and neck stretch out for a moment. Press as the pin crosses the gold so the line comes while it is stretched: worth up to 0.8 m (about a neck) in a photo — the rival riders lunge too, so a missed one can cost you the race. The replay shows every horse's stretch at the line and whether a lunge decided it. Too soon and the stretch is over before the line (and it loses its action); too late and you only get part of it. One lunge per race.</p>
         <p><b>Position.</b> On the bends the inside rail is genuinely shorter: every lane wider covers more ground, and the HUD counts the metres you have given away (<i>+N m wide</i>). But the rail is where you get <b>pocketed</b> — a boxed-in horse cannot run past the one in front. Racing wide gives you clear room to pass at the cost of ground. Hold <kbd>A</kbd> or <kbd>D</kbd> to drift across. Calls such as <i>INSIDE BLOCKED</i>, <i>OUTSIDE CLEAR</i>, <i>GAP OPENING</i>, <i>RIVAL CLOSING</i> and <i>LOSING GROUND WIDE</i> tell you what is happening around you, and the radar at the bottom right shows horses on your inside, outside, in front (red when blocking) and closing from behind (flashing).</p>
         <p><b>Balance and incidents.</b> A galloping horse can only take so much sideways load. Steering hard through a bend at speed, weaving, snatching up with <kbd>Q</kbd> mid-bend, leaning on a rival (advanced steering) or clipping heels all unsettle it — more so on soft or heavy ground, for a tired horse or a less agile one. A <b>Balance</b> chip appears when it's unsettled, with warnings: <i>DANGEROUS TURN</i>, <i>UNBALANCED</i>, <i>LOSING STRIDE</i>. Straighten up and ease off and it recovers; keep pushing and it will stumble (costing speed and control) and, with <b>Full incidents</b> on, it can fall — out of the race, a DNF. Speed alone is never dangerous. Assisted steering refuses to push into a horse alongside; advanced steering lets you force it — and pay for it. Set it in Settings → Racing incidents (Off · Stumbles only · Full); the same rules apply to every runner.</p>
         <p><b>Race phases.</b> The phase tag under the timer follows the race: the <b>opening</b> scramble for position, the <b>middle</b> where you save energy and hold your place, the <b>final bend</b> where rival riders decide whether to hold the rail, angle out for a run or follow a move, then the <b>home straight</b> and the <b>final 200 m</b>. The rhythm drive starts 450 m out.</p>
@@ -1391,47 +1390,6 @@ function buildGates(route, n) {
 }
 // gate doors: both halves spring open (≈0.25 s) the moment the race state turns to "running"
 function updateGateDoors(dt) { for (const dp of gateDoors) { const sg = dp.userData.sign || 1; dp.rotation.y = sg * Math.min(1.75, Math.abs(dp.rotation.y) + dt * 7.5); } }
-
-/* ---------- Turf particles (pooled instanced clods) ---------- */
-const FX = (() => {
-  const N = 420;
-  const geo = new THREE.DodecahedronGeometry(0.035, 0); geo.scale(1.4, 0.7, 1.1);
-  const mat = new THREE.MeshLambertMaterial({ color: 0x3e4a22 });
-  const GOING_FX = { firm: [0.55, 0x4f6a2c, 0.8], good: [1, 0x3e4a22, 1], soft: [1.6, 0x4a3b22, 1.15], heavy: [2.3, 0x3b2b19, 1.3] };
-  let mult = 1, lift = 1;
-  const inst = new THREE.InstancedMesh(geo, mat, N);
-  inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage); inst.frustumCulled = false; inst.castShadow = false;
-  world.add(inst);
-  const P = new Float32Array(N * 7); // x y z vx vy vz life
-  const d = new THREE.Object3D(); let head = 0;
-  for (let i = 0; i < N; i++) { d.position.set(0, -10, 0); d.updateMatrix(); inst.setMatrixAt(i, d.matrix); }
-  return {
-    setGoing(k) { const g = GOING_FX[k] || GOING_FX.good; mult = g[0]; mat.color.setHex(g[1]); lift = g[2]; },
-    spawn(x, y, z, hx, hz, speed, n) {
-      if (!settings.fx) return;
-      n = Math.floor(n * mult + Math.random() * mult);
-      for (let k = 0; k < n; k++) {
-        const i = head; head = (head + 1) % N; const o = i * 7;
-        P[o] = x + (Math.random() - 0.5) * 0.3; P[o + 1] = y + 0.05; P[o + 2] = z + (Math.random() - 0.5) * 0.3;
-        const back = -(1.5 + Math.random() * 2.5) * Math.min(1, speed / 14);
-        P[o + 3] = hx * back + (Math.random() - 0.5) * 1.2; P[o + 4] = (1.4 + Math.random() * 2.4) * lift * (0.6 + 0.4 * Math.min(1, speed / 15)); P[o + 5] = hz * back + (Math.random() - 0.5) * 1.2;
-        P[o + 6] = 0.5 + Math.random() * 0.4;
-      }
-    },
-    update(dt) {
-      let any = false;
-      for (let i = 0; i < N; i++) {
-        const o = i * 7; if (P[o + 6] <= 0) continue; any = true;
-        P[o + 6] -= dt; P[o + 4] -= 9.8 * dt;
-        P[o] += P[o + 3] * dt; P[o + 1] += P[o + 4] * dt; P[o + 2] += P[o + 5] * dt;
-        if (P[o + 1] < 0.02 || P[o + 6] <= 0) { P[o + 6] = 0; d.position.set(0, -10, 0); }
-        else { d.position.set(P[o], P[o + 1], P[o + 2]); d.rotation.set(P[o + 6] * 9, P[o + 6] * 7, 0); }
-        d.updateMatrix(); inst.setMatrixAt(i, d.matrix);
-      }
-      if (any) inst.instanceMatrix.needsUpdate = true;
-    }
-  };
-})();
 
 /* ---------- Horse model ----------
    One continuous, smooth-shaded skinned mesh per horse. Anatomical cross-sections are lofted along
@@ -2550,6 +2508,10 @@ function animateHorse(g, ph, speedN, eAct, fat, ride, curv, dt, h, lat, acc, mom
   B.head.rotation.z = 0.06 + 0.2 * s + 0.05 * mom - pump * 0.05 - 0.07 * f - 0.32 * u.rest;
   u.headSway += ((Math.sin(phase * TAU * 0.5) * 0.04 * (0.3 + f)) - u.headSway) * Math.min(1, dt * 10);
   B.head.rotation.y = u.headSway - lat * 0.16; B.neck2.rotation.y = -lat * 0.06;
+  // the lunge: neck thrust forward and down, head stretched out level with it (live: the horse's own; replay: recorded)
+  const lxT = h ? (h.rpLunge != null ? h.rpLunge : (h.lungeExt ? h.lungeExt() : 0)) : 0;
+  u.lunge = h && h.rpLunge != null ? lxT : (u.lunge || 0) + (lxT - (u.lunge || 0)) * Math.min(1, (dt || 0.016) * 18);   // a recording is already smooth (and may be scrubbed while paused)
+  if (u.lunge > 0.005) { const q = u.lunge; B.neck1.rotation.z -= 0.34 * q; B.neck2.rotation.z -= 0.12 * q; B.head.rotation.z += 0.5 * q; }
   // tail: lifted and streaming at speed, each segment lagging the one before (secondary motion)
   u.tailLift += ((-0.35 - 0.55 * s) - u.tailLift) * Math.min(1, dt * 3);
   B.tail1.rotation.z = u.tailLift * 0.6 - 0.15 * air; B.tail2.rotation.z = u.tailLift * 0.35; B.tail3.rotation.z = u.tailLift * 0.25; B.tail4.rotation.z = u.tailLift * 0.15;
@@ -2560,7 +2522,7 @@ function animateHorse(g, ph, speedN, eAct, fat, ride, curv, dt, h, lat, acc, mom
   u.stanceNow = stance;
   plantHooves(g, u, stance);
   _jkX.curv = curv; _jkX.acc = acc + 4 * stV; _jkX.fat = f;
-  u.pulse = Math.max(0, (u.pulse || 0) - dt * 3.5); _jkX.pulse = u.pulse; _jkX.poise = 0;
+  u.pulse = Math.max(0, (u.pulse || 0) - dt * 3.5); _jkX.pulse = Math.max(u.pulse, 1.8 * (u.lunge || 0)); _jkX.poise = 0;   // the rider throws the hands forward with a lunge
   _jkX.jolt = h && h.penT > 0 ? Math.sin(h.penT * 30) * Math.min(1, h.penT * 2) : 0;   // a broken stride: the rider is thrown about
   poseJockey(u, s, ride, phase, pump, f, lat, u.rest, u.settle, dt);
 }
@@ -2623,9 +2585,6 @@ function spawnHorseMeshes(race) {
       if (h.v < 4) return;
       const isNear = h.isPlayer || (race.player && Math.abs(h.progress - race.player.progress) < 12);
       if (!isNear) return;
-      const p = h.pos, lat = leg.side * 0.21, fwd = (leg.hind ? -0.64 : 0.69) - NOSE_OFF;
-      const x = p.x + p.hx * fwd + p.nx * lat, z = p.z + p.hz * fwd + p.nz * lat;
-      if (frameN % 2 === 0 || h.isPlayer) FX.spawn(x, 0, z, p.hx, p.hz, h.v, h.isPlayer ? 2 : 1);
       audio.hoof(h, i, leg.hind);
     };
   });
@@ -2906,7 +2865,7 @@ function updateCamera(dt) {
 const _sl = { el: null, o: 0, r: 0 };
 function speedFx(sN, dt) {
   if (!_sl.el) _sl.el = document.getElementById("speedlines");
-  const on = settings.fx && camMode !== 2 && race && race.state === "running";
+  const on = camMode !== 2 && race && race.state === "running";
   const t = on ? clamp(Math.max(0, cam.accS - 0.6) * 0.09 + cam.kick * 0.25 + cam.rush * 0.16 * sN + Math.max(0, sN - 0.85) * 0.5, 0, 0.42) + (cam.crazy || 0) * 0.55 : 0;
   _sl.o += (t - _sl.o) * Math.min(1, dt * 4);
   _sl.r = (_sl.r + dt * 37) % 11;
@@ -3721,7 +3680,7 @@ function buildSettings() {
   chipRow($("optQuality"), ["auto", "high", "medium", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ auto: "Auto (recommended)", high: "High (fixed)", medium: "Medium", low: "Low (integrated graphics)" })[v]);
   chipRow($("optCrowd"), ["full", "light", "off"], settings.crowd, v => { settings.crowd = v; store.set("crowd", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optScenery"), ["high", "medium", "low"], settings.scenery, v => { settings.scenery = v; store.set("scenery", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
-  chipRow($("optFx"), [true, false], settings.fx, v => { settings.fx = v; store.set("fx", v); }, v => v ? "On" : "Off");
+
   chipRow($("optSteer"), ["assisted", "advanced"], settings.steer, v => { settings.steer = v; store.set("steer", v); }, v => v === "assisted" ? "Assisted" : "Advanced");
   chipRow($("optIncidents"), ["off", "stumbles", "full"], settings.incidents, v => { settings.incidents = v; store.set("incidents2", v); }, v => ({ off: "Off", stumbles: "Stumbles only", full: "Full incidents" })[v]);
   chipRow($("optAssist"), [false, true], settings.assist, v => { settings.assist = v; store.set("assist", v); }, v => v ? "On" : "Off");
@@ -3787,9 +3746,16 @@ function replayBanner() {
     const secs = g.dt < 0.01 ? g.dt.toFixed(3) : g.dt.toFixed(2);
     b1 = fo[0] === a ? `${nA} ${a.isPlayer ? "WIN" : "WINS"} BY ${secs}s` : `${nA} ${a.isPlayer ? "BEAT" : "BEATS"} ${nB} BY ${secs}s`;
     b3 = `${g.dt.toFixed(3)} s · ${g.m.toFixed(2)} m · ${g.lengths < 0.3 ? g.text : g.lengths.toFixed(2) + " lengths"} at the line`;
+    // what the lunges did: each horse's stretch at the line, and whether it decided the photo
+    const lq = h => h.stat.lungeQ == null ? 0 : h.stat.lungeQ, la = LUNGE_M * lq(a), lb = LUNGE_M * lq(b), mine = p.stat.lungeQ;
+    const diff = Math.abs(la - lb), decided = diff > g.m && la > lb;
+    b3 += mine == null ? " · you didn't lunge" : ` · your lunge: ${mine > 0.85 ? "perfect" : mine > 0.4 ? "good" : "mistimed"} (+${(LUNGE_M * mine).toFixed(2)} m)`;
+    if (decided) b3 += a.isPlayer ? " — the lunge won it!" : " — their lunge got them up";
   } else {
     b1 = fo[0].isPlayer ? "YOU WIN" : fo[0].def.name.toUpperCase() + " WINS";
     b3 = `Winning time ${fmtTime(fo[0].finishTime)}`;
+    const mine = p.stat.lungeQ;
+    if (mine != null) b3 += ` · your lunge: ${mine > 0.85 ? "perfect" : mine > 0.4 ? "good" : "mistimed"} (+${(LUNGE_M * mine).toFixed(2)} m)`;
   }
   const b2 = place === 1 ? (fo[1] ? `1ST — WON BY ${finishGap(p, fo[1]).text.toUpperCase()}` : "1ST")
     : `${ordinal(place).toUpperCase()} — BEATEN BY ${finishGap(fo[place - 2], p).text.toUpperCase()}`;
@@ -3897,13 +3863,14 @@ function updateReplay(dt) {
     const sm = r.recSample(R.t, i, rpS);
     placeHorseMesh(h, sm[0], sm[1], sm[2], sm[3], h.yawD == null ? null : adv);
     h.rpRide = h.rpRide == null ? sm[7] : h.rpRide + (sm[7] - h.rpRide) * Math.min(1, adv * 2.2);
-    h.rpProxy.stumV = sm[12]; h.rpProxy.fallT = sm[13]; h.rpProxy.fallDir = h.fallDir; h.rpProxy.fallV = h.vFall;
+    h.rpProxy.stumV = sm[12]; h.rpProxy.fallT = sm[13]; h.rpProxy.fallDir = h.fallDir; h.rpProxy.fallV = h.vFall; h.rpProxy.rpLunge = sm[14];
     animateHorse(h.mesh, sm[4], Math.min(1, sm[3] / h.vmax), sm[5], sm[6] / 100, h.rpRide, h.curv, Math.max(adv, R.paused ? 0 : 1 / 240), h.rpProxy, h.latS, sm[9], r.dist - sm[0] < RHYTHM_AT ? sm[8] : 0, sm[10], sm[11]);
-    // the photo must show what the timing shows: shift the horse so its visible nose is exactly at the recorded nose
-    const nz = h.mesh.userData.nose.getWorldPosition(_v3), tp = r.route.point(sm[0], laneOff(sm[1]), _tmpP);
+    // the photo must show what the timing shows: shift the horse so its visible nose is exactly at the timed nose —
+    // the recorded position plus the lunge's stretch (the finish is timed on the stretched-out nose)
+    const nz = h.mesh.userData.nose.getWorldPosition(_v3), tp = r.route.point(sm[0] + LUNGE_M * sm[14], laneOff(sm[1]), _tmpP);
     const err = (nz.x - tp.x) * tp.hx + (nz.z - tp.z) * tp.hz;
     h.mesh.position.x -= err * tp.hx; h.mesh.position.z -= err * tp.hz;
-    h.rpNose = h.rpNose || {}; h.rpNose.prog = sm[0]; h.rpNose.lane = sm[1]; h.rpNose.y = nz.y; h.rpNose.v = sm[3];
+    h.rpNose = h.rpNose || {}; h.rpNose.prog = sm[0] + LUNGE_M * sm[14]; h.rpNose.lane = sm[1]; h.rpNose.y = nz.y; h.rpNose.v = sm[3];
   });
   // camera: follow the focus group, then hold square to the line as they reach it
   let cp = 0, cl = 0, pMin = 1e9, pMax = -1e9, lMax = 0;
@@ -4067,7 +4034,7 @@ function updateHighlights(dt) {
     const sm = r.fullSample(HL.t, i, hlS);
     placeHorseMesh(h, sm[0], sm[1], sm[2], sm[3], step);
     h.rpRide = h.rpRide == null ? sm[7] : h.rpRide + (sm[7] - h.rpRide) * Math.min(1, dt * 2.2);
-    h.rpProxy.stumV = sm[12]; h.rpProxy.fallT = sm[13]; h.rpProxy.fallDir = h.fallDir; h.rpProxy.fallV = h.vFall;
+    h.rpProxy.stumV = sm[12]; h.rpProxy.fallT = sm[13]; h.rpProxy.fallDir = h.fallDir; h.rpProxy.fallV = h.vFall; h.rpProxy.rpLunge = sm[14];
     animateHorse(h.mesh, sm[4], Math.min(1, sm[3] / h.vmax), sm[5], sm[6] / 100, h.rpRide, h.curv, dt * slow, h.rpProxy, h.latS, sm[9], r.dist - sm[0] < RHYTHM_AT ? sm[8] : 0, sm[10], sm[11]);
   });
   // camera per clip
@@ -4136,7 +4103,6 @@ function startRace(cfg) {
   if (typeof VENUES !== "undefined") VENUES.use(race.trk, cfg);
   buildShots(race.trk); drawMinimapBase();
   spawnHorseMeshes(race);
-  FX.setGoing(race.goingKey);
   if (menuHorseMesh) { world.remove(menuHorseMesh); menuHorseMesh = null; }
   show("racing");
   if (typeof COMM !== "undefined") COMM.begin(race, cfg);             // live commentary reads this race (never changes it)
@@ -4499,12 +4465,12 @@ function frame(now) {
   // race-day presentation (parade ring / winner presentation): its own camera, the race itself is paused
   if (typeof GFX !== "undefined") GFX.setCrowdAnim((typeof PRESENT !== "undefined" && PRESENT.mode === "celebrate") || ui.state === "replay");
   if (typeof PRESENT !== "undefined" && PRESENT.mode) {
-    PRESENT.frame(dt); HORSE_U.uTime.value += dt; FX.update(dt); updateVenue(dt); if (typeof VENUES !== "undefined") VENUES.update(dt);
+    PRESENT.frame(dt); HORSE_U.uTime.value += dt; updateVenue(dt); if (typeof VENUES !== "undefined") VENUES.update(dt);
     if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), PRESENT.mode === "celebrate" ? 1 : 0);
     renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return;
   }
-  if (RP.on && ui.state === "replay") { updateReplay(dt); FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return; }
-  if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { FX.update(dt); updateVenue(dt); updateCrowd(dt, 0.6); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); } return; }
+  if (RP.on && ui.state === "replay") { updateReplay(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return; }
+  if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { updateVenue(dt); updateCrowd(dt, 0.6); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); } return; }
   if (race && ui.state === "racing") {
     handlePlayerInput(dt);
     // photo-finish slow motion: presentation only, the simulation itself is untouched
@@ -4536,7 +4502,7 @@ function frame(now) {
     menuHorseMesh.rotation.y += dt * 0.25;
     updateCrowd(dt, 0);
   }
-  FX.update(dt);
+ 
   HORSE_U.uTime.value += dt; HORSE_U.uHairWind.value += ((race && race.state === "running" ? 1 : 0.25) - HORSE_U.uHairWind.value) * Math.min(1, dt * 2);
   if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), race && race.finishOrder.length && race.clock - race.finishOrder[0].finishTime < 5 ? 1 : 0);
   dbgColliders(dt);
