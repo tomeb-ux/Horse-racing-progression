@@ -460,7 +460,7 @@ const CAREER = (() => {
         ${optional ? "" : `<div style="font-size:12px;color:var(--fg-dim);margin-top:6px">One horse represents ${esc(C.stable)} in this round. Points: 1st 15 · 2nd 12 · 3rd 10 · 4th 8 · 5th 6 · 6th 5 · 7th 4 · 8th 3 · 9th 2 · 10th 1. Chaos Mode is never used in championship racing.</div>`}
       </div>
       <div id="evSkip"></div>
-      <div class="car-panel"><div class="car-row" style="justify-content:space-between"><div class="car-sub">Form guide — ${optional ? "the field you will meet" : "every stable's runner"}</div><span style="font-size:11.5px;color:var(--fg-dim)">★ likely contenders · click a rival for its profile</span></div><div id="evForm" style="overflow-x:auto"></div></div>
+      <div class="car-panel"><div class="car-row" style="justify-content:space-between"><div class="car-sub">Form guide — ${optional ? "the field you will meet" : "every stable's runner"}</div><span style="font-size:11.5px;color:var(--fg-dim)">★ likely contenders · click a rival for its profile</span></div><div id="evForm" style="overflow-x:auto"></div><div style="font-size:11.5px;color:var(--fg-dim);margin-top:6px">Race-day ratings: the rival stables bring their horses here primed for this race, so the competition rises with your horse. A new horse should expect to be fighting for a place; finals are as hard as Quick Race on Hard.</div></div>
       <div class="car-sub">Choose a horse${optional ? "" : " to represent the stable"}</div>
       <div class="car-grid">${cards || `<div class="car-panel">No horses in the stable yet.</div>`}</div>
       <div class="car-row" id="evBtns"></div>`);
@@ -468,8 +468,9 @@ const CAREER = (() => {
     if (!optional) b.appendChild(navBtn("Skip This Round", () => drawSkip()));
     b.appendChild(navBtn("Back", () => optional ? openOptional() : openHub()));
     el.querySelectorAll("[data-go]").forEach(x => x.onclick = (e) => { e.stopPropagation(); const i = +x.getAttribute("data-go"); optional ? enterOptional(meta.id, i) : enterOfficial(idx, i); });
-    const field = optional ? SEASON.optionalField(C, meta.id) : SEASON.runners(C, idx);
-    const drawForm = () => { el.querySelector("#evForm").innerHTML = formGuideHtml(field, meta, activeHorse()); el.querySelectorAll("#evForm [data-rv]").forEach(t => t.onclick = () => openRival(t.getAttribute("data-rv"), () => openEvent(idxOrId, false))); };
+    const field0 = optional ? SEASON.optionalField(C, meta.id) : SEASON.runners(C, idx);
+    const drawForm = () => { const ah = activeHorse(), field = raceDayField(field0, meta, ah, !optional && idx === S().rounds.length - 1);
+      el.querySelector("#evForm").innerHTML = formGuideHtml(field, meta, ah); el.querySelectorAll("#evForm [data-rv]").forEach(t => t.onclick = () => openRival(t.getAttribute("data-rv"), () => openEvent(idxOrId, false))); };
     drawForm();
     el.querySelectorAll(".car-card[data-h]").forEach(c => c.onclick = () => { const i = +c.getAttribute("data-h"); C.active = i; save(); el.querySelectorAll(".car-card").forEach(x => x.classList.toggle("sel", x === c)); drawForm(); });
     function drawSkip() {
@@ -1031,7 +1032,7 @@ const CAREER = (() => {
   let pending = null;
   function competitiveCfg(meta, h, oppDefs, goingKey, extra) {
     return Object.assign({
-      distance: meta.dist, field: meta.field, diff: meta.diff || "hard", playerDef: toDef(h), oppDefs,
+      distance: meta.dist, field: meta.field, diff: "hard", playerDef: toDef(h), oppDefs,   // every career rider is a Hard jockey
       going: goingKey || "good", incidents: settings.incidents, chaos: false, assist: false, unlimited: false, topSpeed: null,
       track: /randwick/i.test(meta.venue || "") ? "randwick" : /flemington/i.test(meta.venue || "") ? "flemington" : "generic",   // the two modelled venues race on their real courses; other venues use the generic course
       champ: false, fixedOpponents: null,
@@ -1048,7 +1049,7 @@ const CAREER = (() => {
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
     C.active = hi; save();
     pending = { kind: "off", season: s.n, round: idx, hid: h.id };
-    const opp = SEASON.runners(C, idx);
+    const opp = raceDayField(SEASON.runners(C, idx), meta, h, idx === s.rounds.length - 1);
     launch(competitiveCfg(meta, h, opp, s.rounds[idx].going, {
       career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
     }));
@@ -1058,10 +1059,12 @@ const CAREER = (() => {
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
     C.active = hi; save();
     // the field: persistent rivals of the right grade for this race (the same field the form guide showed)
-    const opp = SEASON.optionalField(C, id);
+    const opp = raceDayField(SEASON.optionalField(C, id), meta, h, false);
     pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0 };
     launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
   }
+  // the race-day field: rivals primed to the player's horse (season.js raceField) — the same field the form guide shows
+  function raceDayField(defs, meta, h, isFinal) { try { return SEASON.raceField(defs, meta, h, isFinal); } catch (e) { return defs; } }
   // real head-to-head history the commentator may mention (only pairs that have actually met before)
   function rivalryFor(h, opp) {
     const out = {};

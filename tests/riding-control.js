@@ -15,7 +15,7 @@ function start(seed, o) {
   let pressed = false, earlyLeft = o.early || 0, nextEarly = 0, nextKick = 0, openT = null, rdyAtOpen = null;
   for (let n = 0; n < 120 * 14; n++) {
     const t = n * SIM_DT;
-    seen.push([S.poise, S.pv]); const lag = seen[Math.max(0, seen.length - 1 - 30)];        // the rider sees the horse 0.25 s late
+    seen.push([S.poise, S.pv]); const lag = seen[Math.max(0, seen.length - 1 - (o.lag || 30))];        // the rider sees the horse 0.25 s late
     const poiseIn = o.balance === 'good' ? Math.max(-1, Math.min(1, -(lag[0] * 2.6 + lag[1] * 0.9))) : 0;
     sim.applyRiderInput(r, p, { poiseIn, poise: poiseIn, effort: 0.6 }, SIM_DT);
     if (r.state === 'count' && earlyLeft > 0 && t >= nextEarly) { sim.riderPress(r, p); earlyLeft--; nextEarly = t + 0.8; }
@@ -28,7 +28,7 @@ function start(seed, o) {
     r.step(SIM_DT);
     if (openT != null && t - openT > 4.5) break;
   }
-  return { cat: p.startCat, q: S.q, R: rdyAtOpen, dist: p.progress, S: p.S, push: p.jumpPush, delay: openT };
+  return { cat: p.startCat, q: S.q, R: rdyAtOpen, al: S.alignedT / Math.max(1e-6, S.trackT), dist: p.progress, S: p.S, push: p.jumpPush, delay: openT };
 }
 console.log('— the start');
 const seeds = [...Array(16).keys()].map(i => 300 + i * 7);
@@ -47,8 +47,8 @@ const delays = good.map(x => x.delay), sd = Math.sqrt(mean(delays.map(d => (d - 
 ok(sd > 0.45 && Math.max(...delays) - Math.min(...delays) > 1.5, `the gates open after a variable delay: ${Math.min(...delays).toFixed(1)}–${Math.max(...delays).toFixed(1)} s from loading (sd ${sd.toFixed(2)} s)`);
 ok(mean(good.map(x => x.dist)) > mean(nokick.map(x => x.dist)) + 1.2, `well-timed pushes into stride (push ${mean(good.map(x => x.push)).toFixed(2)}): ${(mean(good.map(x => x.dist)) - mean(nokick.map(x => x.dist))).toFixed(1)} m further after 4.5 s than no pushes`);
 ok(mean(mash.map(x => x.S)) < mean(good.map(x => x.S)) - 1 && mean(mash.map(x => x.dist)) < mean(good.map(x => x.dist)), `frantic pushing wastes energy (stamina ${mean(mash.map(x => x.S)).toFixed(1)} vs ${mean(good.map(x => x.S)).toFixed(1)}) and gains less ground`);
-const hot = [...Array(12).keys()].map(i => start(500 + i, { horse: 8, balance: 'good', react: 0.2, kicks: 'none' })), cool = [...Array(12).keys()].map(i => start(500 + i, { horse: 10, balance: 'good', react: 0.2, kicks: 'none' }));
-ok(mean(cool.map(x => x.R)) > mean(hot.map(x => x.R)), `a composed horse is easier to keep balanced in the stalls (readiness ${mean(cool.map(x => x.R)).toFixed(2)}) than a fractious one (${mean(hot.map(x => x.R)).toFixed(2)})`);
+const hot = [...Array(12).keys()].map(i => start(500 + i, { horse: 8, balance: 'good', lag: 84, react: 0.2, kicks: 'none' })), cool = [...Array(12).keys()].map(i => start(500 + i, { horse: 10, balance: 'good', lag: 84, react: 0.2, kicks: 'none' }));   // a slow (0.7 s) rider
+ok(mean(cool.map(x => x.al)) > mean(hot.map(x => x.al)), `a composed horse is easier to keep balanced in the stalls (balanced ${(100 * mean(cool.map(x => x.al))).toFixed(0)} % of the time) than a fractious one (${(100 * mean(hot.map(x => x.al))).toFixed(0)} %)`);
 
 /* ---- riding actions mid-race ---- */
 console.log('\n— riding actions');
@@ -102,4 +102,44 @@ console.log('\n— the final drive');
   while (r.dist - p.progress > 440) { p.effort = 0.8; r.simStep(SIM_DT); }
   const S0 = p.S; let t = 0, last = -9; while (t < 2) { p.effort = 0.95; if (t - last >= 0.1) { p.tap(0.9, r.clock); last = t; } r.simStep(SIM_DT); t += SIM_DT; }
   ok(p.stat.extraTaps >= 10 && p.penT > 0 && S0 - p.S > 2, `mashing the rhythm key wastes energy and breaks the stride (${p.stat.extraTaps} wasted taps, ${(S0 - p.S).toFixed(1)} stamina in 2 s)`); }
+/* ---- the finish: the hang and the lunge ---- */
+console.log('\n— the finish');
+// mode: 'ignore' (never corrects), 'fix' (holds the opposite steer, 0.3 s to react), 'late' (reacts after 1 s);
+// lunge: null = none, or the time-to-line at which Space is pressed
+function finish(seed, mode, lunge, horse) {
+  const r = new Race({ distance: 1200, field: 1, diff: 'medium', playerHorse: horse != null ? horse : 4, seed, going: 'good', incidents: 'off' });
+  r.state = 'count'; r.openGates(); const p = r.player; r.st.launched = true; r.applyStart(p, 0.7, 0.2);
+  let t = 0, seenT = 0, res = null;
+  while (!p.finished && t < 200) {
+    const rem = r.dist - p.progress; let steer = 0;
+    if (p.hang.amt > 0.15) seenT += SIM_DT; else seenT = 0;
+    if (mode !== 'ignore' && seenT > (mode === 'late' ? 1.0 : 0.3)) steer = -p.hang.side;
+    sim.applyRiderInput(r, p, { effort: rem < 420 ? 1 : 0.72, steer, drive: rem < 250 }, SIM_DT);
+    if (lunge != null && p.lungeT == null && p.ttl() <= lunge) res = sim.riderPress(r, p);
+    r.step(SIM_DT); t += SIM_DT;
+  }
+  return { t: p.finishTime, crook: p.crookT, waves: p.hang.n, res };
+}
+{ const sd = [11, 12, 13, 14, 15, 16, 17, 18], m = (mode, l) => sd.map(s => finish(s, mode, l));
+  const ig = m('ignore'), fx = m('fix'), lt = m('late');
+  ok(mean(ig.map(x => x.waves)) >= 2, `under pressure in the straight the horse hangs, in waves (${mean(ig.map(x => x.waves)).toFixed(1)} times in the last ${sim.HANG_AT} m)`);
+  const lostL = (mean(ig.map(x => x.t)) - mean(fx.map(x => x.t))) * 16.5 / 2.4;
+  ok(lostL > 0.5 && lostL < 3, `leaving it hanging costs ${lostL.toFixed(1)} lengths against straightening it (crooked ${mean(ig.map(x => x.crook)).toFixed(1)} s vs ${mean(fx.map(x => x.crook)).toFixed(1)} s)`);
+  ok(mean(lt.map(x => x.t)) > mean(fx.map(x => x.t)) && mean(lt.map(x => x.t)) < mean(ig.map(x => x.t)), `a slow correction costs part of it (${((mean(lt.map(x => x.t)) - mean(fx.map(x => x.t))) * 16.5 / 2.4).toFixed(1)} lengths)`);
+  const none = m('fix'), good = m('fix', 0.27), early = m('fix', 0.85), late = m('fix', 0.04);
+  const gain = (L) => (mean(none.map(x => x.t)) - mean(L.map(x => x.t))) * 16.5;
+  ok(gain(good) > 0.3 && gain(good) <= sim.LUNGE_M + 0.05 && good.every(x => x.res && x.res.kind === 'lunge' && x.res.res === 'perfect'), `a lunge timed for the line gains ${gain(good).toFixed(2)} m (a head is ~0.4 m)`);
+  ok(gain(early) < 0, `lunging too soon is over before the line and costs ground (${gain(early).toFixed(2)} m, "${early[0].res.res}")`);
+  ok(gain(late) > 0 && gain(late) < gain(good), `lunging very late gains only part of it (${gain(late).toFixed(2)} m)`);
+  // only one lunge: a second press in the final strides does nothing
+  { const r = new Race({ distance: 1000, field: 1, diff: 'medium', playerHorse: 4, seed: 9, going: 'good', incidents: 'off' }); r.state = 'count'; r.openGates(); const p = r.player; r.st.launched = true; r.applyStart(p, 0.7, 0.2);
+    while (p.ttl() > 0.6) { p.effort = 0.95; r.simStep(SIM_DT); }
+    const a = sim.riderPress(r, p); r.simStep(SIM_DT); const b = sim.riderPress(r, p);
+    ok(a && a.kind === 'lunge' && !(b && b.kind === 'lunge'), 'one lunge per race: a second press in the final strides is not another lunge'); }
+  // AI riders lunge as well, Hard jockeys more accurately than Easy ones
+  const botQ = diff => { const q = []; for (let s = 0; s < 6; s++) { const r = new Race({ distance: 1000, field: 10, diff, playerHorse: 4, seed: 60 + s, allBots: true, going: 'good', incidents: 'off' }); r.state = 'count'; r.openGates();
+    while (r.finishOrder.length < r.horses.length && r.clock < 200) r.simStep(SIM_DT); for (const h of r.horses) if (h.stat.lungeQ != null) q.push(h.stat.lungeQ); } return q; };
+  const qh = botQ('hard'), qe = botQ('easy');
+  ok(qh.length > 40 && mean(qh) > mean(qe), `AI riders lunge too: Hard jockeys get ${(100 * mean(qh)).toFixed(0)}% of the stretch at the line, Easy ${(100 * mean(qe)).toFixed(0)}%`);
+}
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

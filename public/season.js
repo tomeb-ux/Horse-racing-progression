@@ -216,6 +216,71 @@ const SEASON = (() => {
     for (const x of sc) { if (out.length >= meta.field - 1) break; if (seen.has(x.rv.sid) && out.length < meta.field - 3) continue; seen.add(x.rv.sid); out.push(rivalDef(C, x.rv)); }
     return out;
   }
+  // ---- race-day field: the competition always keeps pace with the player's horse ----
+  // How fast a horse really runs a trip, from time trials in the race engine (a fitted linear model per distance,
+  // R² 0.93–0.99): mostly top speed, with endurance mattering more as the trip lengthens. RACE_W are the weights,
+  // SEC_PT the seconds one rating point is worth over the trip.
+  const RACE_W = [
+    [1000, { top: 0.79, acc: 0.0, end: 0.09, spr: 0.06, rec: 0.01, tem: 0.01, agi: 0.0, sta: 0.04 }, 0.150],
+    [1200, { top: 0.78, acc: 0.03, end: 0.08, spr: 0.06, rec: 0.0, tem: 0.01, agi: 0.0, sta: 0.05 }, 0.178],
+    [1600, { top: 0.70, acc: 0.02, end: 0.17, spr: 0.0, rec: 0.045, tem: 0.037, agi: 0.007, sta: 0.02 }, 0.268],
+    [2000, { top: 0.60, acc: 0.0, end: 0.40, spr: 0.0, rec: 0.07, tem: 0.03, agi: 0.0, sta: 0.0 }, 0.45],
+    [2400, { top: 0.60, acc: 0.0, end: 0.41, spr: 0.0, rec: 0.0, tem: 0.06, agi: 0.014, sta: 0.0 }, 0.611],
+    [3200, { top: 0.66, acc: 0.0, end: 0.42, spr: 0.0, rec: 0.077, tem: 0.065, agi: 0.0, sta: 0.0 }, 0.773],
+  ];
+  function raceW(dist) {
+    let i = 0; while (i < RACE_W.length - 2 && dist > RACE_W[i + 1][0]) i++;
+    const [d0, w0, s0] = RACE_W[i], [d1, w1, s1] = RACE_W[i + 1], f = clampN((dist - d0) / (d1 - d0), 0, 1), w = {};
+    for (const k of AKEYS) w[k] = w0[k] + (w1[k] - w0[k]) * f;
+    return { w, spp: s0 + (s1 - s0) * f };
+  }
+  function racePower(attrs, dist) { const { w } = raceW(dist); let s = 0, ws = 0; for (const k of AKEYS) { s += w[k] * attrs[k]; ws += w[k]; } return s / ws; }
+  // rating points worth one length at the line over this trip
+  const ptsPerLength = dist => 2.4 / (raceW(dist).spp * 16.5);
+  // Rivals are primed for the race (never weakened): the strongest are lifted to at least a set margin, in lengths of
+  // raw ability over the trip, above the player's horse, and the rest of the field to within a few lengths of it. A new
+  // horse meets a field it can place in but not beat on talent alone; as it improves the rivals rise with it; finals are
+  // as hard as Quick Race on Hard. Only the race-day copy is lifted: the rival's own record and development are unchanged.
+  //   pressure: "early" (a new horse's first starts), "normal", "major", "final"
+  // (in raw time-trial lengths: races are tactical and bunched, so real margins are far smaller. Quick Race on Hard
+  //  gives the player a field averaging about +5.5, +3.5, +2, +1.2, +0.5 … lengths over it — the "final" profile)
+  const LIFT = {                                  // lengths over the player's horse for the 1st, 2nd, 3rd … strongest rival
+    early:  [6.0, 4.2, 2.6, 1.2, 0.2, -0.8],
+    normal: [5.0, 3.2, 1.8, 0.8, -0.2, -1.2],
+    major:  [5.0, 3.4, 2.0, 1.0, 0.0, -1.0],
+    final:  [4.5, 3.0, 1.6, 0.6, -0.2, -1.0],
+  };
+  const LIFT_REST = { early: -2.0, normal: -2.6, major: -2.4, final: -2.2 };   // the depth of the rest of the field
+  function racePressure(h, meta, isFinal) {
+    const runs = h ? (h.races | 0) : 0;
+    const base = isFinal || meta.crown ? "final" : meta.major ? "major" : "normal";
+    // a new horse's first three starts are early-pressure; the 4th–6th blend into the normal margins
+    const early = clampN((6 - runs) / 3, 0, 1);
+    return { key: base, early: base === "normal" ? early : 0 };
+  }
+  function liftAttrs(attrs, dist, want) {
+    const a = Object.assign({}, attrs);
+    for (let it = 0; it < 4; it++) {                       // additive lift keeps the horse's shape; capped attrs push the rest
+      const d = want - racePower(a, dist); if (d <= 0.05) break;
+      for (const k of AKEYS) a[k] = clampN(Math.round((a[k] + d) * 10) / 10, 30, 99);
+    }
+    for (const k of AKEYS) a[k] = Math.round(a[k]);
+    return a;
+  }
+  function raceField(defs, meta, h, isFinal) {
+    if (!h || !h.attrs || !defs || !defs.length) return defs;
+    const P = racePower(h.attrs, meta.dist), pr = racePressure(h, meta, isFinal), ppl = ptsPerLength(meta.dist);
+    const m = LIFT[pr.key].map((x, i) => x + pr.early * ((LIFT.early[i] != null ? LIFT.early[i] : x) - x)), rest = LIFT_REST[pr.key] + pr.early * (LIFT_REST.early - LIFT_REST[pr.key]);
+    const order = defs.map((d, i) => ({ i, p: racePower(d.attrs, meta.dist) })).sort((a, b) => b.p - a.p);
+    const out = defs.slice();
+    order.forEach((o, rank) => {
+      const want = P + ppl * (rank < m.length ? m[rank] : rest - 0.5 * (rank - m.length));
+      if (o.p >= want - 0.05) return;
+      out[o.i] = Object.assign({}, defs[o.i], { attrs: liftAttrs(defs[o.i].attrs, meta.dist, want), _lift: +(want - o.p).toFixed(1) });
+    });
+    return out;
+  }
+
   // AI-only result for a round nobody human ran: a consistent lightweight model seeded by season + division + round
   function simulateRound(C, div, idx) {
     const s = C.season, round = DIVS[div].rounds[idx], rng = rngOf(hashStr(s.seed + "/round/" + div + "/" + idx));
@@ -456,6 +521,6 @@ const SEASON = (() => {
 
   return { PLAYER_NAMES, HORSE_NAMES, DIVS, OPTIONAL, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
     commitRound, skipRound, closeSeason, eligibility, checkReq, migrate, hRating, sprintIdx, stayIdx, goingFor, hashStr, rngOf, ensureWorld, stablesOf, rival, rivalDef, rRating,
-    recordResult, recordH2H, h2hFor, formGuide, suitability, xpFor, upgCost, XP_PER_PT, retireRivals };
+    recordResult, recordH2H, h2hFor, formGuide, suitability, xpFor, upgCost, XP_PER_PT, retireRivals, raceField, racePressure, racePower, ptsPerLength, LIFT };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = SEASON;
