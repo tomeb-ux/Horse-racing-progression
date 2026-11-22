@@ -1,0 +1,4750 @@
+[
+ {
+  "name": "b01_intro",
+  "tag": "[lively race caller]",
+  "items": [
+   {
+    "id": "intro/welcome_to_the_races_and_the_field_is_making",
+    "text": "Welcome to the races, and the field is making its way to the barriers.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/good_afternoon_and_the_runners_are_about_to_",
+    "text": "Good afternoon, and the runners are about to load up for this one.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/we_re_just_about_ready_to_go_here_they_re_lo",
+    "text": "We're just about ready to go here, they're loading them now.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/welcome_to_flemington_and_they_re_loading_up",
+    "text": "Welcome to Flemington, and they're loading up for this one.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/good_afternoon_from_flemington_the_field_is_",
+    "text": "Good afternoon from Flemington, the field is going into the gates.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/welcome_to_royal_randwick_and_they_re_going_",
+    "text": "Welcome to Royal Randwick, and they're going into the barriers.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/a_beautiful_day_here_at_randwick_and_the_fie",
+    "text": "A beautiful day here at Randwick, and the field is loading now.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/welcome_to_furlong_park_and_they_re_nearly_r",
+    "text": "Welcome to Furlong Park, and they're nearly ready to go.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/good_afternoon_from_furlong_park_the_runners",
+    "text": "Good afternoon from Furlong Park, the runners are going in.",
+    "kind": "full"
+   },
+   {
+    "id": "loading/they_re_all_in_and_ready_to_go",
+    "text": "They're all in, and ready to go.",
+    "kind": "full"
+   },
+   {
+    "id": "loading/the_last_of_them_is_in",
+    "text": "The last of them is in.",
+    "kind": "full"
+   },
+   {
+    "id": "loading/all_set_and_waiting_on_the_starter",
+    "text": "All set, and waiting on the starter.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[lively race caller] Welcome to the races, and the field is making its way to the barriers.\n\nGood afternoon, and the runners are about to load up for this one.\n\nWe're just about ready to go here, they're loading them now.\n\nWelcome to Flemington, and they're loading up for this one.\n\nGood afternoon from Flemington, the field is going into the gates.\n\nWelcome to Royal Randwick, and they're going into the barriers.\n\nA beautiful day here at Randwick, and the field is loading now.\n\nWelcome to Furlong Park, and they're nearly ready to go.\n\nGood afternoon from Furlong Park, the runners are going in.\n\nThey're all in, and ready to go.\n\nThe last of them is in.\n\nAll set, and waiting on the starter.",
+  "chars": 696
+ },
+ {
+  "name": "b02_intro",
+  "tag": "[building excitement]",
+  "items": [
+   {
+    "id": "intro/welcome_to_flemington_for_the_melbourne_cup_",
+    "text": "Welcome to Flemington for the Melbourne Cup, the race that stops a nation!",
+    "kind": "full"
+   },
+   {
+    "id": "intro/it_s_melbourne_cup_day_and_the_whole_country",
+    "text": "It's Melbourne Cup day, and the whole country is watching!",
+    "kind": "full"
+   },
+   {
+    "id": "intro/a_massive_crowd_here_at_flemington_and_the_c",
+    "text": "A massive crowd here at Flemington, and the Cup field is loading!",
+    "kind": "full"
+   },
+   {
+    "id": "intro/welcome_to_royal_randwick_for_the_everest_th",
+    "text": "Welcome to Royal Randwick for The Everest, the richest race on turf!",
+    "kind": "full"
+   },
+   {
+    "id": "intro/it_s_everest_day_at_randwick_and_what_a_fiel",
+    "text": "It's Everest day at Randwick, and what a field we've got!",
+    "kind": "full"
+   },
+   {
+    "id": "intro/a_big_race_here_today_and_the_crowd_is_buzzi",
+    "text": "A big race here today, and the crowd is buzzing.",
+    "kind": "full"
+   },
+   {
+    "id": "intro/there_s_a_real_buzz_around_the_course_for_th",
+    "text": "There's a real buzz around the course for this feature race.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[building excitement] Welcome to Flemington for the Melbourne Cup, the race that stops a nation!\n\nIt's Melbourne Cup day, and the whole country is watching!\n\nA massive crowd here at Flemington, and the Cup field is loading!\n\nWelcome to Royal Randwick for The Everest, the richest race on turf!\n\nIt's Everest day at Randwick, and what a field we've got!\n\nA big race here today, and the crowd is buzzing.\n\nThere's a real buzz around the course for this feature race.",
+  "chars": 464
+ },
+ {
+  "name": "b03_away",
+  "tag": "[urgent, fast and loud]",
+  "items": [
+   {
+    "id": "away/and_they_re_away",
+    "text": "And they're away!",
+    "kind": "full"
+   },
+   {
+    "id": "away/they_jump_and_they_re_racing",
+    "text": "They jump, and they're racing!",
+    "kind": "full"
+   },
+   {
+    "id": "away/the_gates_crash_open_and_they_re_off",
+    "text": "The gates crash open, and they're off!",
+    "kind": "full"
+   },
+   {
+    "id": "away/and_away_they_go",
+    "text": "And away they go!",
+    "kind": "full"
+   },
+   {
+    "id": "away/they_re_off_and_racing",
+    "text": "They're off and racing!",
+    "kind": "full"
+   },
+   {
+    "id": "away/and_they_ve_jumped_away_cleanly",
+    "text": "And they've jumped away cleanly!",
+    "kind": "full"
+   },
+   {
+    "id": "away/and_they_re_off_in_the_melbourne_cup",
+    "text": "And they're off in the Melbourne Cup!",
+    "kind": "full"
+   },
+   {
+    "id": "away/and_the_everest_is_underway",
+    "text": "And The Everest is underway!",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] And they're away!\n\nThey jump, and they're racing!\n\nThe gates crash open, and they're off!\n\nAnd away they go!\n\nThey're off and racing!\n\nAnd they've jumped away cleanly!\n\nAnd they're off in the Melbourne Cup!\n\nAnd The Everest is underway!",
+  "chars": 260
+ },
+ {
+  "name": "b04_start_slow",
+  "tag": "[building excitement]",
+  "items": [
+   {
+    "id": "start_slow/has_missed_the_start_badly",
+    "text": "has missed the start badly.",
+    "kind": "post"
+   },
+   {
+    "id": "start_slow/was_slow_to_begin",
+    "text": "was slow to begin.",
+    "kind": "post"
+   },
+   {
+    "id": "start_slow/has_stumbled_at_the_start",
+    "text": "has stumbled at the start.",
+    "kind": "post"
+   },
+   {
+    "id": "start_good/has_jumped_beautifully",
+    "text": "has jumped beautifully.",
+    "kind": "post"
+   },
+   {
+    "id": "start_good/is_quickest_away",
+    "text": "is quickest away.",
+    "kind": "post"
+   },
+   {
+    "id": "start_clean/they_ve_all_jumped_well_together",
+    "text": "They've all jumped well together.",
+    "kind": "full"
+   },
+   {
+    "id": "start_clean/a_clean_start_for_the_field",
+    "text": "A clean start for the field.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[building excitement] has missed the start badly.\n\nwas slow to begin.\n\nhas stumbled at the start.\n\nhas jumped beautifully.\n\nis quickest away.\n\nThey've all jumped well together.\n\nA clean start for the field.",
+  "chars": 206
+ },
+ {
+  "name": "b05_early_lead",
+  "tag": "[lively race caller]",
+  "items": [
+   {
+    "id": "early_lead/goes_straight_to_the_front",
+    "text": "goes straight to the front.",
+    "kind": "post"
+   },
+   {
+    "id": "early_lead/shows_good_early_speed_to_lead",
+    "text": "shows good early speed to lead.",
+    "kind": "post"
+   },
+   {
+    "id": "early_lead/is_happy_to_take_them_along",
+    "text": "is happy to take them along.",
+    "kind": "post"
+   },
+   {
+    "id": "early_lead/has_crossed_to_the_lead",
+    "text": "has crossed to the lead.",
+    "kind": "post"
+   },
+   {
+    "id": "early_lead/is_the_leader_as_they_settle",
+    "text": "is the leader as they settle.",
+    "kind": "post"
+   },
+   {
+    "id": "early_lead/is_up_there_setting_the_pace",
+    "text": "is up there setting the pace.",
+    "kind": "post"
+   },
+   {
+    "id": "early_tussle/there_s_a_bit_of_a_tussle_for_the_lead",
+    "text": "There's a bit of a tussle for the lead.",
+    "kind": "full"
+   },
+   {
+    "id": "early_tussle/a_couple_of_them_want_to_lead_here",
+    "text": "A couple of them want to lead here.",
+    "kind": "full"
+   },
+   {
+    "id": "early_tussle/there_s_plenty_of_speed_early_they_re_all_go",
+    "text": "There's plenty of speed early, they're all going for the front.",
+    "kind": "full"
+   },
+   {
+    "id": "early_tussle/is_keen_to_get_across",
+    "text": "is keen to get across.",
+    "kind": "post"
+   },
+   {
+    "id": "early_tussle/won_t_give_up_the_lead_without_a_fight",
+    "text": "won't give up the lead without a fight.",
+    "kind": "post"
+   },
+   {
+    "id": "early_back/has_been_eased_back_to_the_tail",
+    "text": "has been eased back to the tail.",
+    "kind": "post"
+   },
+   {
+    "id": "early_back/has_found_the_rail",
+    "text": "has found the rail.",
+    "kind": "post"
+   },
+   {
+    "id": "early_back/is_caught_wide_early",
+    "text": "is caught wide early.",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[lively race caller] goes straight to the front.\n\nshows good early speed to lead.\n\nis happy to take them along.\n\nhas crossed to the lead.\n\nis the leader as they settle.\n\nis up there setting the pace.\n\nThere's a bit of a tussle for the lead.\n\nA couple of them want to lead here.\n\nThere's plenty of speed early, they're all going for the front.\n\nis keen to get across.\n\nwon't give up the lead without a fight.\n\nhas been eased back to the tail.\n\nhas found the rail.\n\nis caught wide early.",
+  "chars": 485
+ },
+ {
+  "name": "b06_settle",
+  "tag": "[calm race caller]",
+  "items": [
+   {
+    "id": "settle/they_re_starting_to_settle_into_their_positi",
+    "text": "They're starting to settle into their positions.",
+    "kind": "full"
+   },
+   {
+    "id": "settle/the_field_begins_to_sort_itself_out",
+    "text": "The field begins to sort itself out.",
+    "kind": "full"
+   },
+   {
+    "id": "settle/it_s_a_bit_busy_in_the_early_stages",
+    "text": "It's a bit busy in the early stages.",
+    "kind": "full"
+   },
+   {
+    "id": "settle/plenty_of_jostling_for_positions_early",
+    "text": "Plenty of jostling for positions early.",
+    "kind": "full"
+   },
+   {
+    "id": "settle/they_re_finding_their_spots_now",
+    "text": "They're finding their spots now.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[calm race caller] They're starting to settle into their positions.\n\nThe field begins to sort itself out.\n\nIt's a bit busy in the early stages.\n\nPlenty of jostling for positions early.\n\nThey're finding their spots now.",
+  "chars": 218
+ },
+ {
+  "name": "b07_order",
+  "tag": "[lively race caller]",
+  "items": [
+   {
+    "id": "order/leads_from",
+    "text": "leads from",
+    "kind": "conn"
+   },
+   {
+    "id": "order/then",
+    "text": "then",
+    "kind": "conn"
+   },
+   {
+    "id": "order/followed_by",
+    "text": "followed by",
+    "kind": "conn"
+   },
+   {
+    "id": "order/and_then",
+    "text": "and then",
+    "kind": "conn"
+   },
+   {
+    "id": "order/back_to",
+    "text": "back to",
+    "kind": "conn"
+   },
+   {
+    "id": "order/and_last_of_all",
+    "text": "and last of all,",
+    "kind": "conn"
+   },
+   {
+    "id": "lead_new/has_taken_over_in_front",
+    "text": "has taken over in front.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_new/now_leads",
+    "text": "now leads.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_new/has_gone_to_the_lead",
+    "text": "has gone to the lead.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_new/has_hit_the_front",
+    "text": "has hit the front.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/is_five_lengths_clear",
+    "text": "is five lengths clear.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/is_six_lengths_clear",
+    "text": "is six lengths clear.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/is_eight_lengths_clear",
+    "text": "is eight lengths clear.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/is_ten_lengths_clear",
+    "text": "is ten lengths clear.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/is_a_long_way_clear",
+    "text": "is a long way clear.",
+    "kind": "post"
+   },
+   {
+    "id": "breakaway/has_opened_up_a_big_break",
+    "text": "has opened up a big break.",
+    "kind": "post"
+   },
+   {
+    "id": "breakaway/has_kicked_clear_of_the_field",
+    "text": "has kicked clear of the field.",
+    "kind": "post"
+   },
+   {
+    "id": "breakaway/has_gone_out_boldly_in_front",
+    "text": "has gone out boldly in front.",
+    "kind": "post"
+   },
+   {
+    "id": "breakaway/is_running_away_from_them",
+    "text": "is running away from them.",
+    "kind": "post"
+   },
+   {
+    "id": "breakaway/is_bowling_along_in_front_all_on_its_own",
+    "text": "is bowling along in front, all on its own.",
+    "kind": "post"
+   },
+   {
+    "id": "gap_closing/the_leader_is_starting_to_come_back_to_them",
+    "text": "The leader is starting to come back to them.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_closing/the_margin_is_coming_down_now",
+    "text": "The margin is coming down now.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[lively race caller] leads from\n\nthen\n\nfollowed by\n\nand then\n\nback to\n\nand last of all,\n\nhas taken over in front.\n\nnow leads.\n\nhas gone to the lead.\n\nhas hit the front.\n\nis five lengths clear.\n\nis six lengths clear.\n\nis eight lengths clear.\n\nis ten lengths clear.\n\nis a long way clear.\n\nhas opened up a big break.\n\nhas kicked clear of the field.\n\nhas gone out boldly in front.\n\nis running away from them.\n\nis bowling along in front, all on its own.\n\nThe leader is starting to come back to them.\n\nThe margin is coming down now.",
+  "chars": 526
+ },
+ {
+  "name": "b08_gap_closing",
+  "tag": "[lively race caller]",
+  "items": [
+   {
+    "id": "gap_closing/they_re_starting_to_reel_in_the_leader",
+    "text": "They're starting to reel in the leader.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_closing/that_lead_is_shrinking",
+    "text": "That lead is shrinking.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_closing/the_chasers_are_closing_the_gap",
+    "text": "The chasers are closing the gap.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_closing/is_starting_to_come_back_to_the_field",
+    "text": "is starting to come back to the field.",
+    "kind": "post"
+   },
+   {
+    "id": "gap_closing/is_beginning_to_tire_in_front",
+    "text": "is beginning to tire in front.",
+    "kind": "post"
+   },
+   {
+    "id": "chasers_go/the_chasers_are_starting_to_respond",
+    "text": "The chasers are starting to respond.",
+    "kind": "full"
+   },
+   {
+    "id": "chasers_go/the_pack_is_beginning_to_wind_up",
+    "text": "The pack is beginning to wind up.",
+    "kind": "full"
+   },
+   {
+    "id": "chasers_go/they_re_going_after_the_leader_now",
+    "text": "They're going after the leader now.",
+    "kind": "full"
+   },
+   {
+    "id": "battle_second/there_s_a_battle_developing_for_second",
+    "text": "There's a battle developing for second.",
+    "kind": "full"
+   },
+   {
+    "id": "battle_second/the_fight_for_the_minor_placings_is_heating_",
+    "text": "The fight for the minor placings is heating up.",
+    "kind": "full"
+   },
+   {
+    "id": "battle_second/they_re_scrapping_for_second_behind_the_lead",
+    "text": "They're scrapping for second behind the leader.",
+    "kind": "full"
+   },
+   {
+    "id": "mover/is_improving_out_wide",
+    "text": "is improving out wide.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_starting_to_make_ground",
+    "text": "is starting to make ground.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_beginning_to_improve",
+    "text": "is beginning to improve.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_making_a_forward_move",
+    "text": "is making a forward move.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_going_forward_three_wide",
+    "text": "is going forward three wide.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_improving_along_the_rail",
+    "text": "is improving along the rail.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/has_moved_into_contention",
+    "text": "has moved into contention.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_creeping_closer",
+    "text": "is creeping closer.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_starting_to_wind_up",
+    "text": "is starting to wind up.",
+    "kind": "post"
+   },
+   {
+    "id": "mover/is_on_the_move",
+    "text": "is on the move.",
+    "kind": "post"
+   },
+   {
+    "id": "pressure/is_under_pressure",
+    "text": "is under pressure.",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[lively race caller] They're starting to reel in the leader.\n\nThat lead is shrinking.\n\nThe chasers are closing the gap.\n\nis starting to come back to the field.\n\nis beginning to tire in front.\n\nThe chasers are starting to respond.\n\nThe pack is beginning to wind up.\n\nThey're going after the leader now.\n\nThere's a battle developing for second.\n\nThe fight for the minor placings is heating up.\n\nThey're scrapping for second behind the leader.\n\nis improving out wide.\n\nis starting to make ground.\n\nis beginning to improve.\n\nis making a forward move.\n\nis going forward three wide.\n\nis improving along the rail.\n\nhas moved into contention.\n\nis creeping closer.\n\nis starting to wind up.\n\nis on the move.\n\nis under pressure.",
+  "chars": 717
+ },
+ {
+  "name": "b09_pressure",
+  "tag": "[lively race caller]",
+  "items": [
+   {
+    "id": "pressure/is_being_pushed_along",
+    "text": "is being pushed along.",
+    "kind": "post"
+   },
+   {
+    "id": "pressure/is_struggling_to_keep_up",
+    "text": "is struggling to keep up.",
+    "kind": "post"
+   },
+   {
+    "id": "pressure/is_starting_to_feel_the_pinch",
+    "text": "is starting to feel the pinch.",
+    "kind": "post"
+   },
+   {
+    "id": "pressure/is_under_the_pump",
+    "text": "is under the pump.",
+    "kind": "post"
+   },
+   {
+    "id": "pressure/is_getting_tired",
+    "text": "is getting tired.",
+    "kind": "post"
+   },
+   {
+    "id": "pressure/is_beaten",
+    "text": "is beaten.",
+    "kind": "post"
+   },
+   {
+    "id": "pressure/is_dropping_out",
+    "text": "is dropping out.",
+    "kind": "post"
+   },
+   {
+    "id": "traffic/is_looking_for_a_run",
+    "text": "is looking for a run.",
+    "kind": "post"
+   },
+   {
+    "id": "traffic/is_held_up_for_room",
+    "text": "is held up for room.",
+    "kind": "post"
+   },
+   {
+    "id": "traffic/is_pocketed_on_the_rail",
+    "text": "is pocketed on the rail.",
+    "kind": "post"
+   },
+   {
+    "id": "traffic/needs_a_gap",
+    "text": "needs a gap.",
+    "kind": "post"
+   },
+   {
+    "id": "traffic/is_boxed_in",
+    "text": "is boxed in.",
+    "kind": "post"
+   },
+   {
+    "id": "traffic/is_stuck_behind_runners",
+    "text": "is stuck behind runners.",
+    "kind": "post"
+   },
+   {
+    "id": "traffic/there_s_a_wall_of_horses_in_front",
+    "text": "There's a wall of horses in front.",
+    "kind": "full"
+   },
+   {
+    "id": "traffic/there_s_traffic_everywhere",
+    "text": "There's traffic everywhere.",
+    "kind": "full"
+   },
+   {
+    "id": "traffic/it_s_getting_crowded_in_there",
+    "text": "It's getting crowded in there.",
+    "kind": "full"
+   },
+   {
+    "id": "marker/eight_hundred_to_go",
+    "text": "Eight hundred to go.",
+    "kind": "full"
+   },
+   {
+    "id": "marker/coming_to_the_eight_hundred",
+    "text": "Coming to the eight hundred.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[lively race caller] is being pushed along.\n\nis struggling to keep up.\n\nis starting to feel the pinch.\n\nis under the pump.\n\nis getting tired.\n\nis beaten.\n\nis dropping out.\n\nis looking for a run.\n\nis held up for room.\n\nis pocketed on the rail.\n\nneeds a gap.\n\nis boxed in.\n\nis stuck behind runners.\n\nThere's a wall of horses in front.\n\nThere's traffic everywhere.\n\nIt's getting crowded in there.\n\nEight hundred to go.\n\nComing to the eight hundred.",
+  "chars": 445
+ },
+ {
+  "name": "b10_lead_hold",
+  "tag": "[calm race caller]",
+  "items": [
+   {
+    "id": "lead_hold/leads_them_along",
+    "text": "leads them along.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_hold/is_still_in_front",
+    "text": "is still in front.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_hold/continues_to_lead",
+    "text": "continues to lead.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_hold/is_setting_the_pace",
+    "text": "is setting the pace.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_hold/takes_them_along_at_a_steady_clip",
+    "text": "takes them along at a steady clip.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_hold/is_still_the_leader_travelling_well",
+    "text": "is still the leader, travelling well.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_hold/holds_the_lead",
+    "text": "holds the lead.",
+    "kind": "post"
+   },
+   {
+    "id": "lead_hold/is_out_in_front_nice_and_relaxed",
+    "text": "is out in front, nice and relaxed.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/leads_by_a_length",
+    "text": "leads by a length.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/leads_by_two_lengths",
+    "text": "leads by two lengths.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/is_three_lengths_clear",
+    "text": "is three lengths clear.",
+    "kind": "post"
+   },
+   {
+    "id": "margin/is_four_lengths_clear",
+    "text": "is four lengths clear.",
+    "kind": "post"
+   },
+   {
+    "id": "breakaway/the_leader_has_opened_up_a_big_break",
+    "text": "The leader has opened up a big break.",
+    "kind": "full"
+   },
+   {
+    "id": "breakaway/it_s_a_big_gap_back_to_the_rest_of_the_field",
+    "text": "It's a big gap back to the rest of the field.",
+    "kind": "full"
+   },
+   {
+    "id": "breakaway/the_leader_has_stolen_a_march_on_them",
+    "text": "The leader has stolen a march on them.",
+    "kind": "full"
+   },
+   {
+    "id": "breakaway/they_re_giving_the_leader_a_lot_of_rope",
+    "text": "They're giving the leader a lot of rope.",
+    "kind": "full"
+   },
+   {
+    "id": "breakaway/that_s_a_bold_front_running_ride",
+    "text": "That's a bold front-running ride.",
+    "kind": "full"
+   },
+   {
+    "id": "breakaway/the_leader_has_gone_out_boldly_and_they_ve_l",
+    "text": "The leader has gone out boldly, and they've let it go.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_growing/and_the_gap_is_getting_bigger",
+    "text": "And the gap is getting bigger.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_growing/the_lead_is_growing_all_the_time",
+    "text": "The lead is growing all the time.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_growing/the_leader_is_still_extending",
+    "text": "The leader is still extending.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[calm race caller] leads them along.\n\nis still in front.\n\ncontinues to lead.\n\nis setting the pace.\n\ntakes them along at a steady clip.\n\nis still the leader, travelling well.\n\nholds the lead.\n\nis out in front, nice and relaxed.\n\nleads by a length.\n\nleads by two lengths.\n\nis three lengths clear.\n\nis four lengths clear.\n\nThe leader has opened up a big break.\n\nIt's a big gap back to the rest of the field.\n\nThe leader has stolen a march on them.\n\nThey're giving the leader a lot of rope.\n\nThat's a bold front-running ride.\n\nThe leader has gone out boldly, and they've let it go.\n\nAnd the gap is getting bigger.\n\nThe lead is growing all the time.\n\nThe leader is still extending.",
+  "chars": 676
+ },
+ {
+  "name": "b11_gap_growing",
+  "tag": "[calm race caller]",
+  "items": [
+   {
+    "id": "gap_growing/they_re_not_making_any_impression_on_the_lea",
+    "text": "They're not making any impression on the leader.",
+    "kind": "full"
+   },
+   {
+    "id": "gap_growing/is_extending_the_margin",
+    "text": "is extending the margin.",
+    "kind": "post"
+   },
+   {
+    "id": "gap_growing/keeps_piling_it_on_in_front",
+    "text": "keeps piling it on in front.",
+    "kind": "post"
+   },
+   {
+    "id": "chasers_idle/nothing_s_going_after_the_leader_just_yet",
+    "text": "Nothing's going after the leader just yet.",
+    "kind": "full"
+   },
+   {
+    "id": "chasers_idle/the_chasing_pack_are_happy_to_sit_and_wait",
+    "text": "The chasing pack are happy to sit and wait.",
+    "kind": "full"
+   },
+   {
+    "id": "chasers_idle/someone_will_have_to_go_after_the_leader_soo",
+    "text": "Someone will have to go after the leader soon.",
+    "kind": "full"
+   },
+   {
+    "id": "chasers_idle/the_rest_are_content_to_bide_their_time",
+    "text": "The rest are content to bide their time.",
+    "kind": "full"
+   },
+   {
+    "id": "chase_lead/heads_the_chasing_pack",
+    "text": "heads the chasing pack.",
+    "kind": "post"
+   },
+   {
+    "id": "chase_lead/leads_the_rest_of_them",
+    "text": "leads the rest of them.",
+    "kind": "post"
+   },
+   {
+    "id": "chase_lead/is_the_nearest_pursuer",
+    "text": "is the nearest pursuer.",
+    "kind": "post"
+   },
+   {
+    "id": "chase_lead/is_second_chasing_the_leader",
+    "text": "is second, chasing the leader.",
+    "kind": "post"
+   },
+   {
+    "id": "chase_lead/leads_the_next_group",
+    "text": "leads the next group.",
+    "kind": "post"
+   },
+   {
+    "id": "strung/they_re_well_strung_out_behind_the_leader",
+    "text": "They're well strung out behind the leader.",
+    "kind": "full"
+   },
+   {
+    "id": "strung/the_field_is_spread_right_out",
+    "text": "The field is spread right out.",
+    "kind": "full"
+   },
+   {
+    "id": "strung/there_s_daylight_between_them_all",
+    "text": "There's daylight between them all.",
+    "kind": "full"
+   },
+   {
+    "id": "strung/they_re_well_strung_out_it_s_a_solid_tempo",
+    "text": "They're well strung out, it's a solid tempo.",
+    "kind": "full"
+   },
+   {
+    "id": "bunched/they_re_bunched_up_tightly",
+    "text": "They're bunched up tightly.",
+    "kind": "full"
+   },
+   {
+    "id": "bunched/only_a_few_lengths_covers_the_whole_field",
+    "text": "Only a few lengths covers the whole field.",
+    "kind": "full"
+   },
+   {
+    "id": "bunched/there_s_not_much_between_them_at_all",
+    "text": "There's not much between them at all.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[calm race caller] They're not making any impression on the leader.\n\nis extending the margin.\n\nkeeps piling it on in front.\n\nNothing's going after the leader just yet.\n\nThe chasing pack are happy to sit and wait.\n\nSomeone will have to go after the leader soon.\n\nThe rest are content to bide their time.\n\nheads the chasing pack.\n\nleads the rest of them.\n\nis the nearest pursuer.\n\nis second, chasing the leader.\n\nleads the next group.\n\nThey're well strung out behind the leader.\n\nThe field is spread right out.\n\nThere's daylight between them all.\n\nThey're well strung out, it's a solid tempo.\n\nThey're bunched up tightly.\n\nOnly a few lengths covers the whole field.\n\nThere's not much between them at all.",
+  "chars": 702
+ },
+ {
+  "name": "b12_bunched",
+  "tag": "[calm race caller]",
+  "items": [
+   {
+    "id": "bunched/it_s_a_tight_pack_and_room_is_at_a_premium",
+    "text": "It's a tight pack, and room is at a premium.",
+    "kind": "full"
+   },
+   {
+    "id": "bunched/they_re_all_in_a_big_bunch_this_could_get_me",
+    "text": "They're all in a big bunch, this could get messy.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_fast/that_s_a_fast_pace_they_ll_be_feeling_it_lat",
+    "text": "That's a fast pace, they'll be feeling it later.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_fast/the_pace_is_on_and_it_s_taking_its_toll",
+    "text": "The pace is on, and it's taking its toll.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_fast/they_re_going_a_genuine_gallop",
+    "text": "They're going a genuine gallop.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_steady/it_s_a_solid_tempo_up_front",
+    "text": "It's a solid tempo up front.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_steady/it_s_a_steady_pace_nothing_too_fast",
+    "text": "It's a steady pace, nothing too fast.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_slow/they_re_not_going_too_quickly_this_could_tur",
+    "text": "They're not going too quickly, this could turn into a sprint.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_slow/it_s_a_muddling_pace_up_front",
+    "text": "It's a muddling pace up front.",
+    "kind": "full"
+   },
+   {
+    "id": "pace_slow/the_slow_pace_will_suit_those_on_the_speed",
+    "text": "The slow pace will suit those on the speed.",
+    "kind": "full"
+   },
+   {
+    "id": "halfway/halfway_and_the_race_is_starting_to_take_sha",
+    "text": "Halfway, and the race is starting to take shape.",
+    "kind": "full"
+   },
+   {
+    "id": "halfway/they_ve_passed_the_halfway_mark",
+    "text": "They've passed the halfway mark.",
+    "kind": "full"
+   },
+   {
+    "id": "halfway/there_s_still_a_long_way_to_go",
+    "text": "There's still a long way to go.",
+    "kind": "full"
+   },
+   {
+    "id": "long_race/plenty_of_running_left_in_this_one",
+    "text": "Plenty of running left in this one.",
+    "kind": "full"
+   },
+   {
+    "id": "long_race/it_s_a_long_way_yet_they_ll_need_to_save_som",
+    "text": "It's a long way yet, they'll need to save something.",
+    "kind": "full"
+   },
+   {
+    "id": "long_race/no_need_to_rush_there_s_a_long_way_to_go",
+    "text": "No need to rush, there's a long way to go.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[calm race caller] It's a tight pack, and room is at a premium.\n\nThey're all in a big bunch, this could get messy.\n\nThat's a fast pace, they'll be feeling it later.\n\nThe pace is on, and it's taking its toll.\n\nThey're going a genuine gallop.\n\nIt's a solid tempo up front.\n\nIt's a steady pace, nothing too fast.\n\nThey're not going too quickly, this could turn into a sprint.\n\nIt's a muddling pace up front.\n\nThe slow pace will suit those on the speed.\n\nHalfway, and the race is starting to take shape.\n\nThey've passed the halfway mark.\n\nThere's still a long way to go.\n\nPlenty of running left in this one.\n\nIt's a long way yet, they'll need to save something.\n\nNo need to rush, there's a long way to go.",
+  "chars": 701
+ },
+ {
+  "name": "b13_quiet",
+  "tag": "[calm race caller]",
+  "items": [
+   {
+    "id": "quiet/not_much_has_changed_down_the_back",
+    "text": "Not much has changed down the back.",
+    "kind": "full"
+   },
+   {
+    "id": "quiet/they_re_holding_their_positions_for_now",
+    "text": "They're holding their positions for now.",
+    "kind": "full"
+   },
+   {
+    "id": "quiet/it_s_settled_into_a_rhythm",
+    "text": "It's settled into a rhythm.",
+    "kind": "full"
+   },
+   {
+    "id": "quiet/nobody_wants_to_move_too_early",
+    "text": "Nobody wants to move too early.",
+    "kind": "full"
+   },
+   {
+    "id": "travel/is_travelling_beautifully",
+    "text": "is travelling beautifully.",
+    "kind": "post"
+   },
+   {
+    "id": "travel/is_going_well_within_itself",
+    "text": "is going well within itself.",
+    "kind": "post"
+   },
+   {
+    "id": "travel/is_sitting_pretty",
+    "text": "is sitting pretty.",
+    "kind": "post"
+   },
+   {
+    "id": "travel/is_cruising_just_behind_the_leaders",
+    "text": "is cruising just behind the leaders.",
+    "kind": "post"
+   },
+   {
+    "id": "travel/is_nicely_placed",
+    "text": "is nicely placed.",
+    "kind": "post"
+   },
+   {
+    "id": "travel/is_relaxed_and_travelling_sweetly",
+    "text": "is relaxed and travelling sweetly.",
+    "kind": "post"
+   },
+   {
+    "id": "wide/is_caught_three_wide",
+    "text": "is caught three wide.",
+    "kind": "post"
+   },
+   {
+    "id": "wide/is_covering_extra_ground_out_wide",
+    "text": "is covering extra ground out wide.",
+    "kind": "post"
+   },
+   {
+    "id": "wide/has_no_cover_out_wide",
+    "text": "has no cover out wide.",
+    "kind": "post"
+   },
+   {
+    "id": "wide/is_wide_on_the_track",
+    "text": "is wide on the track.",
+    "kind": "post"
+   },
+   {
+    "id": "rail/is_saving_ground_on_the_rail",
+    "text": "is saving ground on the rail.",
+    "kind": "post"
+   },
+   {
+    "id": "rail/has_a_lovely_run_on_the_fence",
+    "text": "has a lovely run on the fence.",
+    "kind": "post"
+   },
+   {
+    "id": "rail/is_tucked_away_on_the_rail",
+    "text": "is tucked away on the rail.",
+    "kind": "post"
+   },
+   {
+    "id": "back/is_at_the_tail_of_the_field",
+    "text": "is at the tail of the field.",
+    "kind": "post"
+   },
+   {
+    "id": "back/is_giving_them_a_start",
+    "text": "is giving them a start.",
+    "kind": "post"
+   },
+   {
+    "id": "back/has_a_lot_of_work_to_do",
+    "text": "has a lot of work to do.",
+    "kind": "post"
+   },
+   {
+    "id": "back/is_last_biding_its_time",
+    "text": "is last, biding its time.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_second",
+    "text": "is second.",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[calm race caller] Not much has changed down the back.\n\nThey're holding their positions for now.\n\nIt's settled into a rhythm.\n\nNobody wants to move too early.\n\nis travelling beautifully.\n\nis going well within itself.\n\nis sitting pretty.\n\nis cruising just behind the leaders.\n\nis nicely placed.\n\nis relaxed and travelling sweetly.\n\nis caught three wide.\n\nis covering extra ground out wide.\n\nhas no cover out wide.\n\nis wide on the track.\n\nis saving ground on the rail.\n\nhas a lovely run on the fence.\n\nis tucked away on the rail.\n\nis at the tail of the field.\n\nis giving them a start.\n\nhas a lot of work to do.\n\nis last, biding its time.\n\nis second.",
+  "chars": 647
+ },
+ {
+  "name": "b14_pos",
+  "tag": "[calm race caller]",
+  "items": [
+   {
+    "id": "pos/is_third",
+    "text": "is third.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_fourth",
+    "text": "is fourth.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_fifth",
+    "text": "is fifth.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_sixth",
+    "text": "is sixth.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_seventh",
+    "text": "is seventh.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_eighth",
+    "text": "is eighth.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_ninth",
+    "text": "is ninth.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_tenth",
+    "text": "is tenth.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_eleventh",
+    "text": "is eleventh.",
+    "kind": "post"
+   },
+   {
+    "id": "pos/is_twelfth",
+    "text": "is twelfth.",
+    "kind": "post"
+   },
+   {
+    "id": "pos_zone/is_handy_just_behind_the_leaders",
+    "text": "is handy, just behind the leaders.",
+    "kind": "post"
+   },
+   {
+    "id": "pos_zone/is_in_midfield",
+    "text": "is in midfield.",
+    "kind": "post"
+   },
+   {
+    "id": "pos_zone/is_back_in_the_pack",
+    "text": "is back in the pack.",
+    "kind": "post"
+   },
+   {
+    "id": "marker/a_thousand_metres_to_go",
+    "text": "A thousand metres to go.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[calm race caller] is third.\n\nis fourth.\n\nis fifth.\n\nis sixth.\n\nis seventh.\n\nis eighth.\n\nis ninth.\n\nis tenth.\n\nis eleventh.\n\nis twelfth.\n\nis handy, just behind the leaders.\n\nis in midfield.\n\nis back in the pack.\n\nA thousand metres to go.",
+  "chars": 237
+ },
+ {
+  "name": "b15_gap_found",
+  "tag": "[building excitement]",
+  "items": [
+   {
+    "id": "gap_found/has_found_a_gap",
+    "text": "has found a gap!",
+    "kind": "post"
+   },
+   {
+    "id": "gap_found/has_got_clear",
+    "text": "has got clear!",
+    "kind": "post"
+   },
+   {
+    "id": "gap_found/is_out_and_running",
+    "text": "is out, and running!",
+    "kind": "post"
+   },
+   {
+    "id": "gap_found/finds_daylight",
+    "text": "finds daylight!",
+    "kind": "post"
+   },
+   {
+    "id": "marker/six_hundred_to_go",
+    "text": "Six hundred to go!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/passing_the_six_hundred_and_they_re_winding_",
+    "text": "Passing the six hundred, and they're winding up!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/six_hundred_metres_left_the_race_is_on",
+    "text": "Six hundred metres left, the race is on!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/around_the_home_turn_they_come",
+    "text": "Around the home turn they come!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/they_re_sweeping_around_the_turn",
+    "text": "They're sweeping around the turn!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/the_jockeys_are_getting_busy",
+    "text": "The jockeys are getting busy!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/they_re_fanning_out_across_the_track",
+    "text": "They're fanning out across the track!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/it_s_on_for_young_and_old",
+    "text": "It's on for young and old!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/somebody_s_got_to_make_a_move_now",
+    "text": "Somebody's got to make a move now!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/they_re_starting_to_quicken",
+    "text": "They're starting to quicken!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_on/the_whips_are_starting_to_crack",
+    "text": "The whips are starting to crack!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_bunched/here_they_come_around_the_turn_and_they_re_b",
+    "text": "Here they come around the turn, and they're bunching up!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_bunched/they_re_coming_wide_around_the_turn",
+    "text": "They're coming wide around the turn!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_lead/leads_them_around_the_turn",
+    "text": "leads them around the turn!",
+    "kind": "post"
+   },
+   {
+    "id": "turn_lead/still_holds_them_on_the_turn",
+    "text": "still holds them on the turn!",
+    "kind": "post"
+   },
+   {
+    "id": "turn_clear/is_still_well_clear_rounding_the_turn",
+    "text": "is still well clear rounding the turn!",
+    "kind": "post"
+   },
+   {
+    "id": "turn_move/is_winding_up_out_wide",
+    "text": "is winding up out wide!",
+    "kind": "post"
+   },
+   {
+    "id": "turn_move/is_starting_to_make_a_move",
+    "text": "is starting to make a move!",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[building excitement] has found a gap!\n\nhas got clear!\n\nis out, and running!\n\nfinds daylight!\n\nSix hundred to go!\n\nPassing the six hundred, and they're winding up!\n\nSix hundred metres left, the race is on!\n\nAround the home turn they come!\n\nThey're sweeping around the turn!\n\nThe jockeys are getting busy!\n\nThey're fanning out across the track!\n\nIt's on for young and old!\n\nSomebody's got to make a move now!\n\nThey're starting to quicken!\n\nThe whips are starting to crack!\n\nHere they come around the turn, and they're bunching up!\n\nThey're coming wide around the turn!\n\nleads them around the turn!\n\nstill holds them on the turn!\n\nis still well clear rounding the turn!\n\nis winding up out wide!\n\nis starting to make a move!",
+  "chars": 721
+ },
+ {
+  "name": "b16_turn_move",
+  "tag": "[building excitement]",
+  "items": [
+   {
+    "id": "turn_move/is_coming_around_them",
+    "text": "is coming around them!",
+    "kind": "post"
+   },
+   {
+    "id": "turn_pressure/is_under_pressure_on_the_turn",
+    "text": "is under pressure on the turn!",
+    "kind": "post"
+   },
+   {
+    "id": "turn_pressure/is_being_pushed_along_on_the_turn",
+    "text": "is being pushed along on the turn!",
+    "kind": "post"
+   },
+   {
+    "id": "turn_runaway/can_anything_catch_the_leader",
+    "text": "Can anything catch the leader?",
+    "kind": "full"
+   },
+   {
+    "id": "turn_runaway/the_rest_have_got_a_lot_of_work_to_do",
+    "text": "The rest have got a lot of work to do!",
+    "kind": "full"
+   },
+   {
+    "id": "turn_runaway/they_ll_need_to_sprout_wings_to_catch_the_le",
+    "text": "They'll need to sprout wings to catch the leader!",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[building excitement] is coming around them!\n\nis under pressure on the turn!\n\nis being pushed along on the turn!\n\nCan anything catch the leader?\n\nThe rest have got a lot of work to do!\n\nThey'll need to sprout wings to catch the leader!",
+  "chars": 235
+ },
+ {
+  "name": "b17_marker",
+  "tag": "[urgent, fast and loud]",
+  "items": [
+   {
+    "id": "marker/four_hundred_to_go",
+    "text": "Four hundred to go!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/four_hundred_metres_left",
+    "text": "Four hundred metres left!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/four_hundred_to_run_and_they_re_all_out",
+    "text": "Four hundred to run, and they're all out!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/three_hundred_to_go",
+    "text": "Three hundred to go!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/two_hundred_to_go",
+    "text": "Two hundred to go!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/two_hundred_metres_left",
+    "text": "Two hundred metres left!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/a_hundred_metres_left",
+    "text": "A hundred metres left!",
+    "kind": "full"
+   },
+   {
+    "id": "straighten/they_turn_for_home_in_the_melbourne_cup",
+    "text": "They turn for home in the Melbourne Cup!",
+    "kind": "full"
+   },
+   {
+    "id": "straighten/they_straighten_for_home_in_the_everest",
+    "text": "They straighten for home in The Everest!",
+    "kind": "full"
+   },
+   {
+    "id": "lead_new_late/hits_the_front",
+    "text": "hits the front!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_new_late/has_taken_over",
+    "text": "has taken over!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_new_late/takes_the_lead",
+    "text": "takes the lead!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_new_late/sweeps_to_the_front",
+    "text": "sweeps to the front!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/is_fighting_on",
+    "text": "is fighting on!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/is_holding_on",
+    "text": "is holding on!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/is_trying_to_hang_on",
+    "text": "is trying to hang on!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/is_still_in_front",
+    "text": "is still in front!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/kicks_again",
+    "text": "kicks again!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/finds_more",
+    "text": "finds more!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/won_t_give_in",
+    "text": "won't give in!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_fight/has_still_got_them_covered",
+    "text": "has still got them covered!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_wilt/is_starting_to_wilt",
+    "text": "is starting to wilt!",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Four hundred to go!\n\nFour hundred metres left!\n\nFour hundred to run, and they're all out!\n\nThree hundred to go!\n\nTwo hundred to go!\n\nTwo hundred metres left!\n\nA hundred metres left!\n\nThey turn for home in the Melbourne Cup!\n\nThey straighten for home in The Everest!\n\nhits the front!\n\nhas taken over!\n\ntakes the lead!\n\nsweeps to the front!\n\nis fighting on!\n\nis holding on!\n\nis trying to hang on!\n\nis still in front!\n\nkicks again!\n\nfinds more!\n\nwon't give in!\n\nhas still got them covered!\n\nis starting to wilt!",
+  "chars": 532
+ },
+ {
+  "name": "b18_lead_wilt",
+  "tag": "[urgent, fast and loud]",
+  "items": [
+   {
+    "id": "lead_wilt/is_beginning_to_tire",
+    "text": "is beginning to tire!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/here_comes",
+    "text": "Here comes",
+    "kind": "pre"
+   },
+   {
+    "id": "challenge/and_here_comes",
+    "text": "And here comes",
+    "kind": "pre"
+   },
+   {
+    "id": "challenge/charging_down_the_outside_is",
+    "text": "Charging down the outside is",
+    "kind": "pre"
+   },
+   {
+    "id": "challenge/up_the_inside_comes",
+    "text": "Up the inside comes",
+    "kind": "pre"
+   },
+   {
+    "id": "challenge/flying_home_is",
+    "text": "Flying home is",
+    "kind": "pre"
+   },
+   {
+    "id": "challenge/coming_hard_is",
+    "text": "Coming hard is",
+    "kind": "pre"
+   },
+   {
+    "id": "challenge/is_coming_hard",
+    "text": "is coming hard!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_charging_down_the_outside",
+    "text": "is charging down the outside!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_flying_home",
+    "text": "is flying home!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_finishing_strongly",
+    "text": "is finishing strongly!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_making_a_big_run",
+    "text": "is making a big run!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_closing_in",
+    "text": "is closing in!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_gaining_with_every_stride",
+    "text": "is gaining with every stride!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_coming_from_a_long_way_back",
+    "text": "is coming from a long way back!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_surging",
+    "text": "is surging!",
+    "kind": "post"
+   },
+   {
+    "id": "challenge/is_running_on_strongly",
+    "text": "is running on strongly!",
+    "kind": "post"
+   },
+   {
+    "id": "margin_late/is_two_lengths_clear",
+    "text": "is two lengths clear!",
+    "kind": "post"
+   },
+   {
+    "id": "margin_late/is_three_lengths_clear",
+    "text": "is three lengths clear!",
+    "kind": "post"
+   },
+   {
+    "id": "margin_late/is_four_lengths_clear",
+    "text": "is four lengths clear!",
+    "kind": "post"
+   },
+   {
+    "id": "margin_late/is_five_lengths_clear",
+    "text": "is five lengths clear!",
+    "kind": "post"
+   },
+   {
+    "id": "margin_late/is_six_lengths_clear",
+    "text": "is six lengths clear!",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] is beginning to tire!\n\nHere comes\n\nAnd here comes\n\nCharging down the outside is\n\nUp the inside comes\n\nFlying home is\n\nComing hard is\n\nis coming hard!\n\nis charging down the outside!\n\nis flying home!\n\nis finishing strongly!\n\nis making a big run!\n\nis closing in!\n\nis gaining with every stride!\n\nis coming from a long way back!\n\nis surging!\n\nis running on strongly!\n\nis two lengths clear!\n\nis three lengths clear!\n\nis four lengths clear!\n\nis five lengths clear!\n\nis six lengths clear!",
+  "chars": 504
+ },
+ {
+  "name": "b19_margin_late",
+  "tag": "[urgent, fast and loud]",
+  "items": [
+   {
+    "id": "margin_late/is_eight_lengths_clear",
+    "text": "is eight lengths clear!",
+    "kind": "post"
+   },
+   {
+    "id": "margin_late/is_ten_lengths_clear",
+    "text": "is ten lengths clear!",
+    "kind": "post"
+   },
+   {
+    "id": "margin_late/is_right_out_on_its_own",
+    "text": "is right out on its own!",
+    "kind": "post"
+   },
+   {
+    "id": "runaway_late/this_is_a_demolition",
+    "text": "This is a demolition!",
+    "kind": "full"
+   },
+   {
+    "id": "runaway_late/nothing_s_going_to_catch_this_one",
+    "text": "Nothing's going to catch this one!",
+    "kind": "full"
+   },
+   {
+    "id": "runaway_late/it_s_a_procession",
+    "text": "It's a procession!",
+    "kind": "full"
+   },
+   {
+    "id": "runaway_late/they_re_running_for_the_places",
+    "text": "They're running for the places!",
+    "kind": "full"
+   },
+   {
+    "id": "runaway_late/the_rest_are_battling_for_second",
+    "text": "The rest are battling for second!",
+    "kind": "full"
+   },
+   {
+    "id": "runaway_late/it_s_all_over_bar_the_shouting",
+    "text": "It's all over bar the shouting!",
+    "kind": "full"
+   },
+   {
+    "id": "runaway_late/is_out_on_its_own",
+    "text": "is out on its own!",
+    "kind": "post"
+   },
+   {
+    "id": "runaway_late/is_running_them_ragged",
+    "text": "is running them ragged!",
+    "kind": "post"
+   },
+   {
+    "id": "runaway_late/is_in_a_class_of_its_own",
+    "text": "is in a class of its own!",
+    "kind": "post"
+   },
+   {
+    "id": "runaway_late/has_got_them_all_off_the_bit",
+    "text": "has got them all off the bit!",
+    "kind": "post"
+   },
+   {
+    "id": "caught_late/the_leader_is_coming_back_to_them",
+    "text": "The leader is coming back to them!",
+    "kind": "full"
+   },
+   {
+    "id": "caught_late/that_big_lead_is_disappearing",
+    "text": "That big lead is disappearing!",
+    "kind": "full"
+   },
+   {
+    "id": "caught_late/they_re_swallowing_up_the_leader",
+    "text": "They're swallowing up the leader!",
+    "kind": "full"
+   },
+   {
+    "id": "caught_late/the_leader_is_stopping",
+    "text": "The leader is stopping!",
+    "kind": "full"
+   },
+   {
+    "id": "caught_late/can_the_leader_hang_on",
+    "text": "Can the leader hang on?",
+    "kind": "full"
+   },
+   {
+    "id": "caught_late/it_s_going_to_be_close_now",
+    "text": "It's going to be close now!",
+    "kind": "full"
+   },
+   {
+    "id": "crowd/the_crowd_is_roaring",
+    "text": "The crowd is roaring!",
+    "kind": "full"
+   },
+   {
+    "id": "crowd/the_crowd_is_on_its_feet",
+    "text": "The crowd is on its feet!",
+    "kind": "full"
+   },
+   {
+    "id": "crowd/listen_to_this_crowd",
+    "text": "Listen to this crowd!",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] is eight lengths clear!\n\nis ten lengths clear!\n\nis right out on its own!\n\nThis is a demolition!\n\nNothing's going to catch this one!\n\nIt's a procession!\n\nThey're running for the places!\n\nThe rest are battling for second!\n\nIt's all over bar the shouting!\n\nis out on its own!\n\nis running them ragged!\n\nis in a class of its own!\n\nhas got them all off the bit!\n\nThe leader is coming back to them!\n\nThat big lead is disappearing!\n\nThey're swallowing up the leader!\n\nThe leader is stopping!\n\nCan the leader hang on?\n\nIt's going to be close now!\n\nThe crowd is roaring!\n\nThe crowd is on its feet!\n\nListen to this crowd!",
+  "chars": 634
+ },
+ {
+  "name": "b20_crowd",
+  "tag": "[urgent, fast and loud]",
+  "items": [
+   {
+    "id": "crowd/flemington_is_roaring",
+    "text": "Flemington is roaring!",
+    "kind": "full"
+   },
+   {
+    "id": "crowd/randwick_is_on_its_feet",
+    "text": "Randwick is on its feet!",
+    "kind": "full"
+   },
+   {
+    "id": "placings/the_fight_for_second_is_fierce",
+    "text": "The fight for second is fierce.",
+    "kind": "full"
+   },
+   {
+    "id": "placings/there_s_a_great_battle_for_the_placings",
+    "text": "There's a great battle for the placings.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Flemington is roaring!\n\nRandwick is on its feet!\n\nThe fight for second is fierce.\n\nThere's a great battle for the placings.",
+  "chars": 147
+ },
+ {
+  "name": "b21_marker",
+  "tag": "[screaming with excitement, very fast]",
+  "items": [
+   {
+    "id": "marker/two_hundred_to_go_and_it_s_on",
+    "text": "Two hundred to go, and it's on!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/a_hundred_to_go",
+    "text": "A hundred to go!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/hundred_metres",
+    "text": "Hundred metres!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/fifty_to_go",
+    "text": "Fifty to go!",
+    "kind": "full"
+   },
+   {
+    "id": "marker/fifty_metres",
+    "text": "Fifty metres!",
+    "kind": "full"
+   },
+   {
+    "id": "lead_new_tight/gets_the_nose_in_front",
+    "text": "gets the nose in front!",
+    "kind": "post"
+   },
+   {
+    "id": "lead_new_tight/just_edges_ahead",
+    "text": "just edges ahead!",
+    "kind": "post"
+   },
+   {
+    "id": "battle/they_re_locked_together",
+    "text": "They're locked together!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/stride_for_stride",
+    "text": "Stride for stride!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/neck_and_neck",
+    "text": "Neck and neck!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/nothing_between_them",
+    "text": "Nothing between them!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/they_won_t_give_an_inch",
+    "text": "They won't give an inch!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/what_a_battle",
+    "text": "What a battle!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/they_re_fighting_it_out",
+    "text": "They're fighting it out!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/head_to_head",
+    "text": "Head to head!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/they_re_going_at_it_hammer_and_tongs",
+    "text": "They're going at it, hammer and tongs!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/side_by_side_nothing_in_it",
+    "text": "Side by side, nothing in it!",
+    "kind": "full"
+   },
+   {
+    "id": "battle/and",
+    "text": "and",
+    "kind": "conn"
+   },
+   {
+    "id": "three_way/three_of_them_in_a_line",
+    "text": "Three of them in a line!",
+    "kind": "full"
+   },
+   {
+    "id": "three_way/it_s_a_three_way_battle",
+    "text": "It's a three-way battle!",
+    "kind": "full"
+   },
+   {
+    "id": "three_way/three_across_the_track_nothing_in_it",
+    "text": "Three across the track, nothing in it!",
+    "kind": "full"
+   },
+   {
+    "id": "three_way/they_re_coming_from_everywhere",
+    "text": "They're coming from everywhere!",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] Two hundred to go, and it's on!\n\nA hundred to go!\n\nHundred metres!\n\nFifty to go!\n\nFifty metres!\n\ngets the nose in front!\n\njust edges ahead!\n\nThey're locked together!\n\nStride for stride!\n\nNeck and neck!\n\nNothing between them!\n\nThey won't give an inch!\n\nWhat a battle!\n\nThey're fighting it out!\n\nHead to head!\n\nThey're going at it, hammer and tongs!\n\nSide by side, nothing in it!\n\nand\n\nThree of them in a line!\n\nIt's a three-way battle!\n\nThree across the track, nothing in it!\n\nThey're coming from everywhere!",
+  "chars": 546
+ },
+ {
+  "name": "b22_caught_late",
+  "tag": "[screaming with excitement, very fast]",
+  "items": [
+   {
+    "id": "caught_late/is_being_swallowed_up",
+    "text": "is being swallowed up!",
+    "kind": "post"
+   },
+   {
+    "id": "caught_late/is_stopping",
+    "text": "is stopping!",
+    "kind": "post"
+   },
+   {
+    "id": "caught_late/is_out_on_its_feet",
+    "text": "is out on its feet!",
+    "kind": "post"
+   },
+   {
+    "id": "caught_late/is_getting_run_down",
+    "text": "is getting run down!",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] is being swallowed up!\n\nis stopping!\n\nis out on its feet!\n\nis getting run down!",
+  "chars": 118
+ },
+ {
+  "name": "b23_turn_near",
+  "tag": "[lively race caller]",
+  "items": [
+   {
+    "id": "turn_near/they_re_coming_up_to_the_home_turn",
+    "text": "They're coming up to the home turn.",
+    "kind": "full"
+   },
+   {
+    "id": "turn_near/not_far_now_to_the_turn_this_is_where_it_get",
+    "text": "Not far now to the turn, this is where it gets interesting.",
+    "kind": "full"
+   },
+   {
+    "id": "turn_near/the_home_turn_is_approaching_the_jockeys_are",
+    "text": "The home turn is approaching, the jockeys are getting ready.",
+    "kind": "full"
+   },
+   {
+    "id": "turn_near/they_re_nearing_the_turn_and_the_big_moves_a",
+    "text": "They're nearing the turn, and the big moves are coming.",
+    "kind": "full"
+   },
+   {
+    "id": "turn_near/getting_closer_to_the_turn_and_the_tempo_is_",
+    "text": "Getting closer to the turn, and the tempo is lifting.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[lively race caller] They're coming up to the home turn.\n\nNot far now to the turn, this is where it gets interesting.\n\nThe home turn is approaching, the jockeys are getting ready.\n\nThey're nearing the turn, and the big moves are coming.\n\nGetting closer to the turn, and the tempo is lifting.",
+  "chars": 291
+ },
+ {
+  "name": "b24_straighten",
+  "tag": "[building excitement]",
+  "items": [
+   {
+    "id": "straighten/and_they_straighten_for_home",
+    "text": "And they straighten for home!",
+    "kind": "full"
+   },
+   {
+    "id": "straighten/into_the_straight_they_come",
+    "text": "Into the straight they come!",
+    "kind": "full"
+   },
+   {
+    "id": "straighten/they_turn_for_home",
+    "text": "They turn for home!",
+    "kind": "full"
+   },
+   {
+    "id": "straighten/and_here_we_go_into_the_straight",
+    "text": "And here we go, into the straight!",
+    "kind": "full"
+   },
+   {
+    "id": "straighten/into_the_flemington_straight",
+    "text": "Into the Flemington straight!",
+    "kind": "full"
+   },
+   {
+    "id": "straighten/into_the_randwick_straight",
+    "text": "Into the Randwick straight!",
+    "kind": "full"
+   },
+   {
+    "id": "straight_six/down_the_straight_six_they_come",
+    "text": "Down the Straight Six they come!",
+    "kind": "full"
+   },
+   {
+    "id": "straight_six/into_the_business_end_now",
+    "text": "Into the business end now!",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[building excitement] And they straighten for home!\n\nInto the straight they come!\n\nThey turn for home!\n\nAnd here we go, into the straight!\n\nInto the Flemington straight!\n\nInto the Randwick straight!\n\nDown the Straight Six they come!\n\nInto the business end now!",
+  "chars": 260
+ },
+ {
+  "name": "b25_line",
+  "tag": "[screaming with excitement, very fast]",
+  "items": [
+   {
+    "id": "line/they_hit_the_line_together",
+    "text": "They hit the line together!",
+    "kind": "full"
+   },
+   {
+    "id": "line/on_the_line",
+    "text": "On the line!",
+    "kind": "full"
+   },
+   {
+    "id": "line/who_got_there",
+    "text": "Who got there?",
+    "kind": "full"
+   },
+   {
+    "id": "line/it_s_too_close_to_call",
+    "text": "It's too close to call!",
+    "kind": "full"
+   },
+   {
+    "id": "line/it_s_a_photo",
+    "text": "It's a photo!",
+    "kind": "full"
+   },
+   {
+    "id": "line/we_ll_need_the_photo",
+    "text": "We'll need the photo!",
+    "kind": "full"
+   },
+   {
+    "id": "line/couldn_t_split_them",
+    "text": "Couldn't split them!",
+    "kind": "full"
+   },
+   {
+    "id": "line/they_re_locked_together_on_the_line",
+    "text": "They're locked together on the line!",
+    "kind": "full"
+   },
+   {
+    "id": "win_pre/and_the_winner_is",
+    "text": "And the winner is",
+    "kind": "pre"
+   },
+   {
+    "id": "win_pre/it_s",
+    "text": "It's",
+    "kind": "pre"
+   },
+   {
+    "id": "win_pre/and_it_s",
+    "text": "And it's",
+    "kind": "pre"
+   },
+   {
+    "id": "win_pre_photo/on_the_photo_it_s",
+    "text": "On the photo, it's",
+    "kind": "pre"
+   },
+   {
+    "id": "win_pre_photo/the_photo_says_it_s",
+    "text": "The photo says it's",
+    "kind": "pre"
+   },
+   {
+    "id": "win_close/holds_them_off",
+    "text": "holds them off!",
+    "kind": "post"
+   },
+   {
+    "id": "win_close/just_holds_on",
+    "text": "just holds on!",
+    "kind": "post"
+   },
+   {
+    "id": "win_close/has_done_it",
+    "text": "has done it!",
+    "kind": "post"
+   },
+   {
+    "id": "win_close/gets_there",
+    "text": "gets there!",
+    "kind": "post"
+   },
+   {
+    "id": "win_close/has_prevailed",
+    "text": "has prevailed!",
+    "kind": "post"
+   },
+   {
+    "id": "win_close/wins_a_thriller",
+    "text": "wins a thriller!",
+    "kind": "post"
+   },
+   {
+    "id": "win_photo/by_a_nose",
+    "text": "by a nose!",
+    "kind": "post"
+   },
+   {
+    "id": "win_photo/by_a_short_head",
+    "text": "by a short head!",
+    "kind": "post"
+   },
+   {
+    "id": "win_photo/by_a_whisker",
+    "text": "by a whisker!",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] They hit the line together!\n\nOn the line!\n\nWho got there?\n\nIt's too close to call!\n\nIt's a photo!\n\nWe'll need the photo!\n\nCouldn't split them!\n\nThey're locked together on the line!\n\nAnd the winner is\n\nIt's\n\nAnd it's\n\nOn the photo, it's\n\nThe photo says it's\n\nholds them off!\n\njust holds on!\n\nhas done it!\n\ngets there!\n\nhas prevailed!\n\nwins a thriller!\n\nby a nose!\n\nby a short head!\n\nby a whisker!",
+  "chars": 434
+ },
+ {
+  "name": "b26_win_photo",
+  "tag": "[screaming with excitement, very fast]",
+  "items": [
+   {
+    "id": "win_photo/by_a_head",
+    "text": "by a head!",
+    "kind": "post"
+   },
+   {
+    "id": "win_photo/by_a_neck",
+    "text": "by a neck!",
+    "kind": "post"
+   },
+   {
+    "id": "win_late/has_swooped_late",
+    "text": "has swooped late!",
+    "kind": "post"
+   },
+   {
+    "id": "win_late/came_from_nowhere",
+    "text": "came from nowhere!",
+    "kind": "post"
+   },
+   {
+    "id": "win_late/got_up_in_the_final_strides",
+    "text": "got up in the final strides!",
+    "kind": "post"
+   },
+   {
+    "id": "win_late/has_run_them_down",
+    "text": "has run them down!",
+    "kind": "post"
+   },
+   {
+    "id": "after_close/what_a_finish",
+    "text": "What a finish!",
+    "kind": "full"
+   },
+   {
+    "id": "after_close/unbelievable",
+    "text": "Unbelievable!",
+    "kind": "full"
+   },
+   {
+    "id": "after_close/what_a_race",
+    "text": "What a race!",
+    "kind": "full"
+   },
+   {
+    "id": "after_close/you_won_t_see_a_better_finish_than_that",
+    "text": "You won't see a better finish than that!",
+    "kind": "full"
+   },
+   {
+    "id": "after_close/absolutely_incredible",
+    "text": "Absolutely incredible!",
+    "kind": "full"
+   },
+   {
+    "id": "after_close/that_s_why_we_love_racing",
+    "text": "That's why we love racing!",
+    "kind": "full"
+   },
+   {
+    "id": "after_major/what_a_melbourne_cup",
+    "text": "What a Melbourne Cup!",
+    "kind": "full"
+   },
+   {
+    "id": "after_major/a_melbourne_cup_to_remember",
+    "text": "A Melbourne Cup to remember!",
+    "kind": "full"
+   },
+   {
+    "id": "after_major/what_a_way_to_win_the_cup",
+    "text": "What a way to win the Cup!",
+    "kind": "full"
+   },
+   {
+    "id": "after_major/what_an_everest",
+    "text": "What an Everest!",
+    "kind": "full"
+   },
+   {
+    "id": "after_major/what_a_way_to_win_the_everest",
+    "text": "What a way to win The Everest!",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] by a head!\n\nby a neck!\n\nhas swooped late!\n\ncame from nowhere!\n\ngot up in the final strides!\n\nhas run them down!\n\nWhat a finish!\n\nUnbelievable!\n\nWhat a race!\n\nYou won't see a better finish than that!\n\nAbsolutely incredible!\n\nThat's why we love racing!\n\nWhat a Melbourne Cup!\n\nA Melbourne Cup to remember!\n\nWhat a way to win the Cup!\n\nWhat an Everest!\n\nWhat a way to win The Everest!",
+  "chars": 420
+ },
+ {
+  "name": "b27_win_dominant",
+  "tag": "[triumphant and loud]",
+  "items": [
+   {
+    "id": "win_dominant/wins_in_a_canter",
+    "text": "wins in a canter!",
+    "kind": "post"
+   },
+   {
+    "id": "win_dominant/wins_by_the_length_of_the_straight",
+    "text": "wins by the length of the straight!",
+    "kind": "post"
+   },
+   {
+    "id": "win_dominant/has_toyed_with_them",
+    "text": "has toyed with them!",
+    "kind": "post"
+   },
+   {
+    "id": "win_dominant/wins_it_by_a_street",
+    "text": "wins it by a street!",
+    "kind": "post"
+   },
+   {
+    "id": "win_dominant/has_absolutely_demolished_them",
+    "text": "has absolutely demolished them!",
+    "kind": "post"
+   },
+   {
+    "id": "win_dominant/is_a_superstar",
+    "text": "is a superstar!",
+    "kind": "post"
+   },
+   {
+    "id": "win_clear/has_won_it_comfortably",
+    "text": "has won it comfortably!",
+    "kind": "post"
+   },
+   {
+    "id": "win_clear/was_far_too_strong",
+    "text": "was far too strong!",
+    "kind": "post"
+   },
+   {
+    "id": "win_clear/wins_it_well",
+    "text": "wins it well!",
+    "kind": "post"
+   },
+   {
+    "id": "win_clear/has_proved_too_good",
+    "text": "has proved too good!",
+    "kind": "post"
+   },
+   {
+    "id": "win_clear/has_done_it_in_style",
+    "text": "has done it in style!",
+    "kind": "post"
+   },
+   {
+    "id": "win_wire/has_led_all_the_way",
+    "text": "has led all the way!",
+    "kind": "post"
+   },
+   {
+    "id": "win_wire/has_led_from_start_to_finish",
+    "text": "has led from start to finish!",
+    "kind": "post"
+   },
+   {
+    "id": "win_wire/was_never_headed",
+    "text": "was never headed!",
+    "kind": "post"
+   },
+   {
+    "id": "after_dominant/what_a_dominant_display",
+    "text": "What a dominant display!",
+    "kind": "full"
+   },
+   {
+    "id": "after_dominant/that_was_a_champion_s_performance",
+    "text": "That was a champion's performance!",
+    "kind": "full"
+   },
+   {
+    "id": "after_dominant/too_good_by_a_long_way",
+    "text": "Too good, by a long way!",
+    "kind": "full"
+   },
+   {
+    "id": "after_dominant/a_performance_to_remember",
+    "text": "A performance to remember!",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[triumphant and loud] wins in a canter!\n\nwins by the length of the straight!\n\nhas toyed with them!\n\nwins it by a street!\n\nhas absolutely demolished them!\n\nis a superstar!\n\nhas won it comfortably!\n\nwas far too strong!\n\nwins it well!\n\nhas proved too good!\n\nhas done it in style!\n\nhas led all the way!\n\nhas led from start to finish!\n\nwas never headed!\n\nWhat a dominant display!\n\nThat was a champion's performance!\n\nToo good, by a long way!\n\nA performance to remember!",
+  "chars": 464
+ },
+ {
+  "name": "b28_after_clear",
+  "tag": "[building excitement]",
+  "items": [
+   {
+    "id": "after_clear/that_was_a_decisive_win",
+    "text": "That was a decisive win.",
+    "kind": "full"
+   },
+   {
+    "id": "after_clear/plenty_in_hand_at_the_finish",
+    "text": "Plenty in hand at the finish.",
+    "kind": "full"
+   },
+   {
+    "id": "after_clear/a_very_good_win_that",
+    "text": "A very good win, that.",
+    "kind": "full"
+   }
+  ],
+  "prompt": "[building excitement] That was a decisive win.\n\nPlenty in hand at the finish.\n\nA very good win, that.",
+  "chars": 101
+ },
+ {
+  "name": "b29_fall",
+  "tag": "[urgent, fast and loud]",
+  "items": [
+   {
+    "id": "fall/there_s_been_a_fall",
+    "text": "There's been a fall!",
+    "kind": "full"
+   },
+   {
+    "id": "fall/oh_there_s_trouble_a_horse_is_down",
+    "text": "Oh, there's trouble, a horse is down!",
+    "kind": "full"
+   },
+   {
+    "id": "fall/there_s_a_pile_up_several_horses_are_down",
+    "text": "There's a pile-up, several horses are down!",
+    "kind": "full"
+   },
+   {
+    "id": "fall/has_gone_down",
+    "text": "has gone down!",
+    "kind": "post"
+   },
+   {
+    "id": "fall/has_fallen",
+    "text": "has fallen!",
+    "kind": "post"
+   },
+   {
+    "id": "fall/is_down",
+    "text": "is down!",
+    "kind": "post"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] There's been a fall!\n\nOh, there's trouble, a horse is down!\n\nThere's a pile-up, several horses are down!\n\nhas gone down!\n\nhas fallen!\n\nis down!",
+  "chars": 167
+ },
+ {
+  "name": "b30_names_c",
+  "tag": "[lively race caller]",
+  "names": "c",
+  "items": [
+   {
+    "id": "names-c/ka_ying_rising",
+    "text": "Ka Ying Rising,",
+    "kind": "name",
+    "name": "Ka Ying Rising"
+   },
+   {
+    "id": "names-c/willow_s_pride",
+    "text": "Willow's Pride,",
+    "kind": "name",
+    "name": "Willow's Pride"
+   },
+   {
+    "id": "names-c/quiet_thunder",
+    "text": "Quiet Thunder,",
+    "kind": "name",
+    "name": "Quiet Thunder"
+   },
+   {
+    "id": "names-c/tempted",
+    "text": "Tempted,",
+    "kind": "name",
+    "name": "Tempted"
+   },
+   {
+    "id": "names-c/bay_majesty",
+    "text": "Bay Majesty,",
+    "kind": "name",
+    "name": "Bay Majesty"
+   },
+   {
+    "id": "names-c/half_yours",
+    "text": "Half Yours,",
+    "kind": "name",
+    "name": "Half Yours"
+   },
+   {
+    "id": "names-c/point_of_law",
+    "text": "Point Of Law,",
+    "kind": "name",
+    "name": "Point Of Law"
+   },
+   {
+    "id": "names-c/trust_your_instinct",
+    "text": "Trust Your Instinct,",
+    "kind": "name",
+    "name": "Trust Your Instinct"
+   },
+   {
+    "id": "names-c/yes_yes_yes",
+    "text": "Yes Yes Yes,",
+    "kind": "name",
+    "name": "Yes Yes Yes"
+   },
+   {
+    "id": "names-c/hopewell_rock",
+    "text": "Hopewell Rock,",
+    "kind": "name",
+    "name": "Hopewell Rock"
+   },
+   {
+    "id": "names-c/goodie_two_shoes",
+    "text": "Goodie Two Shoes,",
+    "kind": "name",
+    "name": "Goodie Two Shoes"
+   },
+   {
+    "id": "names-c/soul_of_spain",
+    "text": "Soul Of Spain,",
+    "kind": "name",
+    "name": "Soul Of Spain"
+   },
+   {
+    "id": "names-c/desert_comet",
+    "text": "Desert Comet,",
+    "kind": "name",
+    "name": "Desert Comet"
+   },
+   {
+    "id": "names-c/brumby_dancer",
+    "text": "Brumby Dancer,",
+    "kind": "name",
+    "name": "Brumby Dancer"
+   },
+   {
+    "id": "names-c/copper_coast",
+    "text": "Copper Coast,",
+    "kind": "name",
+    "name": "Copper Coast"
+   },
+   {
+    "id": "names-c/silver_billabong",
+    "text": "Silver Billabong,",
+    "kind": "name",
+    "name": "Silver Billabong"
+   },
+   {
+    "id": "names-c/outback_express",
+    "text": "Outback Express,",
+    "kind": "name",
+    "name": "Outback Express"
+   },
+   {
+    "id": "names-c/harbour_spark",
+    "text": "Harbour Spark,",
+    "kind": "name",
+    "name": "Harbour Spark"
+   },
+   {
+    "id": "names-c/red_gum_rocket",
+    "text": "Red Gum Rocket,",
+    "kind": "name",
+    "name": "Red Gum Rocket"
+   },
+   {
+    "id": "names-c/wattle_flame",
+    "text": "Wattle Flame,",
+    "kind": "name",
+    "name": "Wattle Flame"
+   },
+   {
+    "id": "names-c/coral_sea_storm",
+    "text": "Coral Sea Storm,",
+    "kind": "name",
+    "name": "Coral Sea Storm"
+   },
+   {
+    "id": "names-c/southerly_buster",
+    "text": "Southerly Buster,",
+    "kind": "name",
+    "name": "Southerly Buster"
+   }
+  ],
+  "prompt": "[lively race caller] Ka Ying Rising,\n\nWillow's Pride,\n\nQuiet Thunder,\n\nTempted,\n\nBay Majesty,\n\nHalf Yours,\n\nPoint Of Law,\n\nTrust Your Instinct,\n\nYes Yes Yes,\n\nHopewell Rock,\n\nGoodie Two Shoes,\n\nSoul Of Spain,\n\nDesert Comet,\n\nBrumby Dancer,\n\nCopper Coast,\n\nSilver Billabong,\n\nOutback Express,\n\nHarbour Spark,\n\nRed Gum Rocket,\n\nWattle Flame,\n\nCoral Sea Storm,\n\nSoutherly Buster,",
+  "chars": 376
+ },
+ {
+  "name": "b31_names_c",
+  "tag": "[lively race caller]",
+  "names": "c",
+  "items": [
+   {
+    "id": "names-c/bush_telegraph",
+    "text": "Bush Telegraph,",
+    "kind": "name",
+    "name": "Bush Telegraph"
+   },
+   {
+    "id": "names-c/kingfisher_bay",
+    "text": "Kingfisher Bay,",
+    "kind": "name",
+    "name": "Kingfisher Bay"
+   },
+   {
+    "id": "names-c/opal_dreamer",
+    "text": "Opal Dreamer,",
+    "kind": "name",
+    "name": "Opal Dreamer"
+   },
+   {
+    "id": "names-c/tasman_tide",
+    "text": "Tasman Tide,",
+    "kind": "name",
+    "name": "Tasman Tide"
+   },
+   {
+    "id": "names-c/ironbark_queen",
+    "text": "Ironbark Queen,",
+    "kind": "name",
+    "name": "Ironbark Queen"
+   },
+   {
+    "id": "names-c/golden_wattle",
+    "text": "Golden Wattle,",
+    "kind": "name",
+    "name": "Golden Wattle"
+   },
+   {
+    "id": "names-c/starry_outback",
+    "text": "Starry Outback,",
+    "kind": "name",
+    "name": "Starry Outback"
+   },
+   {
+    "id": "names-c/mulga_moon",
+    "text": "Mulga Moon,",
+    "kind": "name",
+    "name": "Mulga Moon"
+   },
+   {
+    "id": "names-c/swagman_s_luck",
+    "text": "Swagman's Luck,",
+    "kind": "name",
+    "name": "Swagman's Luck"
+   },
+   {
+    "id": "names-c/thunderbolt_lane",
+    "text": "Thunderbolt Lane,",
+    "kind": "name",
+    "name": "Thunderbolt Lane"
+   },
+   {
+    "id": "names-c/blue_mountain_mist",
+    "text": "Blue Mountain Mist,",
+    "kind": "name",
+    "name": "Blue Mountain Mist"
+   },
+   {
+    "id": "names-c/riverina_rose",
+    "text": "Riverina Rose,",
+    "kind": "name",
+    "name": "Riverina Rose"
+   },
+   {
+    "id": "names-c/cockatoo_charm",
+    "text": "Cockatoo Charm,",
+    "kind": "name",
+    "name": "Cockatoo Charm"
+   },
+   {
+    "id": "names-c/sunburnt_country",
+    "text": "Sunburnt Country,",
+    "kind": "name",
+    "name": "Sunburnt Country"
+   },
+   {
+    "id": "names-c/dingo_dash",
+    "text": "Dingo Dash,",
+    "kind": "name",
+    "name": "Dingo Dash"
+   },
+   {
+    "id": "names-c/pilbara_gold",
+    "text": "Pilbara Gold,",
+    "kind": "name",
+    "name": "Pilbara Gold"
+   },
+   {
+    "id": "names-c/boomerang_bay",
+    "text": "Boomerang Bay,",
+    "kind": "name",
+    "name": "Boomerang Bay"
+   },
+   {
+    "id": "names-c/lightning_ridge",
+    "text": "Lightning Ridge,",
+    "kind": "name",
+    "name": "Lightning Ridge"
+   },
+   {
+    "id": "names-c/coolabah_star",
+    "text": "Coolabah Star,",
+    "kind": "name",
+    "name": "Coolabah Star"
+   },
+   {
+    "id": "names-c/kakadu_knight",
+    "text": "Kakadu Knight,",
+    "kind": "name",
+    "name": "Kakadu Knight"
+   },
+   {
+    "id": "names-c/silver_brolga",
+    "text": "Silver Brolga,",
+    "kind": "name",
+    "name": "Silver Brolga"
+   },
+   {
+    "id": "names-c/emu_parade",
+    "text": "Emu Parade,",
+    "kind": "name",
+    "name": "Emu Parade"
+   }
+  ],
+  "prompt": "[lively race caller] Bush Telegraph,\n\nKingfisher Bay,\n\nOpal Dreamer,\n\nTasman Tide,\n\nIronbark Queen,\n\nGolden Wattle,\n\nStarry Outback,\n\nMulga Moon,\n\nSwagman's Luck,\n\nThunderbolt Lane,\n\nBlue Mountain Mist,\n\nRiverina Rose,\n\nCockatoo Charm,\n\nSunburnt Country,\n\nDingo Dash,\n\nPilbara Gold,\n\nBoomerang Bay,\n\nLightning Ridge,\n\nCoolabah Star,\n\nKakadu Knight,\n\nSilver Brolga,\n\nEmu Parade,",
+  "chars": 377
+ },
+ {
+  "name": "b32_names_c",
+  "tag": "[lively race caller]",
+  "names": "c",
+  "items": [
+   {
+    "id": "names-c/barramundi_blue",
+    "text": "Barramundi Blue,",
+    "kind": "name",
+    "name": "Barramundi Blue"
+   },
+   {
+    "id": "names-c/daintree_flyer",
+    "text": "Daintree Flyer,",
+    "kind": "name",
+    "name": "Daintree Flyer"
+   },
+   {
+    "id": "names-c/gibber_plains",
+    "text": "Gibber Plains,",
+    "kind": "name",
+    "name": "Gibber Plains"
+   },
+   {
+    "id": "names-c/ningaloo_reef",
+    "text": "Ningaloo Reef,",
+    "kind": "name",
+    "name": "Ningaloo Reef"
+   },
+   {
+    "id": "names-c/eucalypt_express",
+    "text": "Eucalypt Express,",
+    "kind": "name",
+    "name": "Eucalypt Express"
+   },
+   {
+    "id": "names-c/paddock_prince",
+    "text": "Paddock Prince,",
+    "kind": "name",
+    "name": "Paddock Prince"
+   },
+   {
+    "id": "names-c/saltbush_sally",
+    "text": "Saltbush Sally,",
+    "kind": "name",
+    "name": "Saltbush Sally"
+   },
+   {
+    "id": "names-c/flinders_flame",
+    "text": "Flinders Flame,",
+    "kind": "name",
+    "name": "Flinders Flame"
+   },
+   {
+    "id": "names-c/burrawang_belle",
+    "text": "Burrawang Belle,",
+    "kind": "name",
+    "name": "Burrawang Belle"
+   },
+   {
+    "id": "names-c/jacaranda_jewel",
+    "text": "Jacaranda Jewel,",
+    "kind": "name",
+    "name": "Jacaranda Jewel"
+   },
+   {
+    "id": "names-c/cobbler_s_creek",
+    "text": "Cobbler's Creek,",
+    "kind": "name",
+    "name": "Cobbler's Creek"
+   },
+   {
+    "id": "names-c/gidgee_rose",
+    "text": "Gidgee Rose,",
+    "kind": "name",
+    "name": "Gidgee Rose"
+   },
+   {
+    "id": "names-c/kimberley_ruby",
+    "text": "Kimberley Ruby,",
+    "kind": "name",
+    "name": "Kimberley Ruby"
+   },
+   {
+    "id": "names-c/banjo_s_ballad",
+    "text": "Banjo's Ballad,",
+    "kind": "name",
+    "name": "Banjo's Ballad"
+   },
+   {
+    "id": "names-c/snowy_river_spirit",
+    "text": "Snowy River Spirit,",
+    "kind": "name",
+    "name": "Snowy River Spirit"
+   },
+   {
+    "id": "names-c/waratah_warrior",
+    "text": "Waratah Warrior,",
+    "kind": "name",
+    "name": "Waratah Warrior"
+   },
+   {
+    "id": "names-c/billabong_bandit",
+    "text": "Billabong Bandit,",
+    "kind": "name",
+    "name": "Billabong Bandit"
+   },
+   {
+    "id": "names-c/nullarbor_nights",
+    "text": "Nullarbor Nights,",
+    "kind": "name",
+    "name": "Nullarbor Nights"
+   },
+   {
+    "id": "names-c/overland_mail",
+    "text": "Overland Mail,",
+    "kind": "name",
+    "name": "Overland Mail"
+   },
+   {
+    "id": "names-c/gold_rush_girl",
+    "text": "Gold Rush Girl,",
+    "kind": "name",
+    "name": "Gold Rush Girl"
+   },
+   {
+    "id": "names-c/rainbow_lorikeet",
+    "text": "Rainbow Lorikeet,",
+    "kind": "name",
+    "name": "Rainbow Lorikeet"
+   },
+   {
+    "id": "names-c/magpie_melody",
+    "text": "Magpie Melody,",
+    "kind": "name",
+    "name": "Magpie Melody"
+   }
+  ],
+  "prompt": "[lively race caller] Barramundi Blue,\n\nDaintree Flyer,\n\nGibber Plains,\n\nNingaloo Reef,\n\nEucalypt Express,\n\nPaddock Prince,\n\nSaltbush Sally,\n\nFlinders Flame,\n\nBurrawang Belle,\n\nJacaranda Jewel,\n\nCobbler's Creek,\n\nGidgee Rose,\n\nKimberley Ruby,\n\nBanjo's Ballad,\n\nSnowy River Spirit,\n\nWaratah Warrior,\n\nBillabong Bandit,\n\nNullarbor Nights,\n\nOverland Mail,\n\nGold Rush Girl,\n\nRainbow Lorikeet,\n\nMagpie Melody,",
+  "chars": 403
+ },
+ {
+  "name": "b33_names_c",
+  "tag": "[lively race caller]",
+  "names": "c",
+  "items": [
+   {
+    "id": "names-c/kurrajong_king",
+    "text": "Kurrajong King,",
+    "kind": "name",
+    "name": "Kurrajong King"
+   },
+   {
+    "id": "names-c/bottlebrush_bay",
+    "text": "Bottlebrush Bay,",
+    "kind": "name",
+    "name": "Bottlebrush Bay"
+   },
+   {
+    "id": "names-c/marri_moon",
+    "text": "Marri Moon,",
+    "kind": "name",
+    "name": "Marri Moon"
+   },
+   {
+    "id": "names-c/bluestone_lane",
+    "text": "Bluestone Lane,",
+    "kind": "name",
+    "name": "Bluestone Lane"
+   },
+   {
+    "id": "names-c/spinifex_spirit",
+    "text": "Spinifex Spirit,",
+    "kind": "name",
+    "name": "Spinifex Spirit"
+   },
+   {
+    "id": "names-c/arafura_wind",
+    "text": "Arafura Wind,",
+    "kind": "name",
+    "name": "Arafura Wind"
+   },
+   {
+    "id": "names-c/jindabyne_jet",
+    "text": "Jindabyne Jet,",
+    "kind": "name",
+    "name": "Jindabyne Jet"
+   },
+   {
+    "id": "names-c/hawkesbury_haze",
+    "text": "Hawkesbury Haze,",
+    "kind": "name",
+    "name": "Hawkesbury Haze"
+   },
+   {
+    "id": "names-c/merino_magic",
+    "text": "Merino Magic,",
+    "kind": "name",
+    "name": "Merino Magic"
+   },
+   {
+    "id": "names-c/tumbleweed_tom",
+    "text": "Tumbleweed Tom,",
+    "kind": "name",
+    "name": "Tumbleweed Tom"
+   },
+   {
+    "id": "names-c/murrumbidgee_mist",
+    "text": "Murrumbidgee Mist,",
+    "kind": "name",
+    "name": "Murrumbidgee Mist"
+   },
+   {
+    "id": "names-c/gulf_country",
+    "text": "Gulf Country,",
+    "kind": "name",
+    "name": "Gulf Country"
+   },
+   {
+    "id": "names-c/quandong_queen",
+    "text": "Quandong Queen,",
+    "kind": "name",
+    "name": "Quandong Queen"
+   },
+   {
+    "id": "names-c/bunya_pine",
+    "text": "Bunya Pine,",
+    "kind": "name",
+    "name": "Bunya Pine"
+   },
+   {
+    "id": "names-c/warrego_run",
+    "text": "Warrego Run,",
+    "kind": "name",
+    "name": "Warrego Run"
+   },
+   {
+    "id": "names-c/mallee_fire",
+    "text": "Mallee Fire,",
+    "kind": "name",
+    "name": "Mallee Fire"
+   },
+   {
+    "id": "names-c/darling_downs",
+    "text": "Darling Downs,",
+    "kind": "name",
+    "name": "Darling Downs"
+   },
+   {
+    "id": "names-c/wollemi_wonder",
+    "text": "Wollemi Wonder,",
+    "kind": "name",
+    "name": "Wollemi Wonder"
+   },
+   {
+    "id": "names-c/southern_aurora",
+    "text": "Southern Aurora,",
+    "kind": "name",
+    "name": "Southern Aurora"
+   },
+   {
+    "id": "names-c/desert_rain",
+    "text": "Desert Rain,",
+    "kind": "name",
+    "name": "Desert Rain"
+   },
+   {
+    "id": "names-c/moonlit_paddock",
+    "text": "Moonlit Paddock,",
+    "kind": "name",
+    "name": "Moonlit Paddock"
+   },
+   {
+    "id": "names-c/silky_oak",
+    "text": "Silky Oak,",
+    "kind": "name",
+    "name": "Silky Oak"
+   }
+  ],
+  "prompt": "[lively race caller] Kurrajong King,\n\nBottlebrush Bay,\n\nMarri Moon,\n\nBluestone Lane,\n\nSpinifex Spirit,\n\nArafura Wind,\n\nJindabyne Jet,\n\nHawkesbury Haze,\n\nMerino Magic,\n\nTumbleweed Tom,\n\nMurrumbidgee Mist,\n\nGulf Country,\n\nQuandong Queen,\n\nBunya Pine,\n\nWarrego Run,\n\nMallee Fire,\n\nDarling Downs,\n\nWollemi Wonder,\n\nSouthern Aurora,\n\nDesert Rain,\n\nMoonlit Paddock,\n\nSilky Oak,",
+  "chars": 371
+ },
+ {
+  "name": "b34_names_c",
+  "tag": "[lively race caller]",
+  "names": "c",
+  "items": [
+   {
+    "id": "names-c/red_centre",
+    "text": "Red Centre,",
+    "kind": "name",
+    "name": "Red Centre"
+   },
+   {
+    "id": "names-c/whitsunday_wave",
+    "text": "Whitsunday Wave,",
+    "kind": "name",
+    "name": "Whitsunday Wave"
+   },
+   {
+    "id": "names-c/byron_breeze",
+    "text": "Byron Breeze,",
+    "kind": "name",
+    "name": "Byron Breeze"
+   },
+   {
+    "id": "names-c/tamworth_twang",
+    "text": "Tamworth Twang,",
+    "kind": "name",
+    "name": "Tamworth Twang"
+   },
+   {
+    "id": "names-c/opal_hunter",
+    "text": "Opal Hunter,",
+    "kind": "name",
+    "name": "Opal Hunter"
+   },
+   {
+    "id": "names-c/cape_otway",
+    "text": "Cape Otway,",
+    "kind": "name",
+    "name": "Cape Otway"
+   },
+   {
+    "id": "names-c/glasshouse_gale",
+    "text": "Glasshouse Gale,",
+    "kind": "name",
+    "name": "Glasshouse Gale"
+   },
+   {
+    "id": "names-c/platypus_pete",
+    "text": "Platypus Pete,",
+    "kind": "name",
+    "name": "Platypus Pete"
+   },
+   {
+    "id": "names-c/echidna_edge",
+    "text": "Echidna Edge,",
+    "kind": "name",
+    "name": "Echidna Edge"
+   },
+   {
+    "id": "names-c/flying_fox",
+    "text": "Flying Fox,",
+    "kind": "name",
+    "name": "Flying Fox"
+   },
+   {
+    "id": "names-c/coastal_ranger",
+    "text": "Coastal Ranger,",
+    "kind": "name",
+    "name": "Coastal Ranger"
+   },
+   {
+    "id": "names-c/granite_belt",
+    "text": "Granite Belt,",
+    "kind": "name",
+    "name": "Granite Belt"
+   },
+   {
+    "id": "names-c/bellbird_call",
+    "text": "Bellbird Call,",
+    "kind": "name",
+    "name": "Bellbird Call"
+   },
+   {
+    "id": "names-c/cassowary_charge",
+    "text": "Cassowary Charge,",
+    "kind": "name",
+    "name": "Cassowary Charge"
+   },
+   {
+    "id": "names-c/lyrebird_lilt",
+    "text": "Lyrebird Lilt,",
+    "kind": "name",
+    "name": "Lyrebird Lilt"
+   },
+   {
+    "id": "names-c/galah_gala",
+    "text": "Galah Gala,",
+    "kind": "name",
+    "name": "Galah Gala"
+   },
+   {
+    "id": "names-c/dusty_swagman",
+    "text": "Dusty Swagman,",
+    "kind": "name",
+    "name": "Dusty Swagman"
+   },
+   {
+    "id": "names-c/merindah_mist",
+    "text": "Merindah Mist,",
+    "kind": "name",
+    "name": "Merindah Mist"
+   },
+   {
+    "id": "names-c/southern_sky",
+    "text": "Southern Sky,",
+    "kind": "name",
+    "name": "Southern Sky"
+   },
+   {
+    "id": "names-c/sandstone_sovereign",
+    "text": "Sandstone Sovereign,",
+    "kind": "name",
+    "name": "Sandstone Sovereign"
+   },
+   {
+    "id": "names-c/clover_downs",
+    "text": "Clover Downs,",
+    "kind": "name",
+    "name": "Clover Downs"
+   },
+   {
+    "id": "names-c/river_red_gum",
+    "text": "River Red Gum,",
+    "kind": "name",
+    "name": "River Red Gum"
+   }
+  ],
+  "prompt": "[lively race caller] Red Centre,\n\nWhitsunday Wave,\n\nByron Breeze,\n\nTamworth Twang,\n\nOpal Hunter,\n\nCape Otway,\n\nGlasshouse Gale,\n\nPlatypus Pete,\n\nEchidna Edge,\n\nFlying Fox,\n\nCoastal Ranger,\n\nGranite Belt,\n\nBellbird Call,\n\nCassowary Charge,\n\nLyrebird Lilt,\n\nGalah Gala,\n\nDusty Swagman,\n\nMerindah Mist,\n\nSouthern Sky,\n\nSandstone Sovereign,\n\nClover Downs,\n\nRiver Red Gum,",
+  "chars": 367
+ },
+ {
+  "name": "b35_names_c",
+  "tag": "[lively race caller]",
+  "names": "c",
+  "items": [
+   {
+    "id": "names-c/salt_lake_sunset",
+    "text": "Salt Lake Sunset,",
+    "kind": "name",
+    "name": "Salt Lake Sunset"
+   },
+   {
+    "id": "names-c/stockman_s_pride",
+    "text": "Stockman's Pride,",
+    "kind": "name",
+    "name": "Stockman's Pride"
+   },
+   {
+    "id": "names-c/wedge_tail_wings",
+    "text": "Wedge-tail Wings,",
+    "kind": "name",
+    "name": "Wedge-tail Wings"
+   },
+   {
+    "id": "names-c/heron_island",
+    "text": "Heron Island,",
+    "kind": "name",
+    "name": "Heron Island"
+   },
+   {
+    "id": "names-c/boab_bandit",
+    "text": "Boab Bandit,",
+    "kind": "name",
+    "name": "Boab Bandit"
+   },
+   {
+    "id": "names-c/make_up_your_mind",
+    "text": "Make Up Your Mind,",
+    "kind": "name",
+    "name": "Make Up Your Mind"
+   },
+   {
+    "id": "names-c/redline",
+    "text": "Redline,",
+    "kind": "name",
+    "name": "Redline"
+   },
+   {
+    "id": "names-c/black_caviar",
+    "text": "Black Caviar,",
+    "kind": "name",
+    "name": "Black Caviar"
+   },
+   {
+    "id": "names-c/think_about_it",
+    "text": "Think About It,",
+    "kind": "name",
+    "name": "Think About It"
+   },
+   {
+    "id": "names-c/pierro",
+    "text": "Pierro,",
+    "kind": "name",
+    "name": "Pierro"
+   },
+   {
+    "id": "names-c/fan_girl",
+    "text": "Fan Girl,",
+    "kind": "name",
+    "name": "Fan Girl"
+   },
+   {
+    "id": "names-c/way_with_words",
+    "text": "Way With Words,",
+    "kind": "name",
+    "name": "Way With Words"
+   },
+   {
+    "id": "names-c/by_design",
+    "text": "By Design,",
+    "kind": "name",
+    "name": "By Design"
+   },
+   {
+    "id": "names-c/if_you_say_so",
+    "text": "If You Say So,",
+    "kind": "name",
+    "name": "If You Say So"
+   },
+   {
+    "id": "names-c/all_things_beautiful",
+    "text": "All Things Beautiful,",
+    "kind": "name",
+    "name": "All Things Beautiful"
+   },
+   {
+    "id": "names-c/spanish_affair",
+    "text": "Spanish Affair,",
+    "kind": "name",
+    "name": "Spanish Affair"
+   },
+   {
+    "id": "names-c/call_it_fate",
+    "text": "Call It Fate,",
+    "kind": "name",
+    "name": "Call It Fate"
+   },
+   {
+    "id": "names-c/all_things_equal",
+    "text": "All Things Equal,",
+    "kind": "name",
+    "name": "All Things Equal"
+   }
+  ],
+  "prompt": "[lively race caller] Salt Lake Sunset,\n\nStockman's Pride,\n\nWedge-tail Wings,\n\nHeron Island,\n\nBoab Bandit,\n\nMake Up Your Mind,\n\nRedline,\n\nBlack Caviar,\n\nThink About It,\n\nPierro,\n\nFan Girl,\n\nWay With Words,\n\nBy Design,\n\nIf You Say So,\n\nAll Things Beautiful,\n\nSpanish Affair,\n\nCall It Fate,\n\nAll Things Equal,",
+  "chars": 306
+ },
+ {
+  "name": "b36_names_x",
+  "tag": "[urgent, fast and loud]",
+  "names": "x",
+  "items": [
+   {
+    "id": "names-x/ka_ying_rising",
+    "text": "Ka Ying Rising!",
+    "kind": "name",
+    "name": "Ka Ying Rising"
+   },
+   {
+    "id": "names-x/willow_s_pride",
+    "text": "Willow's Pride!",
+    "kind": "name",
+    "name": "Willow's Pride"
+   },
+   {
+    "id": "names-x/quiet_thunder",
+    "text": "Quiet Thunder!",
+    "kind": "name",
+    "name": "Quiet Thunder"
+   },
+   {
+    "id": "names-x/tempted",
+    "text": "Tempted!",
+    "kind": "name",
+    "name": "Tempted"
+   },
+   {
+    "id": "names-x/bay_majesty",
+    "text": "Bay Majesty!",
+    "kind": "name",
+    "name": "Bay Majesty"
+   },
+   {
+    "id": "names-x/half_yours",
+    "text": "Half Yours!",
+    "kind": "name",
+    "name": "Half Yours"
+   },
+   {
+    "id": "names-x/point_of_law",
+    "text": "Point Of Law!",
+    "kind": "name",
+    "name": "Point Of Law"
+   },
+   {
+    "id": "names-x/trust_your_instinct",
+    "text": "Trust Your Instinct!",
+    "kind": "name",
+    "name": "Trust Your Instinct"
+   },
+   {
+    "id": "names-x/yes_yes_yes",
+    "text": "Yes Yes Yes!",
+    "kind": "name",
+    "name": "Yes Yes Yes"
+   },
+   {
+    "id": "names-x/hopewell_rock",
+    "text": "Hopewell Rock!",
+    "kind": "name",
+    "name": "Hopewell Rock"
+   },
+   {
+    "id": "names-x/goodie_two_shoes",
+    "text": "Goodie Two Shoes!",
+    "kind": "name",
+    "name": "Goodie Two Shoes"
+   },
+   {
+    "id": "names-x/soul_of_spain",
+    "text": "Soul Of Spain!",
+    "kind": "name",
+    "name": "Soul Of Spain"
+   },
+   {
+    "id": "names-x/desert_comet",
+    "text": "Desert Comet!",
+    "kind": "name",
+    "name": "Desert Comet"
+   },
+   {
+    "id": "names-x/brumby_dancer",
+    "text": "Brumby Dancer!",
+    "kind": "name",
+    "name": "Brumby Dancer"
+   },
+   {
+    "id": "names-x/copper_coast",
+    "text": "Copper Coast!",
+    "kind": "name",
+    "name": "Copper Coast"
+   },
+   {
+    "id": "names-x/silver_billabong",
+    "text": "Silver Billabong!",
+    "kind": "name",
+    "name": "Silver Billabong"
+   },
+   {
+    "id": "names-x/outback_express",
+    "text": "Outback Express!",
+    "kind": "name",
+    "name": "Outback Express"
+   },
+   {
+    "id": "names-x/harbour_spark",
+    "text": "Harbour Spark!",
+    "kind": "name",
+    "name": "Harbour Spark"
+   },
+   {
+    "id": "names-x/red_gum_rocket",
+    "text": "Red Gum Rocket!",
+    "kind": "name",
+    "name": "Red Gum Rocket"
+   },
+   {
+    "id": "names-x/wattle_flame",
+    "text": "Wattle Flame!",
+    "kind": "name",
+    "name": "Wattle Flame"
+   },
+   {
+    "id": "names-x/coral_sea_storm",
+    "text": "Coral Sea Storm!",
+    "kind": "name",
+    "name": "Coral Sea Storm"
+   },
+   {
+    "id": "names-x/southerly_buster",
+    "text": "Southerly Buster!",
+    "kind": "name",
+    "name": "Southerly Buster"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Ka Ying Rising!\n\nWillow's Pride!\n\nQuiet Thunder!\n\nTempted!\n\nBay Majesty!\n\nHalf Yours!\n\nPoint Of Law!\n\nTrust Your Instinct!\n\nYes Yes Yes!\n\nHopewell Rock!\n\nGoodie Two Shoes!\n\nSoul Of Spain!\n\nDesert Comet!\n\nBrumby Dancer!\n\nCopper Coast!\n\nSilver Billabong!\n\nOutback Express!\n\nHarbour Spark!\n\nRed Gum Rocket!\n\nWattle Flame!\n\nCoral Sea Storm!\n\nSoutherly Buster!",
+  "chars": 379
+ },
+ {
+  "name": "b37_names_x",
+  "tag": "[urgent, fast and loud]",
+  "names": "x",
+  "items": [
+   {
+    "id": "names-x/bush_telegraph",
+    "text": "Bush Telegraph!",
+    "kind": "name",
+    "name": "Bush Telegraph"
+   },
+   {
+    "id": "names-x/kingfisher_bay",
+    "text": "Kingfisher Bay!",
+    "kind": "name",
+    "name": "Kingfisher Bay"
+   },
+   {
+    "id": "names-x/opal_dreamer",
+    "text": "Opal Dreamer!",
+    "kind": "name",
+    "name": "Opal Dreamer"
+   },
+   {
+    "id": "names-x/tasman_tide",
+    "text": "Tasman Tide!",
+    "kind": "name",
+    "name": "Tasman Tide"
+   },
+   {
+    "id": "names-x/ironbark_queen",
+    "text": "Ironbark Queen!",
+    "kind": "name",
+    "name": "Ironbark Queen"
+   },
+   {
+    "id": "names-x/golden_wattle",
+    "text": "Golden Wattle!",
+    "kind": "name",
+    "name": "Golden Wattle"
+   },
+   {
+    "id": "names-x/starry_outback",
+    "text": "Starry Outback!",
+    "kind": "name",
+    "name": "Starry Outback"
+   },
+   {
+    "id": "names-x/mulga_moon",
+    "text": "Mulga Moon!",
+    "kind": "name",
+    "name": "Mulga Moon"
+   },
+   {
+    "id": "names-x/swagman_s_luck",
+    "text": "Swagman's Luck!",
+    "kind": "name",
+    "name": "Swagman's Luck"
+   },
+   {
+    "id": "names-x/thunderbolt_lane",
+    "text": "Thunderbolt Lane!",
+    "kind": "name",
+    "name": "Thunderbolt Lane"
+   },
+   {
+    "id": "names-x/blue_mountain_mist",
+    "text": "Blue Mountain Mist!",
+    "kind": "name",
+    "name": "Blue Mountain Mist"
+   },
+   {
+    "id": "names-x/riverina_rose",
+    "text": "Riverina Rose!",
+    "kind": "name",
+    "name": "Riverina Rose"
+   },
+   {
+    "id": "names-x/cockatoo_charm",
+    "text": "Cockatoo Charm!",
+    "kind": "name",
+    "name": "Cockatoo Charm"
+   },
+   {
+    "id": "names-x/sunburnt_country",
+    "text": "Sunburnt Country!",
+    "kind": "name",
+    "name": "Sunburnt Country"
+   },
+   {
+    "id": "names-x/dingo_dash",
+    "text": "Dingo Dash!",
+    "kind": "name",
+    "name": "Dingo Dash"
+   },
+   {
+    "id": "names-x/pilbara_gold",
+    "text": "Pilbara Gold!",
+    "kind": "name",
+    "name": "Pilbara Gold"
+   },
+   {
+    "id": "names-x/boomerang_bay",
+    "text": "Boomerang Bay!",
+    "kind": "name",
+    "name": "Boomerang Bay"
+   },
+   {
+    "id": "names-x/lightning_ridge",
+    "text": "Lightning Ridge!",
+    "kind": "name",
+    "name": "Lightning Ridge"
+   },
+   {
+    "id": "names-x/coolabah_star",
+    "text": "Coolabah Star!",
+    "kind": "name",
+    "name": "Coolabah Star"
+   },
+   {
+    "id": "names-x/kakadu_knight",
+    "text": "Kakadu Knight!",
+    "kind": "name",
+    "name": "Kakadu Knight"
+   },
+   {
+    "id": "names-x/silver_brolga",
+    "text": "Silver Brolga!",
+    "kind": "name",
+    "name": "Silver Brolga"
+   },
+   {
+    "id": "names-x/emu_parade",
+    "text": "Emu Parade!",
+    "kind": "name",
+    "name": "Emu Parade"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Bush Telegraph!\n\nKingfisher Bay!\n\nOpal Dreamer!\n\nTasman Tide!\n\nIronbark Queen!\n\nGolden Wattle!\n\nStarry Outback!\n\nMulga Moon!\n\nSwagman's Luck!\n\nThunderbolt Lane!\n\nBlue Mountain Mist!\n\nRiverina Rose!\n\nCockatoo Charm!\n\nSunburnt Country!\n\nDingo Dash!\n\nPilbara Gold!\n\nBoomerang Bay!\n\nLightning Ridge!\n\nCoolabah Star!\n\nKakadu Knight!\n\nSilver Brolga!\n\nEmu Parade!",
+  "chars": 380
+ },
+ {
+  "name": "b38_names_x",
+  "tag": "[urgent, fast and loud]",
+  "names": "x",
+  "items": [
+   {
+    "id": "names-x/barramundi_blue",
+    "text": "Barramundi Blue!",
+    "kind": "name",
+    "name": "Barramundi Blue"
+   },
+   {
+    "id": "names-x/daintree_flyer",
+    "text": "Daintree Flyer!",
+    "kind": "name",
+    "name": "Daintree Flyer"
+   },
+   {
+    "id": "names-x/gibber_plains",
+    "text": "Gibber Plains!",
+    "kind": "name",
+    "name": "Gibber Plains"
+   },
+   {
+    "id": "names-x/ningaloo_reef",
+    "text": "Ningaloo Reef!",
+    "kind": "name",
+    "name": "Ningaloo Reef"
+   },
+   {
+    "id": "names-x/eucalypt_express",
+    "text": "Eucalypt Express!",
+    "kind": "name",
+    "name": "Eucalypt Express"
+   },
+   {
+    "id": "names-x/paddock_prince",
+    "text": "Paddock Prince!",
+    "kind": "name",
+    "name": "Paddock Prince"
+   },
+   {
+    "id": "names-x/saltbush_sally",
+    "text": "Saltbush Sally!",
+    "kind": "name",
+    "name": "Saltbush Sally"
+   },
+   {
+    "id": "names-x/flinders_flame",
+    "text": "Flinders Flame!",
+    "kind": "name",
+    "name": "Flinders Flame"
+   },
+   {
+    "id": "names-x/burrawang_belle",
+    "text": "Burrawang Belle!",
+    "kind": "name",
+    "name": "Burrawang Belle"
+   },
+   {
+    "id": "names-x/jacaranda_jewel",
+    "text": "Jacaranda Jewel!",
+    "kind": "name",
+    "name": "Jacaranda Jewel"
+   },
+   {
+    "id": "names-x/cobbler_s_creek",
+    "text": "Cobbler's Creek!",
+    "kind": "name",
+    "name": "Cobbler's Creek"
+   },
+   {
+    "id": "names-x/gidgee_rose",
+    "text": "Gidgee Rose!",
+    "kind": "name",
+    "name": "Gidgee Rose"
+   },
+   {
+    "id": "names-x/kimberley_ruby",
+    "text": "Kimberley Ruby!",
+    "kind": "name",
+    "name": "Kimberley Ruby"
+   },
+   {
+    "id": "names-x/banjo_s_ballad",
+    "text": "Banjo's Ballad!",
+    "kind": "name",
+    "name": "Banjo's Ballad"
+   },
+   {
+    "id": "names-x/snowy_river_spirit",
+    "text": "Snowy River Spirit!",
+    "kind": "name",
+    "name": "Snowy River Spirit"
+   },
+   {
+    "id": "names-x/waratah_warrior",
+    "text": "Waratah Warrior!",
+    "kind": "name",
+    "name": "Waratah Warrior"
+   },
+   {
+    "id": "names-x/billabong_bandit",
+    "text": "Billabong Bandit!",
+    "kind": "name",
+    "name": "Billabong Bandit"
+   },
+   {
+    "id": "names-x/nullarbor_nights",
+    "text": "Nullarbor Nights!",
+    "kind": "name",
+    "name": "Nullarbor Nights"
+   },
+   {
+    "id": "names-x/overland_mail",
+    "text": "Overland Mail!",
+    "kind": "name",
+    "name": "Overland Mail"
+   },
+   {
+    "id": "names-x/gold_rush_girl",
+    "text": "Gold Rush Girl!",
+    "kind": "name",
+    "name": "Gold Rush Girl"
+   },
+   {
+    "id": "names-x/rainbow_lorikeet",
+    "text": "Rainbow Lorikeet!",
+    "kind": "name",
+    "name": "Rainbow Lorikeet"
+   },
+   {
+    "id": "names-x/magpie_melody",
+    "text": "Magpie Melody!",
+    "kind": "name",
+    "name": "Magpie Melody"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Barramundi Blue!\n\nDaintree Flyer!\n\nGibber Plains!\n\nNingaloo Reef!\n\nEucalypt Express!\n\nPaddock Prince!\n\nSaltbush Sally!\n\nFlinders Flame!\n\nBurrawang Belle!\n\nJacaranda Jewel!\n\nCobbler's Creek!\n\nGidgee Rose!\n\nKimberley Ruby!\n\nBanjo's Ballad!\n\nSnowy River Spirit!\n\nWaratah Warrior!\n\nBillabong Bandit!\n\nNullarbor Nights!\n\nOverland Mail!\n\nGold Rush Girl!\n\nRainbow Lorikeet!\n\nMagpie Melody!",
+  "chars": 406
+ },
+ {
+  "name": "b39_names_x",
+  "tag": "[urgent, fast and loud]",
+  "names": "x",
+  "items": [
+   {
+    "id": "names-x/kurrajong_king",
+    "text": "Kurrajong King!",
+    "kind": "name",
+    "name": "Kurrajong King"
+   },
+   {
+    "id": "names-x/bottlebrush_bay",
+    "text": "Bottlebrush Bay!",
+    "kind": "name",
+    "name": "Bottlebrush Bay"
+   },
+   {
+    "id": "names-x/marri_moon",
+    "text": "Marri Moon!",
+    "kind": "name",
+    "name": "Marri Moon"
+   },
+   {
+    "id": "names-x/bluestone_lane",
+    "text": "Bluestone Lane!",
+    "kind": "name",
+    "name": "Bluestone Lane"
+   },
+   {
+    "id": "names-x/spinifex_spirit",
+    "text": "Spinifex Spirit!",
+    "kind": "name",
+    "name": "Spinifex Spirit"
+   },
+   {
+    "id": "names-x/arafura_wind",
+    "text": "Arafura Wind!",
+    "kind": "name",
+    "name": "Arafura Wind"
+   },
+   {
+    "id": "names-x/jindabyne_jet",
+    "text": "Jindabyne Jet!",
+    "kind": "name",
+    "name": "Jindabyne Jet"
+   },
+   {
+    "id": "names-x/hawkesbury_haze",
+    "text": "Hawkesbury Haze!",
+    "kind": "name",
+    "name": "Hawkesbury Haze"
+   },
+   {
+    "id": "names-x/merino_magic",
+    "text": "Merino Magic!",
+    "kind": "name",
+    "name": "Merino Magic"
+   },
+   {
+    "id": "names-x/tumbleweed_tom",
+    "text": "Tumbleweed Tom!",
+    "kind": "name",
+    "name": "Tumbleweed Tom"
+   },
+   {
+    "id": "names-x/murrumbidgee_mist",
+    "text": "Murrumbidgee Mist!",
+    "kind": "name",
+    "name": "Murrumbidgee Mist"
+   },
+   {
+    "id": "names-x/gulf_country",
+    "text": "Gulf Country!",
+    "kind": "name",
+    "name": "Gulf Country"
+   },
+   {
+    "id": "names-x/quandong_queen",
+    "text": "Quandong Queen!",
+    "kind": "name",
+    "name": "Quandong Queen"
+   },
+   {
+    "id": "names-x/bunya_pine",
+    "text": "Bunya Pine!",
+    "kind": "name",
+    "name": "Bunya Pine"
+   },
+   {
+    "id": "names-x/warrego_run",
+    "text": "Warrego Run!",
+    "kind": "name",
+    "name": "Warrego Run"
+   },
+   {
+    "id": "names-x/mallee_fire",
+    "text": "Mallee Fire!",
+    "kind": "name",
+    "name": "Mallee Fire"
+   },
+   {
+    "id": "names-x/darling_downs",
+    "text": "Darling Downs!",
+    "kind": "name",
+    "name": "Darling Downs"
+   },
+   {
+    "id": "names-x/wollemi_wonder",
+    "text": "Wollemi Wonder!",
+    "kind": "name",
+    "name": "Wollemi Wonder"
+   },
+   {
+    "id": "names-x/southern_aurora",
+    "text": "Southern Aurora!",
+    "kind": "name",
+    "name": "Southern Aurora"
+   },
+   {
+    "id": "names-x/desert_rain",
+    "text": "Desert Rain!",
+    "kind": "name",
+    "name": "Desert Rain"
+   },
+   {
+    "id": "names-x/moonlit_paddock",
+    "text": "Moonlit Paddock!",
+    "kind": "name",
+    "name": "Moonlit Paddock"
+   },
+   {
+    "id": "names-x/silky_oak",
+    "text": "Silky Oak!",
+    "kind": "name",
+    "name": "Silky Oak"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Kurrajong King!\n\nBottlebrush Bay!\n\nMarri Moon!\n\nBluestone Lane!\n\nSpinifex Spirit!\n\nArafura Wind!\n\nJindabyne Jet!\n\nHawkesbury Haze!\n\nMerino Magic!\n\nTumbleweed Tom!\n\nMurrumbidgee Mist!\n\nGulf Country!\n\nQuandong Queen!\n\nBunya Pine!\n\nWarrego Run!\n\nMallee Fire!\n\nDarling Downs!\n\nWollemi Wonder!\n\nSouthern Aurora!\n\nDesert Rain!\n\nMoonlit Paddock!\n\nSilky Oak!",
+  "chars": 374
+ },
+ {
+  "name": "b40_names_x",
+  "tag": "[urgent, fast and loud]",
+  "names": "x",
+  "items": [
+   {
+    "id": "names-x/red_centre",
+    "text": "Red Centre!",
+    "kind": "name",
+    "name": "Red Centre"
+   },
+   {
+    "id": "names-x/whitsunday_wave",
+    "text": "Whitsunday Wave!",
+    "kind": "name",
+    "name": "Whitsunday Wave"
+   },
+   {
+    "id": "names-x/byron_breeze",
+    "text": "Byron Breeze!",
+    "kind": "name",
+    "name": "Byron Breeze"
+   },
+   {
+    "id": "names-x/tamworth_twang",
+    "text": "Tamworth Twang!",
+    "kind": "name",
+    "name": "Tamworth Twang"
+   },
+   {
+    "id": "names-x/opal_hunter",
+    "text": "Opal Hunter!",
+    "kind": "name",
+    "name": "Opal Hunter"
+   },
+   {
+    "id": "names-x/cape_otway",
+    "text": "Cape Otway!",
+    "kind": "name",
+    "name": "Cape Otway"
+   },
+   {
+    "id": "names-x/glasshouse_gale",
+    "text": "Glasshouse Gale!",
+    "kind": "name",
+    "name": "Glasshouse Gale"
+   },
+   {
+    "id": "names-x/platypus_pete",
+    "text": "Platypus Pete!",
+    "kind": "name",
+    "name": "Platypus Pete"
+   },
+   {
+    "id": "names-x/echidna_edge",
+    "text": "Echidna Edge!",
+    "kind": "name",
+    "name": "Echidna Edge"
+   },
+   {
+    "id": "names-x/flying_fox",
+    "text": "Flying Fox!",
+    "kind": "name",
+    "name": "Flying Fox"
+   },
+   {
+    "id": "names-x/coastal_ranger",
+    "text": "Coastal Ranger!",
+    "kind": "name",
+    "name": "Coastal Ranger"
+   },
+   {
+    "id": "names-x/granite_belt",
+    "text": "Granite Belt!",
+    "kind": "name",
+    "name": "Granite Belt"
+   },
+   {
+    "id": "names-x/bellbird_call",
+    "text": "Bellbird Call!",
+    "kind": "name",
+    "name": "Bellbird Call"
+   },
+   {
+    "id": "names-x/cassowary_charge",
+    "text": "Cassowary Charge!",
+    "kind": "name",
+    "name": "Cassowary Charge"
+   },
+   {
+    "id": "names-x/lyrebird_lilt",
+    "text": "Lyrebird Lilt!",
+    "kind": "name",
+    "name": "Lyrebird Lilt"
+   },
+   {
+    "id": "names-x/galah_gala",
+    "text": "Galah Gala!",
+    "kind": "name",
+    "name": "Galah Gala"
+   },
+   {
+    "id": "names-x/dusty_swagman",
+    "text": "Dusty Swagman!",
+    "kind": "name",
+    "name": "Dusty Swagman"
+   },
+   {
+    "id": "names-x/merindah_mist",
+    "text": "Merindah Mist!",
+    "kind": "name",
+    "name": "Merindah Mist"
+   },
+   {
+    "id": "names-x/southern_sky",
+    "text": "Southern Sky!",
+    "kind": "name",
+    "name": "Southern Sky"
+   },
+   {
+    "id": "names-x/sandstone_sovereign",
+    "text": "Sandstone Sovereign!",
+    "kind": "name",
+    "name": "Sandstone Sovereign"
+   },
+   {
+    "id": "names-x/clover_downs",
+    "text": "Clover Downs!",
+    "kind": "name",
+    "name": "Clover Downs"
+   },
+   {
+    "id": "names-x/river_red_gum",
+    "text": "River Red Gum!",
+    "kind": "name",
+    "name": "River Red Gum"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Red Centre!\n\nWhitsunday Wave!\n\nByron Breeze!\n\nTamworth Twang!\n\nOpal Hunter!\n\nCape Otway!\n\nGlasshouse Gale!\n\nPlatypus Pete!\n\nEchidna Edge!\n\nFlying Fox!\n\nCoastal Ranger!\n\nGranite Belt!\n\nBellbird Call!\n\nCassowary Charge!\n\nLyrebird Lilt!\n\nGalah Gala!\n\nDusty Swagman!\n\nMerindah Mist!\n\nSouthern Sky!\n\nSandstone Sovereign!\n\nClover Downs!\n\nRiver Red Gum!",
+  "chars": 370
+ },
+ {
+  "name": "b41_names_x",
+  "tag": "[urgent, fast and loud]",
+  "names": "x",
+  "items": [
+   {
+    "id": "names-x/salt_lake_sunset",
+    "text": "Salt Lake Sunset!",
+    "kind": "name",
+    "name": "Salt Lake Sunset"
+   },
+   {
+    "id": "names-x/stockman_s_pride",
+    "text": "Stockman's Pride!",
+    "kind": "name",
+    "name": "Stockman's Pride"
+   },
+   {
+    "id": "names-x/wedge_tail_wings",
+    "text": "Wedge-tail Wings!",
+    "kind": "name",
+    "name": "Wedge-tail Wings"
+   },
+   {
+    "id": "names-x/heron_island",
+    "text": "Heron Island!",
+    "kind": "name",
+    "name": "Heron Island"
+   },
+   {
+    "id": "names-x/boab_bandit",
+    "text": "Boab Bandit!",
+    "kind": "name",
+    "name": "Boab Bandit"
+   },
+   {
+    "id": "names-x/make_up_your_mind",
+    "text": "Make Up Your Mind!",
+    "kind": "name",
+    "name": "Make Up Your Mind"
+   },
+   {
+    "id": "names-x/redline",
+    "text": "Redline!",
+    "kind": "name",
+    "name": "Redline"
+   },
+   {
+    "id": "names-x/black_caviar",
+    "text": "Black Caviar!",
+    "kind": "name",
+    "name": "Black Caviar"
+   },
+   {
+    "id": "names-x/think_about_it",
+    "text": "Think About It!",
+    "kind": "name",
+    "name": "Think About It"
+   },
+   {
+    "id": "names-x/pierro",
+    "text": "Pierro!",
+    "kind": "name",
+    "name": "Pierro"
+   },
+   {
+    "id": "names-x/fan_girl",
+    "text": "Fan Girl!",
+    "kind": "name",
+    "name": "Fan Girl"
+   },
+   {
+    "id": "names-x/way_with_words",
+    "text": "Way With Words!",
+    "kind": "name",
+    "name": "Way With Words"
+   },
+   {
+    "id": "names-x/by_design",
+    "text": "By Design!",
+    "kind": "name",
+    "name": "By Design"
+   },
+   {
+    "id": "names-x/if_you_say_so",
+    "text": "If You Say So!",
+    "kind": "name",
+    "name": "If You Say So"
+   },
+   {
+    "id": "names-x/all_things_beautiful",
+    "text": "All Things Beautiful!",
+    "kind": "name",
+    "name": "All Things Beautiful"
+   },
+   {
+    "id": "names-x/spanish_affair",
+    "text": "Spanish Affair!",
+    "kind": "name",
+    "name": "Spanish Affair"
+   },
+   {
+    "id": "names-x/call_it_fate",
+    "text": "Call It Fate!",
+    "kind": "name",
+    "name": "Call It Fate"
+   },
+   {
+    "id": "names-x/all_things_equal",
+    "text": "All Things Equal!",
+    "kind": "name",
+    "name": "All Things Equal"
+   }
+  ],
+  "prompt": "[urgent, fast and loud] Salt Lake Sunset!\n\nStockman's Pride!\n\nWedge-tail Wings!\n\nHeron Island!\n\nBoab Bandit!\n\nMake Up Your Mind!\n\nRedline!\n\nBlack Caviar!\n\nThink About It!\n\nPierro!\n\nFan Girl!\n\nWay With Words!\n\nBy Design!\n\nIf You Say So!\n\nAll Things Beautiful!\n\nSpanish Affair!\n\nCall It Fate!\n\nAll Things Equal!",
+  "chars": 309
+ },
+ {
+  "name": "b42_names_s",
+  "tag": "[screaming with excitement, very fast]",
+  "names": "s",
+  "items": [
+   {
+    "id": "names-s/ka_ying_rising",
+    "text": "Ka Ying Rising!",
+    "kind": "name",
+    "name": "Ka Ying Rising"
+   },
+   {
+    "id": "names-s/willow_s_pride",
+    "text": "Willow's Pride!",
+    "kind": "name",
+    "name": "Willow's Pride"
+   },
+   {
+    "id": "names-s/quiet_thunder",
+    "text": "Quiet Thunder!",
+    "kind": "name",
+    "name": "Quiet Thunder"
+   },
+   {
+    "id": "names-s/tempted",
+    "text": "Tempted!",
+    "kind": "name",
+    "name": "Tempted"
+   },
+   {
+    "id": "names-s/bay_majesty",
+    "text": "Bay Majesty!",
+    "kind": "name",
+    "name": "Bay Majesty"
+   },
+   {
+    "id": "names-s/half_yours",
+    "text": "Half Yours!",
+    "kind": "name",
+    "name": "Half Yours"
+   },
+   {
+    "id": "names-s/point_of_law",
+    "text": "Point Of Law!",
+    "kind": "name",
+    "name": "Point Of Law"
+   },
+   {
+    "id": "names-s/trust_your_instinct",
+    "text": "Trust Your Instinct!",
+    "kind": "name",
+    "name": "Trust Your Instinct"
+   },
+   {
+    "id": "names-s/yes_yes_yes",
+    "text": "Yes Yes Yes!",
+    "kind": "name",
+    "name": "Yes Yes Yes"
+   },
+   {
+    "id": "names-s/hopewell_rock",
+    "text": "Hopewell Rock!",
+    "kind": "name",
+    "name": "Hopewell Rock"
+   },
+   {
+    "id": "names-s/goodie_two_shoes",
+    "text": "Goodie Two Shoes!",
+    "kind": "name",
+    "name": "Goodie Two Shoes"
+   },
+   {
+    "id": "names-s/soul_of_spain",
+    "text": "Soul Of Spain!",
+    "kind": "name",
+    "name": "Soul Of Spain"
+   },
+   {
+    "id": "names-s/desert_comet",
+    "text": "Desert Comet!",
+    "kind": "name",
+    "name": "Desert Comet"
+   },
+   {
+    "id": "names-s/brumby_dancer",
+    "text": "Brumby Dancer!",
+    "kind": "name",
+    "name": "Brumby Dancer"
+   },
+   {
+    "id": "names-s/copper_coast",
+    "text": "Copper Coast!",
+    "kind": "name",
+    "name": "Copper Coast"
+   },
+   {
+    "id": "names-s/silver_billabong",
+    "text": "Silver Billabong!",
+    "kind": "name",
+    "name": "Silver Billabong"
+   },
+   {
+    "id": "names-s/outback_express",
+    "text": "Outback Express!",
+    "kind": "name",
+    "name": "Outback Express"
+   },
+   {
+    "id": "names-s/harbour_spark",
+    "text": "Harbour Spark!",
+    "kind": "name",
+    "name": "Harbour Spark"
+   },
+   {
+    "id": "names-s/red_gum_rocket",
+    "text": "Red Gum Rocket!",
+    "kind": "name",
+    "name": "Red Gum Rocket"
+   },
+   {
+    "id": "names-s/wattle_flame",
+    "text": "Wattle Flame!",
+    "kind": "name",
+    "name": "Wattle Flame"
+   },
+   {
+    "id": "names-s/coral_sea_storm",
+    "text": "Coral Sea Storm!",
+    "kind": "name",
+    "name": "Coral Sea Storm"
+   },
+   {
+    "id": "names-s/southerly_buster",
+    "text": "Southerly Buster!",
+    "kind": "name",
+    "name": "Southerly Buster"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] Ka Ying Rising!\n\nWillow's Pride!\n\nQuiet Thunder!\n\nTempted!\n\nBay Majesty!\n\nHalf Yours!\n\nPoint Of Law!\n\nTrust Your Instinct!\n\nYes Yes Yes!\n\nHopewell Rock!\n\nGoodie Two Shoes!\n\nSoul Of Spain!\n\nDesert Comet!\n\nBrumby Dancer!\n\nCopper Coast!\n\nSilver Billabong!\n\nOutback Express!\n\nHarbour Spark!\n\nRed Gum Rocket!\n\nWattle Flame!\n\nCoral Sea Storm!\n\nSoutherly Buster!",
+  "chars": 394
+ },
+ {
+  "name": "b43_names_s",
+  "tag": "[screaming with excitement, very fast]",
+  "names": "s",
+  "items": [
+   {
+    "id": "names-s/bush_telegraph",
+    "text": "Bush Telegraph!",
+    "kind": "name",
+    "name": "Bush Telegraph"
+   },
+   {
+    "id": "names-s/kingfisher_bay",
+    "text": "Kingfisher Bay!",
+    "kind": "name",
+    "name": "Kingfisher Bay"
+   },
+   {
+    "id": "names-s/opal_dreamer",
+    "text": "Opal Dreamer!",
+    "kind": "name",
+    "name": "Opal Dreamer"
+   },
+   {
+    "id": "names-s/tasman_tide",
+    "text": "Tasman Tide!",
+    "kind": "name",
+    "name": "Tasman Tide"
+   },
+   {
+    "id": "names-s/ironbark_queen",
+    "text": "Ironbark Queen!",
+    "kind": "name",
+    "name": "Ironbark Queen"
+   },
+   {
+    "id": "names-s/golden_wattle",
+    "text": "Golden Wattle!",
+    "kind": "name",
+    "name": "Golden Wattle"
+   },
+   {
+    "id": "names-s/starry_outback",
+    "text": "Starry Outback!",
+    "kind": "name",
+    "name": "Starry Outback"
+   },
+   {
+    "id": "names-s/mulga_moon",
+    "text": "Mulga Moon!",
+    "kind": "name",
+    "name": "Mulga Moon"
+   },
+   {
+    "id": "names-s/swagman_s_luck",
+    "text": "Swagman's Luck!",
+    "kind": "name",
+    "name": "Swagman's Luck"
+   },
+   {
+    "id": "names-s/thunderbolt_lane",
+    "text": "Thunderbolt Lane!",
+    "kind": "name",
+    "name": "Thunderbolt Lane"
+   },
+   {
+    "id": "names-s/blue_mountain_mist",
+    "text": "Blue Mountain Mist!",
+    "kind": "name",
+    "name": "Blue Mountain Mist"
+   },
+   {
+    "id": "names-s/riverina_rose",
+    "text": "Riverina Rose!",
+    "kind": "name",
+    "name": "Riverina Rose"
+   },
+   {
+    "id": "names-s/cockatoo_charm",
+    "text": "Cockatoo Charm!",
+    "kind": "name",
+    "name": "Cockatoo Charm"
+   },
+   {
+    "id": "names-s/sunburnt_country",
+    "text": "Sunburnt Country!",
+    "kind": "name",
+    "name": "Sunburnt Country"
+   },
+   {
+    "id": "names-s/dingo_dash",
+    "text": "Dingo Dash!",
+    "kind": "name",
+    "name": "Dingo Dash"
+   },
+   {
+    "id": "names-s/pilbara_gold",
+    "text": "Pilbara Gold!",
+    "kind": "name",
+    "name": "Pilbara Gold"
+   },
+   {
+    "id": "names-s/boomerang_bay",
+    "text": "Boomerang Bay!",
+    "kind": "name",
+    "name": "Boomerang Bay"
+   },
+   {
+    "id": "names-s/lightning_ridge",
+    "text": "Lightning Ridge!",
+    "kind": "name",
+    "name": "Lightning Ridge"
+   },
+   {
+    "id": "names-s/coolabah_star",
+    "text": "Coolabah Star!",
+    "kind": "name",
+    "name": "Coolabah Star"
+   },
+   {
+    "id": "names-s/kakadu_knight",
+    "text": "Kakadu Knight!",
+    "kind": "name",
+    "name": "Kakadu Knight"
+   },
+   {
+    "id": "names-s/silver_brolga",
+    "text": "Silver Brolga!",
+    "kind": "name",
+    "name": "Silver Brolga"
+   },
+   {
+    "id": "names-s/emu_parade",
+    "text": "Emu Parade!",
+    "kind": "name",
+    "name": "Emu Parade"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] Bush Telegraph!\n\nKingfisher Bay!\n\nOpal Dreamer!\n\nTasman Tide!\n\nIronbark Queen!\n\nGolden Wattle!\n\nStarry Outback!\n\nMulga Moon!\n\nSwagman's Luck!\n\nThunderbolt Lane!\n\nBlue Mountain Mist!\n\nRiverina Rose!\n\nCockatoo Charm!\n\nSunburnt Country!\n\nDingo Dash!\n\nPilbara Gold!\n\nBoomerang Bay!\n\nLightning Ridge!\n\nCoolabah Star!\n\nKakadu Knight!\n\nSilver Brolga!\n\nEmu Parade!",
+  "chars": 395
+ },
+ {
+  "name": "b44_names_s",
+  "tag": "[screaming with excitement, very fast]",
+  "names": "s",
+  "items": [
+   {
+    "id": "names-s/barramundi_blue",
+    "text": "Barramundi Blue!",
+    "kind": "name",
+    "name": "Barramundi Blue"
+   },
+   {
+    "id": "names-s/daintree_flyer",
+    "text": "Daintree Flyer!",
+    "kind": "name",
+    "name": "Daintree Flyer"
+   },
+   {
+    "id": "names-s/gibber_plains",
+    "text": "Gibber Plains!",
+    "kind": "name",
+    "name": "Gibber Plains"
+   },
+   {
+    "id": "names-s/ningaloo_reef",
+    "text": "Ningaloo Reef!",
+    "kind": "name",
+    "name": "Ningaloo Reef"
+   },
+   {
+    "id": "names-s/eucalypt_express",
+    "text": "Eucalypt Express!",
+    "kind": "name",
+    "name": "Eucalypt Express"
+   },
+   {
+    "id": "names-s/paddock_prince",
+    "text": "Paddock Prince!",
+    "kind": "name",
+    "name": "Paddock Prince"
+   },
+   {
+    "id": "names-s/saltbush_sally",
+    "text": "Saltbush Sally!",
+    "kind": "name",
+    "name": "Saltbush Sally"
+   },
+   {
+    "id": "names-s/flinders_flame",
+    "text": "Flinders Flame!",
+    "kind": "name",
+    "name": "Flinders Flame"
+   },
+   {
+    "id": "names-s/burrawang_belle",
+    "text": "Burrawang Belle!",
+    "kind": "name",
+    "name": "Burrawang Belle"
+   },
+   {
+    "id": "names-s/jacaranda_jewel",
+    "text": "Jacaranda Jewel!",
+    "kind": "name",
+    "name": "Jacaranda Jewel"
+   },
+   {
+    "id": "names-s/cobbler_s_creek",
+    "text": "Cobbler's Creek!",
+    "kind": "name",
+    "name": "Cobbler's Creek"
+   },
+   {
+    "id": "names-s/gidgee_rose",
+    "text": "Gidgee Rose!",
+    "kind": "name",
+    "name": "Gidgee Rose"
+   },
+   {
+    "id": "names-s/kimberley_ruby",
+    "text": "Kimberley Ruby!",
+    "kind": "name",
+    "name": "Kimberley Ruby"
+   },
+   {
+    "id": "names-s/banjo_s_ballad",
+    "text": "Banjo's Ballad!",
+    "kind": "name",
+    "name": "Banjo's Ballad"
+   },
+   {
+    "id": "names-s/snowy_river_spirit",
+    "text": "Snowy River Spirit!",
+    "kind": "name",
+    "name": "Snowy River Spirit"
+   },
+   {
+    "id": "names-s/waratah_warrior",
+    "text": "Waratah Warrior!",
+    "kind": "name",
+    "name": "Waratah Warrior"
+   },
+   {
+    "id": "names-s/billabong_bandit",
+    "text": "Billabong Bandit!",
+    "kind": "name",
+    "name": "Billabong Bandit"
+   },
+   {
+    "id": "names-s/nullarbor_nights",
+    "text": "Nullarbor Nights!",
+    "kind": "name",
+    "name": "Nullarbor Nights"
+   },
+   {
+    "id": "names-s/overland_mail",
+    "text": "Overland Mail!",
+    "kind": "name",
+    "name": "Overland Mail"
+   },
+   {
+    "id": "names-s/gold_rush_girl",
+    "text": "Gold Rush Girl!",
+    "kind": "name",
+    "name": "Gold Rush Girl"
+   },
+   {
+    "id": "names-s/rainbow_lorikeet",
+    "text": "Rainbow Lorikeet!",
+    "kind": "name",
+    "name": "Rainbow Lorikeet"
+   },
+   {
+    "id": "names-s/magpie_melody",
+    "text": "Magpie Melody!",
+    "kind": "name",
+    "name": "Magpie Melody"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] Barramundi Blue!\n\nDaintree Flyer!\n\nGibber Plains!\n\nNingaloo Reef!\n\nEucalypt Express!\n\nPaddock Prince!\n\nSaltbush Sally!\n\nFlinders Flame!\n\nBurrawang Belle!\n\nJacaranda Jewel!\n\nCobbler's Creek!\n\nGidgee Rose!\n\nKimberley Ruby!\n\nBanjo's Ballad!\n\nSnowy River Spirit!\n\nWaratah Warrior!\n\nBillabong Bandit!\n\nNullarbor Nights!\n\nOverland Mail!\n\nGold Rush Girl!\n\nRainbow Lorikeet!\n\nMagpie Melody!",
+  "chars": 421
+ },
+ {
+  "name": "b45_names_s",
+  "tag": "[screaming with excitement, very fast]",
+  "names": "s",
+  "items": [
+   {
+    "id": "names-s/kurrajong_king",
+    "text": "Kurrajong King!",
+    "kind": "name",
+    "name": "Kurrajong King"
+   },
+   {
+    "id": "names-s/bottlebrush_bay",
+    "text": "Bottlebrush Bay!",
+    "kind": "name",
+    "name": "Bottlebrush Bay"
+   },
+   {
+    "id": "names-s/marri_moon",
+    "text": "Marri Moon!",
+    "kind": "name",
+    "name": "Marri Moon"
+   },
+   {
+    "id": "names-s/bluestone_lane",
+    "text": "Bluestone Lane!",
+    "kind": "name",
+    "name": "Bluestone Lane"
+   },
+   {
+    "id": "names-s/spinifex_spirit",
+    "text": "Spinifex Spirit!",
+    "kind": "name",
+    "name": "Spinifex Spirit"
+   },
+   {
+    "id": "names-s/arafura_wind",
+    "text": "Arafura Wind!",
+    "kind": "name",
+    "name": "Arafura Wind"
+   },
+   {
+    "id": "names-s/jindabyne_jet",
+    "text": "Jindabyne Jet!",
+    "kind": "name",
+    "name": "Jindabyne Jet"
+   },
+   {
+    "id": "names-s/hawkesbury_haze",
+    "text": "Hawkesbury Haze!",
+    "kind": "name",
+    "name": "Hawkesbury Haze"
+   },
+   {
+    "id": "names-s/merino_magic",
+    "text": "Merino Magic!",
+    "kind": "name",
+    "name": "Merino Magic"
+   },
+   {
+    "id": "names-s/tumbleweed_tom",
+    "text": "Tumbleweed Tom!",
+    "kind": "name",
+    "name": "Tumbleweed Tom"
+   },
+   {
+    "id": "names-s/murrumbidgee_mist",
+    "text": "Murrumbidgee Mist!",
+    "kind": "name",
+    "name": "Murrumbidgee Mist"
+   },
+   {
+    "id": "names-s/gulf_country",
+    "text": "Gulf Country!",
+    "kind": "name",
+    "name": "Gulf Country"
+   },
+   {
+    "id": "names-s/quandong_queen",
+    "text": "Quandong Queen!",
+    "kind": "name",
+    "name": "Quandong Queen"
+   },
+   {
+    "id": "names-s/bunya_pine",
+    "text": "Bunya Pine!",
+    "kind": "name",
+    "name": "Bunya Pine"
+   },
+   {
+    "id": "names-s/warrego_run",
+    "text": "Warrego Run!",
+    "kind": "name",
+    "name": "Warrego Run"
+   },
+   {
+    "id": "names-s/mallee_fire",
+    "text": "Mallee Fire!",
+    "kind": "name",
+    "name": "Mallee Fire"
+   },
+   {
+    "id": "names-s/darling_downs",
+    "text": "Darling Downs!",
+    "kind": "name",
+    "name": "Darling Downs"
+   },
+   {
+    "id": "names-s/wollemi_wonder",
+    "text": "Wollemi Wonder!",
+    "kind": "name",
+    "name": "Wollemi Wonder"
+   },
+   {
+    "id": "names-s/southern_aurora",
+    "text": "Southern Aurora!",
+    "kind": "name",
+    "name": "Southern Aurora"
+   },
+   {
+    "id": "names-s/desert_rain",
+    "text": "Desert Rain!",
+    "kind": "name",
+    "name": "Desert Rain"
+   },
+   {
+    "id": "names-s/moonlit_paddock",
+    "text": "Moonlit Paddock!",
+    "kind": "name",
+    "name": "Moonlit Paddock"
+   },
+   {
+    "id": "names-s/silky_oak",
+    "text": "Silky Oak!",
+    "kind": "name",
+    "name": "Silky Oak"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] Kurrajong King!\n\nBottlebrush Bay!\n\nMarri Moon!\n\nBluestone Lane!\n\nSpinifex Spirit!\n\nArafura Wind!\n\nJindabyne Jet!\n\nHawkesbury Haze!\n\nMerino Magic!\n\nTumbleweed Tom!\n\nMurrumbidgee Mist!\n\nGulf Country!\n\nQuandong Queen!\n\nBunya Pine!\n\nWarrego Run!\n\nMallee Fire!\n\nDarling Downs!\n\nWollemi Wonder!\n\nSouthern Aurora!\n\nDesert Rain!\n\nMoonlit Paddock!\n\nSilky Oak!",
+  "chars": 389
+ },
+ {
+  "name": "b46_names_s",
+  "tag": "[screaming with excitement, very fast]",
+  "names": "s",
+  "items": [
+   {
+    "id": "names-s/red_centre",
+    "text": "Red Centre!",
+    "kind": "name",
+    "name": "Red Centre"
+   },
+   {
+    "id": "names-s/whitsunday_wave",
+    "text": "Whitsunday Wave!",
+    "kind": "name",
+    "name": "Whitsunday Wave"
+   },
+   {
+    "id": "names-s/byron_breeze",
+    "text": "Byron Breeze!",
+    "kind": "name",
+    "name": "Byron Breeze"
+   },
+   {
+    "id": "names-s/tamworth_twang",
+    "text": "Tamworth Twang!",
+    "kind": "name",
+    "name": "Tamworth Twang"
+   },
+   {
+    "id": "names-s/opal_hunter",
+    "text": "Opal Hunter!",
+    "kind": "name",
+    "name": "Opal Hunter"
+   },
+   {
+    "id": "names-s/cape_otway",
+    "text": "Cape Otway!",
+    "kind": "name",
+    "name": "Cape Otway"
+   },
+   {
+    "id": "names-s/glasshouse_gale",
+    "text": "Glasshouse Gale!",
+    "kind": "name",
+    "name": "Glasshouse Gale"
+   },
+   {
+    "id": "names-s/platypus_pete",
+    "text": "Platypus Pete!",
+    "kind": "name",
+    "name": "Platypus Pete"
+   },
+   {
+    "id": "names-s/echidna_edge",
+    "text": "Echidna Edge!",
+    "kind": "name",
+    "name": "Echidna Edge"
+   },
+   {
+    "id": "names-s/flying_fox",
+    "text": "Flying Fox!",
+    "kind": "name",
+    "name": "Flying Fox"
+   },
+   {
+    "id": "names-s/coastal_ranger",
+    "text": "Coastal Ranger!",
+    "kind": "name",
+    "name": "Coastal Ranger"
+   },
+   {
+    "id": "names-s/granite_belt",
+    "text": "Granite Belt!",
+    "kind": "name",
+    "name": "Granite Belt"
+   },
+   {
+    "id": "names-s/bellbird_call",
+    "text": "Bellbird Call!",
+    "kind": "name",
+    "name": "Bellbird Call"
+   },
+   {
+    "id": "names-s/cassowary_charge",
+    "text": "Cassowary Charge!",
+    "kind": "name",
+    "name": "Cassowary Charge"
+   },
+   {
+    "id": "names-s/lyrebird_lilt",
+    "text": "Lyrebird Lilt!",
+    "kind": "name",
+    "name": "Lyrebird Lilt"
+   },
+   {
+    "id": "names-s/galah_gala",
+    "text": "Galah Gala!",
+    "kind": "name",
+    "name": "Galah Gala"
+   },
+   {
+    "id": "names-s/dusty_swagman",
+    "text": "Dusty Swagman!",
+    "kind": "name",
+    "name": "Dusty Swagman"
+   },
+   {
+    "id": "names-s/merindah_mist",
+    "text": "Merindah Mist!",
+    "kind": "name",
+    "name": "Merindah Mist"
+   },
+   {
+    "id": "names-s/southern_sky",
+    "text": "Southern Sky!",
+    "kind": "name",
+    "name": "Southern Sky"
+   },
+   {
+    "id": "names-s/sandstone_sovereign",
+    "text": "Sandstone Sovereign!",
+    "kind": "name",
+    "name": "Sandstone Sovereign"
+   },
+   {
+    "id": "names-s/clover_downs",
+    "text": "Clover Downs!",
+    "kind": "name",
+    "name": "Clover Downs"
+   },
+   {
+    "id": "names-s/river_red_gum",
+    "text": "River Red Gum!",
+    "kind": "name",
+    "name": "River Red Gum"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] Red Centre!\n\nWhitsunday Wave!\n\nByron Breeze!\n\nTamworth Twang!\n\nOpal Hunter!\n\nCape Otway!\n\nGlasshouse Gale!\n\nPlatypus Pete!\n\nEchidna Edge!\n\nFlying Fox!\n\nCoastal Ranger!\n\nGranite Belt!\n\nBellbird Call!\n\nCassowary Charge!\n\nLyrebird Lilt!\n\nGalah Gala!\n\nDusty Swagman!\n\nMerindah Mist!\n\nSouthern Sky!\n\nSandstone Sovereign!\n\nClover Downs!\n\nRiver Red Gum!",
+  "chars": 385
+ },
+ {
+  "name": "b47_names_s",
+  "tag": "[screaming with excitement, very fast]",
+  "names": "s",
+  "items": [
+   {
+    "id": "names-s/salt_lake_sunset",
+    "text": "Salt Lake Sunset!",
+    "kind": "name",
+    "name": "Salt Lake Sunset"
+   },
+   {
+    "id": "names-s/stockman_s_pride",
+    "text": "Stockman's Pride!",
+    "kind": "name",
+    "name": "Stockman's Pride"
+   },
+   {
+    "id": "names-s/wedge_tail_wings",
+    "text": "Wedge-tail Wings!",
+    "kind": "name",
+    "name": "Wedge-tail Wings"
+   },
+   {
+    "id": "names-s/heron_island",
+    "text": "Heron Island!",
+    "kind": "name",
+    "name": "Heron Island"
+   },
+   {
+    "id": "names-s/boab_bandit",
+    "text": "Boab Bandit!",
+    "kind": "name",
+    "name": "Boab Bandit"
+   },
+   {
+    "id": "names-s/make_up_your_mind",
+    "text": "Make Up Your Mind!",
+    "kind": "name",
+    "name": "Make Up Your Mind"
+   },
+   {
+    "id": "names-s/redline",
+    "text": "Redline!",
+    "kind": "name",
+    "name": "Redline"
+   },
+   {
+    "id": "names-s/black_caviar",
+    "text": "Black Caviar!",
+    "kind": "name",
+    "name": "Black Caviar"
+   },
+   {
+    "id": "names-s/think_about_it",
+    "text": "Think About It!",
+    "kind": "name",
+    "name": "Think About It"
+   },
+   {
+    "id": "names-s/pierro",
+    "text": "Pierro!",
+    "kind": "name",
+    "name": "Pierro"
+   },
+   {
+    "id": "names-s/fan_girl",
+    "text": "Fan Girl!",
+    "kind": "name",
+    "name": "Fan Girl"
+   },
+   {
+    "id": "names-s/way_with_words",
+    "text": "Way With Words!",
+    "kind": "name",
+    "name": "Way With Words"
+   },
+   {
+    "id": "names-s/by_design",
+    "text": "By Design!",
+    "kind": "name",
+    "name": "By Design"
+   },
+   {
+    "id": "names-s/if_you_say_so",
+    "text": "If You Say So!",
+    "kind": "name",
+    "name": "If You Say So"
+   },
+   {
+    "id": "names-s/all_things_beautiful",
+    "text": "All Things Beautiful!",
+    "kind": "name",
+    "name": "All Things Beautiful"
+   },
+   {
+    "id": "names-s/spanish_affair",
+    "text": "Spanish Affair!",
+    "kind": "name",
+    "name": "Spanish Affair"
+   },
+   {
+    "id": "names-s/call_it_fate",
+    "text": "Call It Fate!",
+    "kind": "name",
+    "name": "Call It Fate"
+   },
+   {
+    "id": "names-s/all_things_equal",
+    "text": "All Things Equal!",
+    "kind": "name",
+    "name": "All Things Equal"
+   }
+  ],
+  "prompt": "[screaming with excitement, very fast] Salt Lake Sunset!\n\nStockman's Pride!\n\nWedge-tail Wings!\n\nHeron Island!\n\nBoab Bandit!\n\nMake Up Your Mind!\n\nRedline!\n\nBlack Caviar!\n\nThink About It!\n\nPierro!\n\nFan Girl!\n\nWay With Words!\n\nBy Design!\n\nIf You Say So!\n\nAll Things Beautiful!\n\nSpanish Affair!\n\nCall It Fate!\n\nAll Things Equal!",
+  "chars": 324
+ }
+]

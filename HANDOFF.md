@@ -51,7 +51,9 @@ The server sends cross-origin-isolation headers on HTML (multi-threaded neural v
 node tools/build-single.js
 FF_TEST_HOOKS=1 PORT=8095 node server/index.js      # for browser + multiplayer tests
 node tests/season.js                                # 64 checks: championship, rivals, H2H, retirement, migration
-node tests/commentary.js 24                         # 116 checks + continuity metrics
+node tests/commentary.js 36                         # 162 checks + continuity metrics
+node tests/commentary-scenarios.js 160              # 7 race shapes, every call checked against the race (~1,860 checks)
+node tests/eleven-plan.js ; PORT=8095 node tests/eleven-browser.js   # recordings complete; real playback in Chromium
 node tests/randwick.js 2                            # 41 checks: geometry, routes, chutes, navigation, AI races
 node tests/flemington.js 2                          # 46 checks: pear shape, Straight Six, Cup route, AI races
 node tools/fetch-voices.js && PORT=8095 node tests/voice-browser.js   # enhanced voice end to end (slow: ~15 min here)
@@ -67,6 +69,11 @@ Gotchas: after `npm install`, delete `node_modules/playwright*` (use the preinst
 voices (tests stub `speechSynthesis`). The build container has no outbound web access (reference sites were unreachable).
 
 ## Status
+Commentary overhaul (latest): director in `public/commentary.js` (race view → scored observations → memory/cooldowns →
+pacing), phrase bank `public/calls.js` (410 phrases), recordings in the "Commentator" voice MTGAJpjryOZn2Xr8FOtm (794 clips,
+`tools/commentary-batches.js` + `tools/commentary-library.py`), playback `public/eleven.js`. Design and credits:
+`docs/COMMENTARY.md`; transcripts: `docs/COMMENTARY-SCENARIOS.md`. ElevenLabs credits left this period: 12,502.
+
 Round 6 (latest): AI personas + cover-seeking + mistakes (`sim.js` makeJockey/Bot), chase/jockey camera rework
 (`updateCamera` in index.html: `cam.reveal`, `cam.sprint`, overtake drift), jockey head/body rebuild
 (`buildJockeyGeometry`), Flemington infield (`flemingtonInfield` in venues.js), replay crowd gestures

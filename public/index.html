@@ -602,6 +602,7 @@ body.touch #touchUI{display:flex;}
 <script>window.THREE || document.write('<script src="vendor/three.min.js"><\/script>');</script>
 <script src="sim.js"></script>
 <script src="season.js"></script>
+<script src="calls.js"></script>
 <script src="commentary.js"></script>
 <script src="voice-core.js"></script>
 <script src="voice.js"></script>
@@ -3517,13 +3518,17 @@ function voiceSampleHorse() {
 }
 // the commentary test: six situations, each as ElevenLabs recordings (+ the right names) and as the same words for the
 // local voice — the label always says which backend actually spoke (fallback audio is never called ElevenLabs)
+// the voice test: real lines the race caller can say, built from the same phrases (and names) used in a race
+const VU = t => { const u = typeof CALLS !== "undefined" && CALLS.units.find(x => x.text === t); return u ? { id: u.id } : null; };
+const VN = (name, ctx) => ({ name, ctx }), VP = s => ({ pause: s });
 const VOICE_SAMPLES = [
-  ["1 · Race start", 2.2, ["start/away_1"], null, () => "And they're away and racing!"],
-  ["2 · Mid-race", 1.3, ["middle/tempo_1", "transitions/still_leads"], () => "Quiet Thunder", () => "It's a steady tempo up front. Still out in front, Quiet Thunder."],
-  ["3 · Home turn", 2.8, ["home-turn/approach", "transitions/big_run"], () => "Desert Comet", () => "They're approaching the home turn! Here comes a big run from Desert Comet!"],
-  ["4 · Close finish", 4.6, ["final-200/two_2", "final-100/hundred_1", "transitions/new_leader"], () => "Tempted", () => "Two hundred to run, and it's on! A hundred to go, they're locked together! And there's a new leader, Tempted!"],
-  ["5 · Your horse", 3.4, ["transitions/big_run"], () => voiceSampleHorse(), () => `Here comes a big run from ${voiceSampleHorse()}!`],
-  ["6 · Winner", 4.2, ["winners/winner_is"], () => "Bay Majesty", () => "And the winner is, Bay Majesty! What a finish!", ["photo-finish/what_a_finish"]],
+  ["1 · Race start", 3.8, () => [VU("And they're away!")], () => "And they're away!"],
+  ["2 · Mid-race story", 1.2, () => [VN("Quiet Thunder", "c"), VU("has opened up a big break."), VP(0.35), VU("They're giving the leader a lot of rope.")], () => "Quiet Thunder has opened up a big break. They're giving the leader a lot of rope."],
+  ["3 · Home turn", 2.8, () => [VU("They're coming up to the home turn."), VP(0.5), VU("Around the home turn they come!"), VN("Desert Comet", "c"), VU("is winding up out wide!")], () => "They're coming up to the home turn. Around the home turn they come! Desert Comet is winding up out wide!"],
+  ["4 · Close finish", 5, () => [VU("Two hundred to go, and it's on!"), VN("Tempted", "s"), VU("and"), VN("Half Yours", "s"), VU("Stride for stride!"), VU("A hundred to go!"), VN("Tempted", "s"), VU("just edges ahead!")], () => "Two hundred to go, and it's on! Tempted and Half Yours! Stride for stride! A hundred to go! Tempted just edges ahead!"],
+  ["5 · Your horse", 4, () => [VU("Here comes"), VN(voiceSampleHorse(), "x"), VP(0.15), VN(voiceSampleHorse(), "s"), VU("is flying home!")], () => `Here comes ${voiceSampleHorse()}! ${voiceSampleHorse()} is flying home!`],
+  ["6 · Photo finish", 5, () => [VU("They hit the line together!"), VP(0.4), VU("On the photo, it's"), VN("Bay Majesty", "s"), VU("by a nose!"), VP(0.3), VU("What a finish!")], () => "They hit the line together! On the photo, it's Bay Majesty by a nose! What a finish!"],
+  ["7 · Runaway winner", 4, () => [VN("Black Caviar", "x"), VU("is ten lengths clear!"), VU("This is a demolition!"), VP(0.5), VN("Black Caviar", "s"), VU("wins by the length of the straight!"), VP(0.3), VU("What a dominant display!")], () => "Black Caviar is ten lengths clear! This is a demolition! Black Caviar wins by the length of the straight! What a dominant display!"],
 ];
 let lastVoiceTest = null;
 function buildElevenStatus(mode) {
@@ -3533,13 +3538,12 @@ function buildElevenStatus(mode) {
   if (mode === "off") { el.textContent = "No spoken commentary (captions can stay on)."; return; }
   if (mode === "local") { el.textContent = "Your computer's own voices (or the optional local neural voices below). Free, offline, no ElevenLabs."; return; }
   E.loadLibrary().then(() => {
-    const base = E.ready ? `<b style="color:var(--fg)">Your ElevenLabs voice “${E.VOICE_NAME}” (ID ${E.VOICE_ID})</b> — ${E.clipCount} recorded clips (${E.nameCount} horse names) stored with the game. No internet, API key or credits needed during a race. <span style="opacity:.75">Voice by ElevenLabs (elevenlabs.io).</span>` : `ElevenLabs recordings unavailable: ${E.error}. The local voice is used.`;
+    const base = E.ready ? `<b style="color:var(--fg)">Your ElevenLabs voice “${E.VOICE_NAME}” (ID ${E.VOICE_ID})</b> — ${E.clipCount} recorded clips (${E.nameCount} horse names, each in three deliveries) stored with the game. No internet, API key or credits needed during a race. <span style="opacity:.75">Voice by ElevenLabs (elevenlabs.io).</span>` : `ElevenLabs recordings unavailable: ${E.error}. The local voice is used.`;
     if (mode === "eleven") { el.innerHTML = base + " Names the recordings don't have are " + (E.settings.nameFallback === "local" ? "said by the local voice." : "left to the captions."); }
     else { el.innerHTML = base + " Checking the game server…";
       E.serverStatus(true).then(st => { el.innerHTML = base + (st && st.configured ? ` <b style="color:var(--fg)">Enhanced: connected</b> — missing names are generated with your voice before each race and cached (${st.remainingToday} characters left in today's server limit; model ${st.model}).` : ` <b style="color:var(--warn)">Enhanced is not active</b> (${st ? (st.reason || "no API key on the server") : "no game server"}) — the recordings and local voice are used. To enable it, set ELEVENLABS_API_KEY on the server (see README → “ElevenLabs commentary”).`); }); }
   });
   chipRow(row, ["local", "skip"], E.settings.nameFallback, v => E.set("nameFallback", v), v => v === "local" ? "Unrecorded names: local voice" : "Unrecorded names: captions only");
-  if (mode === "eleven_plus") { const b = document.createElement("button"); b.className = "chip" + (E.settings.liveLines ? " sel" : ""); b.textContent = "Live lines (uses credits): " + (E.settings.liveLines ? "on" : "off"); b.onclick = () => { E.set("liveLines", !E.settings.liveLines); buildElevenStatus(mode); }; row.appendChild(b); }
 }
 function buildVoiceLab() {
   if (typeof VOICE === "undefined" || !$("optVoiceEng")) return;
@@ -3574,12 +3578,12 @@ function buildVoiceLab() {
   }
   const tw = $("optVoiceTest"); tw.innerHTML = "";
   const localInfo = r => r && r.firstMs != null ? `${r.engine}: speech started after ${Math.round(r.firstMs)} ms · generating at ${r.rtf ? (1 / r.rtf).toFixed(1) + "× real time" : "—"}${r.rtf && r.rtf > 0.9 ? " — too slow to call a live race on this computer; try Fast · Piper" : ""}` : (r ? r.engine : "Standard voice");
-  VOICE_SAMPLES.forEach(([label, I, ids, nameFn, textFn, tail]) => { const b = document.createElement("button"); b.className = "chip"; b.textContent = label; tw.appendChild(b);
+  VOICE_SAMPLES.forEach(([label, I, partsFn, textFn]) => { const b = document.createElement("button"); b.className = "chip"; b.textContent = label; tw.appendChild(b);
     b.onclick = async () => {
       audio.ensure && audio.ensure(); COMM.prime(); lastVoiceTest = { I, textFn };
       const info = $("optVoiceInfo"), el = typeof ELEVEN !== "undefined" && COMM.settings.on && (ELEVEN.settings.mode === "eleven" || ELEVEN.settings.mode === "eleven_plus");
-      if (el) { info.textContent = "Loading…"; const r = await ELEVEN.test(ids, { name: nameFn ? nameFn() : null, tail });
-        info.textContent = r.backend === "unavailable" ? "ElevenLabs recordings unavailable (" + r.detail + ")" : `Backend: ${r.backend} · started after ${Math.round(r.firstMs)} ms${r.missingName ? ` · “${nameFn()}” isn't in the recordings${ELEVEN.settings.mode === "eleven_plus" ? "" : " (Enhanced mode can generate it with your voice)"}` : ""}`; return; }
+      if (el) { info.textContent = "Loading…"; const r = await ELEVEN.test(partsFn().filter(Boolean), I); try { COMM._caption(textFn(), I); } catch (e) {}
+        info.textContent = r.backend === "unavailable" ? "ElevenLabs recordings unavailable (" + r.detail + ")" : `Backend: ${r.backend} · started after ${Math.round(r.firstMs)} ms${r.missingName ? ` · “${r.missingName}” isn't in the recordings${ELEVEN.settings.mode === "eleven_plus" ? "" : " (Enhanced mode can generate it with your voice)"}` : ""}`; return; }
       info.textContent = "Generating…"; info.textContent = localInfo(await COMM.sample(textFn(), I)); };
   });
   const cmp = document.createElement("button"); cmp.className = "chip"; cmp.textContent = "Compare: same words, local voice"; tw.appendChild(cmp);

@@ -1,192 +1,123 @@
 #!/usr/bin/env python3
-"""Final Furlong — build the prerecorded commentary library from ElevenLabs batch recordings.
+"""Final Furlong — build the prerecorded commentary library (v2) from ElevenLabs batch recordings.
 
-The clips were generated with the ElevenLabs voice "mw_e-sports-commentator_The Aussie Companion"
-(voice ID OQt0mf8rKBYkweCSQ9d4, model eleven_v4) in 13 batch recordings: several short lines per recording
-separated by pauses (cheaper and more consistent than one request per line). This script splits each batch at its
-pauses (ffmpeg silencedetect, the N-1 longest gaps for N lines), trims, fades, normalises each batch to -1 dBFS peak
-(keeping the calm/excited/shouting levels relative to each other), encodes mono MP3 and writes manifest.json.
-
-  python3 tools/commentary-library.py <dir with the batch masters (*.mp3)> public/assets/audio/commentary
-The prompts below are exactly what was sent; re-running costs nothing (no API calls are made here).
-"""
+Voice: "Commentator" (voice ID MTGAJpjryOZn2Xr8FOtm, the account owner's chosen commentator voice), model eleven_v4.
+The phrases are the ones in public/calls.js (the same list the commentary director chooses from); the batch plan comes
+from tools/commentary-batches.js: one delivery tag per batch + lines separated by blank lines. This script
+  1. splits each batch master at its pauses (the N-1 longest silences for N lines) and REFUSES a batch whose pauses are
+     ambiguous (the shortest cut must be clearly longer than the longest pause inside a line),
+  2. checks every clip's speaking rate against its text (a dropped or garbled word shows up as an implausible rate),
+  3. trims, fades, sets the loudness by delivery energy (a calm call sits lower than a screamed finish) with a peak limit,
+  4. encodes mono MP3 (24 kHz, 48 kbps — small enough to embed the library in the single-file build) and writes
+     manifest.json (+ qc.json with the measurements).
+  python3 tools/commentary-library.py batches.json <dir with <batch>.mp3 masters> public/assets/audio/commentary
+No API calls are made here; re-running costs nothing."""
 import json, os, re, subprocess, sys
+sys.path.insert(0, os.path.dirname(__file__))
+import importlib.util
+spec = importlib.util.spec_from_file_location("va", os.path.join(os.path.dirname(__file__), "voice-analyse.py")); va = importlib.util.module_from_spec(spec); spec.loader.exec_module(va)
+import numpy as np
 
-VOICE_ID = "OQt0mf8rKBYkweCSQ9d4"
-VOICE_NAME = "mw_e-sports-commentator_The Aussie Companion"
-MODEL = "eleven_v4"
-VERSION = 1
-
-def L(cat, cid, text, energy, pri, use):
-    return dict(category=cat, id=cid, phrase=text, energy=energy, priority=pri, use=use)
-
-ROSTER = ["Ka Ying Rising", "Willow's Pride", "Quiet Thunder", "Tempted", "Bay Majesty", "Half Yours", "Point Of Law",
-          "Trust Your Instinct", "Yes Yes Yes", "Hopewell Rock", "Goodie Two Shoes", "Soul Of Spain"]
-
-def career_names():
-    src = open(os.path.join(os.path.dirname(__file__), "..", "public", "season.js"), encoding="utf8").read()
-    m = re.search(r"const HORSE_NAMES = \[([\s\S]*?)\];", src)
-    return re.findall(r'"([^"]+)"', m.group(1))
-
-BATCHES = {
-  "p1_calm": ("[warmly] ... [pause] ...", [
-    L("major-events", "welcome_generic", "Welcome to the races, and they're loading into the barriers.", 1, 2, "pre-race, any venue"),
-    L("early", "settle_1", "The field settles into stride.", 1, 1, "first 25% of the race"),
-    L("early", "settle_2", "They're starting to find their rhythm now.", 1, 1, "first 25% of the race"),
-    L("middle", "tempo_1", "It's a steady tempo up front.", 1, 1, "middle stage, no incident"),
-    L("middle", "tempo_2", "Plenty of running left in this one yet.", 1, 1, "middle stage, races ≥ 1600 m"),
-    L("middle", "back_1", "They race down the back, nicely spaced.", 1, 1, "middle stage, field strung out"),
-  ]),
-  "p2_start": ("[excited]", [
-    L("start", "away_1", "And they're away and racing!", 2, 3, "gates open"),
-    L("start", "away_2", "They jump, and they're racing!", 2, 3, "gates open"),
-    L("start", "away_3", "The gates fly open, and they're off!", 2, 3, "gates open"),
-    L("major-events", "everest", "Welcome to Royal Randwick, for The Everest!", 2, 2, "pre-race, The Everest"),
-    L("major-events", "melbourne_cup", "Welcome to Flemington. It's the Melbourne Cup, the race that stops a nation!", 2, 2, "pre-race, Melbourne Cup"),
-  ]),
-  "p3_turn": ("[excited]", [
-    L("home-turn", "approach", "They're approaching the home turn!", 2, 2, "entering the final bend"),
-    L("home-turn", "around", "Around the turn they come!", 2, 2, "on the final bend"),
-    L("home-turn", "straighten", "And they straighten for home!", 2, 3, "turning into the home straight"),
-    L("final-600", "winding", "Six hundred to go, and they're winding up!", 2, 2, "600 m mark"),
-    L("final-400", "four_1", "Four hundred metres to go!", 2, 3, "400 m mark"),
-    L("final-400", "four_2", "Four hundred to run, and the whips are up!", 2, 3, "400 m mark, field bunched"),
-  ]),
-  "p4_finish": ("[shouting]", [
-    L("final-200", "two_1", "Two hundred metres to go!", 3, 3, "200 m mark"),
-    L("final-200", "two_2", "Two hundred to run, and it's ON!", 3, 3, "200 m mark, contest close"),
-    L("final-100", "hundred_1", "A hundred to go, they're locked together!", 3, 3, "100 m mark, top two within ~1 length"),
-    L("final-100", "hundred_2", "Hundred metres to go!", 3, 3, "100 m mark"),
-    L("photo-finish", "what_a_finish", "What a finish!", 3, 4, "after the line, margin < 0.5 length"),
-    L("photo-finish", "line_together", "They hit the line together!", 3, 4, "at the line, margin < 0.2 length"),
-    L("photo-finish", "photo_1", "It's a photo finish!", 3, 4, "after the line, too close to call"),
-    L("photo-finish", "photo_2", "Too close to call, we'll need the photo!", 3, 4, "after the line, too close to call"),
-  ]),
-  "p5_connect": ("[excited]", [
-    L("winners", "extraordinary", "An extraordinary performance!", 2, 3, "after the result, winning margin ≥ 3 lengths"),
-    L("winners", "plenty_in_hand", "Won that with plenty in hand!", 2, 3, "after the result, comfortable win"),
-    L("winners", "winner_is", "And the winner is,", 2, 4, "lead-in to the official winner's name"),
-    L("transitions", "new_leader", "And there's a new leader,", 2, 3, "lead-in to a name: lead change"),
-    L("transitions", "takes_over", "Taking over in front,", 2, 3, "lead-in to a name: lead change"),
-    L("transitions", "big_run", "Here comes a big run from", 2, 3, "lead-in to a name: strong late run"),
-    L("transitions", "out_wide", "Making a move out wide,", 2, 2, "lead-in to a name: move on the outside"),
-    L("transitions", "still_leads", "Still out in front,", 2, 2, "lead-in to a name: leader holding on"),
-    L("transitions", "trapped", "Looking for room on the rail,", 2, 2, "lead-in to a name: blocked runner"),
-    L("transitions", "clear", "Clear in front,", 2, 2, "lead-in to a name: leader by ≥ 2 lengths"),
-  ]),
-}
-def name_batch(names, cat="horse-names", tag="[excited]", energy=2):
-    return (tag, [L(cat, re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_"), n, energy, 3, "the horse's name, after a lead-in or on its own" if cat == "horse-names" else "the name at the climax (choosable career names)") for n in names])
-PLAYER = ["Ka Ying Rising", "Tempted", "Half Yours", "Point Of Law", "Trust Your Instinct", "Soul Of Spain", "Make Up Your Mind", "Redline",
-          "Black Caviar", "Think About It", "Pierro", "Fan Girl", "Way With Words", "By Design", "If You Say So", "All Things Beautiful", "Spanish Affair",
-          "Call It Fate", "All Things Equal"]
-BATCHES["names_roster"] = name_batch(ROSTER)
-cn = career_names()
-for i in range(0, len(cn), 16): BATCHES["n%d" % (i // 16 + 1)] = name_batch(cn[i:i + 16])
-# round 2 (more calls, more emotion, the choosable career names, shouted names for the climax)
-BATCHES["names_player"] = name_batch(PLAYER[6:])
-BATCHES["shout1"] = name_batch(PLAYER[:10], "horse-names-shout", "[shouting]", 3)
-BATCHES["shout2"] = name_batch(PLAYER[10:], "horse-names-shout", "[shouting]", 3)
-BATCHES["q_mid"] = ("[warmly] … [excited]", [
-    L("middle", "good_clip", "They're bowling along at a good clip.", 1, 1, "middle stage"),
-    L("middle", "genuine_pace", "The leader's setting a genuine pace.", 1, 1, "middle stage"),
-    L("middle", "travelling_well", "Plenty still travelling well in behind.", 1, 1, "middle stage, bunched"),
-    L("middle", "biding_time", "Nothing's happening yet, they're just biding their time.", 1, 1, "middle stage, long races"),
-    L("final-600", "coming_600", "Coming up to the six hundred now.", 2, 2, "approaching 600 m"),
-    L("final-600", "pressure", "The pressure's starting to build!", 2, 2, "800–500 m"),
-])
-BATCHES["q_turn"] = ("[excited]", [
-    L("home-turn", "around_2", "Here they come around the home turn!", 2, 2, "on the final bend"),
-    L("home-turn", "jockeys_busy", "The jockeys are starting to get busy!", 2, 2, "final bend"),
-    L("home-turn", "fanning_out", "They're fanning out across the track!", 2, 2, "turning in, field spreading"),
-    L("home-turn", "young_and_old", "It's on for young and old!", 2, 2, "turning in, bunched"),
-    L("home-turn", "make_a_move", "Somebody's got to make a move now!", 2, 2, "final bend, leader holding"),
-])
-BATCHES["q_battle"] = ("[shouting]", [
-    L("battle", "fighting_it_out", "They're fighting it out!", 3, 3, "final 300 m, top two within a length"),
-    L("battle", "stride_for_stride", "Stride for stride!", 3, 3, "final 200 m, side by side"),
-    L("battle", "challenge", "Here comes the challenge!", 3, 3, "a challenger closing"),
-    L("battle", "from_everywhere", "They're coming from everywhere!", 3, 3, "three or more in contention"),
-    L("battle", "catch_leader", "Can anything catch the leader?", 3, 3, "leader holding a margin"),
-    L("battle", "everything", "Giving it everything!", 3, 3, "final 200 m"),
-    L("battle", "look_at_this", "Look at this finish!", 3, 3, "final 150 m, close"),
-    L("battle", "on_its_feet", "The crowd is on its feet!", 3, 3, "final 300 m, close"),
-    L("battle", "neck_and_neck", "Neck and neck!", 3, 3, "final 150 m, side by side"),
-    L("battle", "wont_give_inch", "They won't give an inch!", 3, 3, "final 200 m, side by side"),
-    L("battle", "what_a_battle", "What a battle!", 3, 3, "final 150 m, close"),
-    L("battle", "hang_on", "Hang on, hang on!", 3, 3, "final 100 m, leader being caught"),
-])
-BATCHES["q_win"] = ("[shouting]", [
-    L("winners", "unbelievable", "Unbelievable!", 3, 3, "after the result: late, close win"),
-    L("winners", "sensational", "Sensational!", 3, 3, "after the result"),
-    L("winners", "what_a_win", "What a win!", 3, 3, "after the result"),
-    L("winners", "what_a_run", "What a run!", 3, 3, "after the result: came from behind"),
-    L("winners", "incredible", "Absolutely incredible!", 3, 3, "after the result: big race, close"),
-    L("winners", "canter", "Won it in a canter!", 3, 3, "after the result: big margin"),
-    L("winners", "champion", "That was a champion's performance!", 3, 3, "after the result: feature race, clear winner"),
-    L("winners", "just_held_on", "Just held on!", 3, 3, "after the result: margin under half a length"),
-    L("photo-finish", "couldnt_split", "They couldn't split them!", 3, 4, "at the line, too close to call"),
-])
-BATCHES["q_leadins"] = ("[excited]", [
-    L("transitions", "here_comes", "Here comes", 2, 3, "lead-in to a name: a challenger"),
-    L("transitions", "out_in_front_is", "Out in front is", 2, 2, "lead-in to a name: the leader"),
-    L("transitions", "stride_with", "Stride for stride with", 3, 3, "lead-in to a name: side by side"),
-    L("transitions", "can_anything_catch", "Can anything catch", 3, 3, "lead-in to a name: a clear leader late"),
-    L("transitions", "flying_home", "Flying home is", 3, 3, "lead-in to a name: the fastest finisher"),
-    L("transitions", "charging_outside", "Charging down the outside,", 3, 3, "lead-in to a name: a wide run"),
-    L("transitions", "up_the_inside", "Up the inside,", 3, 3, "lead-in to a name: a run on the rail"),
-    L("transitions", "right_there", "Right there with them,", 2, 2, "lead-in to a name: in contention"),
-    L("transitions", "under_pressure", "Under pressure now,", 2, 2, "lead-in to a name: the leader tiring"),
-])
-BATCHES["q_major"] = ("[excited]", [
-    L("major-events", "crowd_flemington", "The crowd is roaring here at Flemington!", 2, 2, "feature race at Flemington, the straight"),
-    L("major-events", "crowd_randwick", "A massive crowd here at Randwick!", 2, 2, "feature race at Randwick, the straight"),
-    L("major-events", "cup_about", "This is what the Melbourne Cup is all about!", 3, 2, "Melbourne Cup, the straight"),
-    L("major-events", "everest_richest", "The Everest, the richest race on turf!", 2, 2, "The Everest, early"),
-])
+VOICE_ID, VOICE_NAME, MODEL, VERSION = "MTGAJpjryOZn2Xr8FOtm", "Commentator", "eleven_v4", 2
+# target loudness of the voiced part (dBFS RMS) by delivery energy: the excitement is in the voice AND the level
+TIER_DB = {1: -21.0, 2: -20.0, 3: -19.0, 4: -17.5, 5: -16.5}
+# the recordings come out at much the same speaking rate whatever the delivery; urgency also needs pace, so the
+# urgent and screamed takes are tightened a little (pitch-preserving)
+TIER_TEMPO = {1: 1.0, 2: 1.0, 3: 1.03, 4: 1.06, 5: 1.12}
+NAME_TIER = {"c": 2, "x": 4, "s": 5}
 
 def run(cmd): return subprocess.run(cmd, capture_output=True, text=True)
 def dur(f): return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).stdout.strip())
-def gaps(f, noise, d):
-    out = run(["ffmpeg", "-hide_banner", "-i", f, "-af", "silencedetect=noise=%ddB:d=%s" % (noise, d), "-f", "null", "-"]).stderr
-    st = [float(x) for x in re.findall(r"silence_start: ([0-9.]+)", out)]; en = [float(x) for x in re.findall(r"silence_end: ([0-9.]+)", out)]
-    return list(zip(st, en))
+def silences(f, noise, d):
+    e = run(["ffmpeg", "-hide_banner", "-i", f, "-af", "silencedetect=noise=%ddB:d=%s" % (noise, d), "-f", "null", "-"]).stderr
+    return list(zip([float(x) for x in re.findall(r"silence_start: ([0-9.]+)", e)], [float(x) for x in re.findall(r"silence_end: ([0-9.]+)", e)]))
 
-def main(src, dst):
+def cut_points(f, n, T, texts):
+    """the n-1 cut points: of all the pauses found, the set whose segment lengths best match each line's expected length
+    (from its syllable count), preferring longer pauses — a dynamic-programming alignment, so a long pause INSIDE an
+    excited line can't steal a cut. Returns (score, cuts, mean |log(actual/expected)|, worst)."""
+    cand = {}
+    for noise, d in ((-35, 0.06), (-30, 0.05), (-40, 0.08), (-26, 0.05)):
+        for a, b in silences(f, noise, d):
+            if a > 0.12 and b < T - 0.05:
+                k = round((a + b) / 2, 2)
+                if not any(abs(k - q) < 0.05 for q in cand): cand[k] = (a, b)
+    C = sorted(cand.values())
+    if len(C) < n - 1: return None
+    syl = [max(1, va.syllables(t)) for t in texts]; tot = sum(syl)
+    gaps_est = 0.42 * (n - 1)
+    kk = max(0.05, (T - gaps_est) / tot)
+    lead = 0.0
+    INF = 1e18
+    m = len(C)
+    # best[i][j]: line i ends at candidate j (i = 0..n-2)
+    best = [[INF] * m for _ in range(n - 1)]; back = [[-1] * m for _ in range(n - 1)]
+    def seg_cost(i, t0, t1, gap):
+        d = max(0.05, t1 - t0); e = syl[i] * kk + 0.15
+        return (np.log(d / e)) ** 2 * 3.0 - min(gap, 0.9) * 1.6
+    for j in range(m):
+        a, b = C[j]; best[0][j] = seg_cost(0, lead, a, b - a)
+    for i in range(1, n - 1):
+        for j in range(i, m):
+            a, b = C[j]; bj = INF; bk = -1
+            for k in range(i - 1, j):
+                if best[i - 1][k] >= INF: continue
+                v = best[i - 1][k] + seg_cost(i, C[k][1], a, b - a)
+                if v < bj: bj, bk = v, k
+            best[i][j] = bj; back[i][j] = bk
+    fin = INF; fj = -1
+    if n == 1: return (0, [], 0, 0)
+    for j in range(n - 2, m):
+        if best[n - 2][j] >= INF: continue
+        v = best[n - 2][j] + seg_cost(n - 1, C[j][1], T, 0.5)
+        if v < fin: fin, fj = v, j
+    if fj < 0: return None
+    idx = [fj]
+    for i in range(n - 2, 0, -1): idx.append(back[i][idx[-1]])
+    cuts = [C[j] for j in reversed(idx)]
+    b = [0.0] + [c[1] for c in cuts]; e = [c[0] for c in cuts] + [T]
+    dev = [abs(np.log(max(0.05, e[i] - b[i]) / (syl[i] * kk + 0.15))) for i in range(n)]
+    return (fin, cuts, float(np.mean(dev)), float(max(dev)))
+
+def main(plan_file, src, dst):
+    plan = json.load(open(plan_file))
     manifest = {"version": VERSION, "voice": {"id": VOICE_ID, "name": VOICE_NAME, "provider": "ElevenLabs", "model": MODEL},
-                "format": "audio/mpeg (MP3, mono, 44.1 kHz, 80 kbps)", "licence": "Generated on the account owner's ElevenLabs plan — see ASSETS.md (Free plan: non-commercial, attribution).",
+                "format": "audio/mpeg (MP3, mono, 24 kHz, 48 kbps)",
+                "licence": "Generated on the account owner's ElevenLabs plan with the owner's own cloned voice — see ASSETS.md.",
                 "clips": []}
-    problems = []
-    for b, (tag, lines) in BATCHES.items():
-        f = os.path.join(src, b + ".mp3")
-        if not os.path.exists(f): problems.append(b + " (not downloaded)"); continue
-        T = dur(f); n = len(lines); cut = None
-        for noise, d in ((-32, 0.12), (-30, 0.1), (-28, 0.08), (-35, 0.15), (-26, 0.07)):
-            g = [x for x in gaps(f, noise, d) if x[0] > 0.15 and x[1] < T - 0.1]
-            if len(g) >= n - 1:
-                g = sorted(sorted(g, key=lambda x: x[1] - x[0], reverse=True)[:n - 1]); cut = g; break
-        if cut is None: problems.append(b); continue
-        peak = float(re.search(r"max_volume: (-?[0-9.]+)", run(["ffmpeg", "-hide_banner", "-i", f, "-af", "volumedetect", "-f", "null", "-"]).stderr).group(1))
-        gain = -1.0 - peak
-        bounds = [0.0] + [None] * (n - 1) + [T]
-        segs = []
-        for i in range(n):
-            a = 0.0 if i == 0 else max(0, cut[i - 1][1] - 0.05)
-            z = T if i == n - 1 else cut[i][0] + 0.1
-            segs.append((a, z))
-        for (a, z), ln in zip(segs, lines):
-            os.makedirs(os.path.join(dst, ln["category"]), exist_ok=True)
-            rel = "%s/%s.mp3" % (ln["category"], ln["id"]); out = os.path.join(dst, rel)
-            fo = max(0.02, min(0.06, (z - a) * 0.1))
-            af = "atrim=%.3f:%.3f,asetpts=PTS-STARTPTS,silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,volume=%.2fdB,afade=t=in:d=0.012,areverse,afade=t=in:d=%.3f,areverse" % (a, z, gain, fo)
-            r = run(["ffmpeg", "-hide_banner", "-y", "-i", f, "-af", af, "-ac", "1", "-ar", "44100", "-codec:a", "libmp3lame", "-b:a", "80k", out])
+    qc, problems = [], []
+    for b in plan:
+        f = os.path.join(src, b["name"] + ".mp3")
+        if not os.path.exists(f): problems.append(b["name"] + " (no master)"); continue
+        T = dur(f); n = len(b["items"])
+        cp = cut_points(f, n, T, [re.sub(r"[^A-Za-z' ]", " ", it["text"]) for it in b["items"]])
+        if cp is None: problems.append("%s (not enough pauses)" % b["name"]); continue
+        margin, cut = cp[2], cp[1]
+        if cp[3] > 1.1: problems.append("%s (a segment is %.1fx off its expected length)" % (b["name"], np.exp(cp[3])))
+        x = va.pcm(f)
+        for i, it in enumerate(b["items"]):
+            a = 0.0 if i == 0 else max(0, cut[i - 1][1] - 0.06)
+            z = T if i == n - 1 else cut[i][0] + 0.08
+            m = va.analyse(x[int(a * va.SR): int(z * va.SR)], re.sub(r"[^A-Za-z' ]", " ", it["text"]))
+            tier = NAME_TIER[b["names"]] if b.get("names") else (5 if "screaming" in b["tag"] else 4 if "urgent" in b["tag"] or "triumphant" in b["tag"] else 3 if "building" in b["tag"] else 2 if "lively" in b["tag"] else 1)
+            gain = TIER_DB[tier] - m["rms_db"] if m["rms_db"] > -60 else 0
+            rel = it["id"] + ".mp3"; out = os.path.join(dst, rel); os.makedirs(os.path.dirname(out), exist_ok=True)
+            af = ("atrim=%.3f:%.3f,asetpts=PTS-STARTPTS,silenceremove=start_periods=1:start_threshold=-42dB,areverse,silenceremove=start_periods=1:start_threshold=-42dB,areverse,"
+                  "%svolume=%.2fdB,alimiter=limit=0.89:attack=2:release=40,afade=t=in:d=0.01,areverse,afade=t=in:d=0.03,areverse") % (a, z, ("atempo=%.2f," % TIER_TEMPO[tier]) if TIER_TEMPO[tier] != 1 else "", gain)
+            r = run(["ffmpeg", "-hide_banner", "-y", "-i", f, "-af", af, "-ac", "1", "-ar", "24000", "-codec:a", "libmp3lame", "-b:a", "48k", out])
             if r.returncode: problems.append(rel); continue
-            clip = dict(ln); clip["file"] = rel; clip["duration"] = round(dur(out), 3); clip["batch"] = b; clip["delivery_tag"] = tag.split()[0]
-            clip["voice_id"] = VOICE_ID; clip["version"] = VERSION
+            d = round(dur(out), 3); rate = m.get("syl_per_s", 0)
+            flag = (rate and (rate < 1.6 or rate > 9.5) and va.syllables(it['text']) > 2) or d < 0.15
+            q = dict(id=it["id"], batch=b["name"], text=it["text"], dur=d, rate=rate, f0=m["f0_med"], f0_range=m["f0_range_st"], rms=m["rms_db"], tier=tier, margin=round(margin, 2), flag=bool(flag))
+            qc.append(q)
+            if flag: problems.append("%s (rate %.1f syl/s, %.2f s)" % (rel, rate, d))
+            clip = {"id": it["id"], "file": rel, "duration": d, "text": it["text"], "tier": tier, "batch": b["name"], "voice_id": VOICE_ID, "version": VERSION}
+            if it.get("name"): clip["name"] = it["name"]; clip["ctx"] = b["names"]
             manifest["clips"].append(clip)
-        print("%-13s %2d lines  %5.1f s  gain %+.1f dB  ok" % (b, n, T, gain))
-    json.dump(manifest, open(os.path.join(dst, "manifest.json"), "w"), indent=1, ensure_ascii=False)
+        print("%-24s %2d lines %6.1f s  length fit %.2f (worst %.2f)" % (b["name"], n, T, cp[2], cp[3]))
+    json.dump(manifest, open(os.path.join(dst, "manifest.json"), "w"), indent=0, ensure_ascii=False)
+    json.dump(qc, open(os.path.join(dst, "qc.json"), "w"), indent=0)
     tot = sum(c["duration"] for c in manifest["clips"]); size = sum(os.path.getsize(os.path.join(dst, c["file"])) for c in manifest["clips"])
     print("clips: %d, %.1f s of audio, %.0f KB; problems: %s" % (len(manifest["clips"]), tot, size / 1024, problems or "none"))
 
-if __name__ == "__main__": main(sys.argv[1], sys.argv[2])
+if __name__ == "__main__": main(sys.argv[1], sys.argv[2], sys.argv[3])

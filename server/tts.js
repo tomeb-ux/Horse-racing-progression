@@ -4,20 +4,23 @@
    from its environment, caches the MP3 on disk and returns it. Everything is bounded so a bug, a loop or a stranger
    cannot run up the bill:
      • key and voice only from the environment:  ELEVENLABS_API_KEY (required), ELEVENLABS_VOICE_ID (default
-       OQt0mf8rKBYkweCSQ9d4), ELEVENLABS_MODEL (default eleven_v3; falls back to eleven_multilingual_v2 if refused)
+       MTGAJpjryOZn2Xr8FOtm, the "Commentator" voice), ELEVENLABS_MODEL (default eleven_v4, the model the shipped
+       recordings were made with; falls back to eleven_multilingual_v2 if refused)
      • text: ≤ 120 characters, letters/digits/basic punctuation only; identical text is served from the cache forever
        (no second charge), the cache is capped (ELEVENLABS_CACHE_MB, default 50) and oldest-first evicted
      • per IP: 20 requests a minute; whole server: ELEVENLABS_DAILY_CHARS a day (default 2000 ≈ 130 horse names)
      • 8 s timeout; ElevenLabs errors are passed back as a short code (not-configured, invalid-key, no-credits,
        rate-limited, timeout, service-error) so the game simply keeps using the recordings / local voice.
    GET  /api/tts/status → { configured, voiceId, model, remainingToday, cached }
-   POST /api/tts  { text, kind: "name" | "line" } → audio/mpeg */
+   POST /api/tts  { text, kind: "name_c" | "name_x" | "name_s" | "name" | "line" } → audio/mpeg
+   A name is generated in the same three deliveries as the recorded library (before a phrase mid-race, excited in the
+   straight, screamed at the finish) with the same audio tags, so a custom horse name matches the recordings. */
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), https = require('https'), http = require('http');
 
 const ENV = () => ({
   key: process.env.ELEVENLABS_API_KEY || '',
-  voice: process.env.ELEVENLABS_VOICE_ID || 'OQt0mf8rKBYkweCSQ9d4',
-  model: process.env.ELEVENLABS_MODEL || 'eleven_v3',
+  voice: process.env.ELEVENLABS_VOICE_ID || 'MTGAJpjryOZn2Xr8FOtm',
+  model: process.env.ELEVENLABS_MODEL || 'eleven_v4',
   base: process.env.ELEVENLABS_API_BASE || 'https://api.elevenlabs.io',
   daily: +(process.env.ELEVENLABS_DAILY_CHARS || 2000),
   cacheMB: +(process.env.ELEVENLABS_CACHE_MB || 50),
@@ -66,11 +69,12 @@ async function handle(req, res, url) {
   if (req.method !== 'POST') return json(res, 405, { error: 'method' });
   let raw = ''; for await (const c of req) { raw += c; if (raw.length > 2000) return json(res, 413, { error: 'too-long' }); }
   let m; try { m = JSON.parse(raw); } catch (e) { return json(res, 400, { error: 'bad-json' }); }
-  const kind = m.kind === 'line' ? 'line' : 'name', said = clean(m.text);
+  const kind = ['line', 'name_c', 'name_x', 'name_s'].includes(m.kind) ? m.kind : 'name', said = clean(m.text);
   if (!said) return json(res, 400, { error: 'empty' });
   const model = modelFallback || E.model;
   // the same delivery as the recorded library: names called with excitement (eleven_v3/v4 read [tags]; older models don't)
-  const text = /eleven_v[34]/.test(model) ? (kind === 'name' ? '[excited] ' : '[warmly] ') + said : said;
+  const TAG = { name: ['[urgent, fast and loud] ', '!'], name_c: ['[lively race caller] ', ','], name_x: ['[urgent, fast and loud] ', '!'], name_s: ['[screaming with excitement, very fast] ', '!'], line: ['[lively race caller] ', ''] }[kind];
+  const text = /eleven_v[34]/.test(model) ? TAG[0] + said.replace(/[,.!?]+$/, '') + TAG[1] : said;
   const h = crypto.createHash('sha256').update(E.voice + '|' + model + '|' + text).digest('hex').slice(0, 32), file = path.join(E.dir, h + '.mp3');
   if (fs.existsSync(file)) { const b = fs.readFileSync(file); fs.utimesSync(file, new Date(), new Date()); res.writeHead(200, { 'content-type': 'audio/mpeg', 'x-tts-cache': 'hit', 'cache-control': 'private, max-age=31536000' }); return res.end(b); }
   if (!E.key) return json(res, 503, { error: 'not-configured' });

@@ -1,5 +1,29 @@
 # Final Furlong — change log
 
+## Update: a race caller who tells the story of the race, in your new ElevenLabs commentator voice
+- **New commentary director**: instead of announcing the leader over and over, the caller watches the whole race —
+  margins and whether they are growing or coming back, the groups, the pace, horses improving, boxed in, wide or under
+  pressure, battles anywhere in the field — and chooses what is worth saying by significance and freshness, with memory
+  and cooldowns so nothing is repeated without something having changed. Once a horse has opened up a big break the
+  call moves to the chasers, the battle for second and the horses making moves (lines about the leader alone fell from
+  45% to 19% of mid-race calls in testing), and comes back to the leader when the margin really changes or it starts to
+  come back to them. Calm, conversational mid-race with short deliberate silences; anticipates the home turn; urgent from
+  the 600; rapid-fire in a close finish; emphatic and celebratory for a runaway. Predictions only when the race is
+  decided; the winner only from the official result.
+- **New voice**: every phrase and name re-recorded with "Commentator" (ID MTGAJpjryOZn2Xr8FOtm); the old voice's clips are
+  gone. 794 clips: 410 phrases each in its own delivery (calm → lively → building → urgent → screaming) and all 128 horse
+  names in three deliveries (mid-race, excited, screamed). Delivery chosen from four test recordings measured for
+  pitch, level and speaking rate; captions are exactly what is said.
+- **Playback**: clips decoded just in time and scheduled on the audio clock (tight joins, no overlaps, stale lines
+  dropped); median 3 ms from the caller's decision to sound.
+- **Commentary test** in Settings: seven real calls (start, mid-race story, home turn, close finish, your horse, photo
+  finish, runaway winner).
+- **Enhanced mode** generates custom names in the same three deliveries. Credits: about 19,800 used of 32,319 this
+  month; 12,502 left (details in docs/COMMENTARY.md).
+- Tests: `tests/commentary-scenarios.js` (160 races: packed field, wire-to-wire, runaway caught late, midfield
+  finisher, little movement, three-horse battle, photo finish — every call checked against the race), new
+  `tests/eleven-plan.js` (library completeness and delivery), `tests/eleven-browser.js` (real decoding and playback).
+
 ## Update: smarter pack racing, immersive cameras, a better jockey, a Flemington infield worth looking at
 - **AI jockeys with personalities**: every rival is a front-runner, stalker, rail rider or closer (shown under each
   name in the Tab stats panel). Front-runners press on early; stalkers sit handy; rail riders hug the fence and wait

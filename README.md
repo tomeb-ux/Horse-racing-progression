@@ -89,19 +89,31 @@ Press **F8** in a race for the performance overlay (FPS, frame times and 1% low,
 calls, triangles, horse LOD, spectators drawn by detail level, shadow map, render size, preset and AUTO state).
 F9 is still the collider view.
 
-## ElevenLabs commentary (your voice)
+## The race caller (ElevenLabs commentator voice)
+The commentary is a **director** that watches the whole race and tells its story (`public/commentary.js`): it tracks
+margins and whether they are growing or shrinking, the groups the field has split into, the pace, horses improving or
+going backwards, traffic, wide runs, battles anywhere in the field and a breakaway leader coming back. Every possible
+call is scored by how significant and how fresh it is; memory and cooldowns stop it repeating itself (no sentence is
+said twice in a race, and once a breakaway is established it moves on to the chasers, the battle for second, the
+horses making moves — instead of "X still leads" again). Mid-race it is calm and conversational and allows itself
+short silences; it anticipates the home turn, gets more urgent from the 600 and calls a close finish in rapid bursts.
+A ten-length winner gets an emphatic, celebratory call; a three-way go gets a frantic one; predictions ("nothing's
+going to catch this one") are only made when the race is effectively decided; the winner is named only from the
+official result. See `docs/COMMENTARY.md` and real transcripts in `docs/COMMENTARY-SCENARIOS.md`.
+
 Settings → Race commentary voice:
-* **ElevenLabs · recorded** (default) — 227 clips made with your ElevenLabs voice *mw_e-sports-commentator_The Aussie
-  Companion* (voice ID `OQt0mf8rKBYkweCSQ9d4`): starts, settling, mid-race, home turn, 600/400/200/100 m, photo finishes,
-  winners, lead-ins, battle calls, and 128 horse names (the Quick Race field, the career rival pool and the 19 choosable career names — those also shouted for the climax). They ship with the game — no
-  API key, no internet, no credits. The live commentary engine still decides what to say from the race; the clip
-  planner voices each line with recorded phrases + the right names. Lines it can't voice stay as captions; names that
-  aren't recorded (your own horses, generated rival names) are said by the local voice (or captions only — your choice).
-* **ElevenLabs · enhanced** — the same, plus the game server generates the missing names *with your voice* before each
-  race (cached on the server and in the browser, so each name is paid for once). Optional "live lines" (off by default)
-  asks for a few calm mid-race lines in full and drops any that arrive late. Needs the API key on the server (below).
-* **Local voice** — your computer's voices or the optional local neural voices (Kokoro / Piper). **Off** — no speech.
-Use **Commentary test** (six situations + "compare with the local voice"); it shows which backend actually spoke.
+* **ElevenLabs · recorded** (default) — 794 clips recorded with your ElevenLabs voice **"Commentator"** (voice ID
+  `MTGAJpjryOZn2Xr8FOtm`, model eleven_v4): every one of the 410 phrases the director can use, each in its own delivery
+  (calm mid-race → lively → building → urgent → screaming), and all 128 horse names the game can field (Quick Race,
+  career rivals, the 19 choosable career names) in three deliveries each. The captions are exactly what you hear. No
+  API key, no internet, no credits. Names that aren't recorded (very old saves with free-text names) are said by the
+  local voice (or left to the captions — your choice).
+* **ElevenLabs · enhanced** — the same, plus the game server generates missing names *in the same three deliveries
+  with your voice* before each race (cached on the server and in the browser, paid for once).
+* **Local voice** — your computer's voices or the optional local neural voices (Kokoro / Piper); same director, same
+  words. **Off** — no speech.
+Use **Commentary test** (seven real calls, from the start to a photo finish and a runaway winner, + "compare with the
+local voice"); it shows which backend actually spoke.
 
 ### Enabling "ElevenLabs · enhanced" (server-side key — never in the browser)
 1. In ElevenLabs: Profile → API keys → create a key (you can restrict it to Text to Speech).
@@ -112,15 +124,15 @@ Use **Commentary test** (six situations + "compare with the local voice"); it sh
 | Variable | Default | Meaning |
 |---|---|---|
 | `ELEVENLABS_API_KEY` | *(none)* | required for Enhanced mode; without it the endpoint answers `not-configured` and the game uses the recordings |
-| `ELEVENLABS_VOICE_ID` | `OQt0mf8rKBYkweCSQ9d4` | the voice |
-| `ELEVENLABS_MODEL` | `eleven_v3` | falls back to `eleven_multilingual_v2` automatically if the API refuses the model |
-| `ELEVENLABS_DAILY_CHARS` | `2000` | server-wide daily character cap (about 130 horse names) |
+| `ELEVENLABS_VOICE_ID` | `MTGAJpjryOZn2Xr8FOtm` | the voice ("Commentator") |
+| `ELEVENLABS_MODEL` | `eleven_v4` | the model the library was made with; falls back to `eleven_multilingual_v2` if refused |
+| `ELEVENLABS_DAILY_CHARS` | `2000` | server-wide daily character cap (about 15 new horse names in three deliveries) |
 | `ELEVENLABS_CACHE_MB` | `50` | disk cache size (oldest clips evicted) |
 
-Cost: one credit per character on your plan. The bundled library cost 3,694 credits to make (once). In Enhanced mode a
-new horse name costs ~15–30 credits the first time and nothing afterwards; live lines (if switched on) ~60–120 each, at
-most 8 per race. Limits: 20 requests/minute per player, the daily cap, 120 characters per request, 8 s timeout.
-The recorded library is regenerated/split with `tools/commentary-library.py` (no API calls; the prompts are in it).
+Cost: one credit per character (delivery tags included). The library cost about 18,200 credits to record once (plus
+about 1,600 for voice tests and one transcription check); a new horse name in Enhanced mode costs about 120 credits for
+its three deliveries, once. The library is rebuilt from the batch recordings with `tools/commentary-batches.js` (the
+plan and prompts) + `tools/commentary-library.py` (split, check, level — no API calls).
 
 ## Enhanced commentary voice (optional)
 Settings → Commentary voice engine: *Standard* (your system's voices), *Enhanced · Kokoro* (most natural; one-time
@@ -130,15 +142,10 @@ neural voice when it is faster than real time. Self-hosting: `node tools/fetch-v
 `public/voices/` so your server provides them. Licences: `ASSETS.md`.
 
 ## Live race commentary
-
-A continuous, original Australian-style race call (linked clauses, a call through the field, chained bursts in the straight), spoken aloud in every mode (Quick Race, Career, online) using the
-browser's built-in speech synthesis — no audio files, no cloud service, no keys. It reads the race (never changes it):
-the break, leader changes, movers, traffic, wide runs, falls, the 600/400/200/100 m markers, challenges and the
-finish, calling every horse — including your custom horse — by name. Excitement rises with the distance to go and how
-close the contest really is, so a tight final 200 m is called flat out while a runaway win is called as one. Photo
-finishes wait for the timing before naming the winner. Settings: on/off, volume, captions, voice (an Australian voice is
-picked automatically when the system has one — on a Mac, Lee or Karen; Enhanced/Premium voices can be downloaded in
-System Settings → Accessibility → Spoken Content). Voice quality depends on the voices installed on the device.
+The same director (above) calls every race in every mode, whichever voice speaks it. Settings: on/off, volume,
+captions, voice. With **Local voice** the browser's speech synthesis reads the director's lines (an Australian voice is
+picked automatically when the system has one — on a Mac, Lee or Karen); voice quality then depends on the voices
+installed on the device.
 
 ## Play single-player (no server)
 
@@ -325,6 +332,8 @@ node tests/season.js            # championship + rivals: seasons, points, tie-br
 node tests/randwick.js 2        # track engine + Royal Randwick: geometry, route lengths, chutes, navigation, AI races
 node tests/progression.js 2 24  # beginner balance + development speed with the real engine (good vs bad riding)
 node tests/commentary.js 36     # commentary checked line by line against 36 real simulated races
+node tests/commentary-scenarios.js 160   # seven kinds of race (packed, wire-to-wire, caught late, midfield run, static, three-way, photo)
+node tests/eleven-plan.js        # every phrase and horse name recorded in the new voice
 node tests/season_balance.js 10 # division balance with the real race engine (multi-process)
 PORT=8095 node tests/career-browser.js   # (server running) career, chaos isolation, save migration and spoken commentary in a real browser
 npm run test:protocol

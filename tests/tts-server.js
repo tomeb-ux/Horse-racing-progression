@@ -9,12 +9,12 @@ const mock = http.createServer((req, res) => {
   let b = ''; req.on('data', c => b += c); req.on('end', () => {
     const key = req.headers['xi-api-key'], body = JSON.parse(b || '{}'); hits.push({ url: req.url, key, body });
     const send = (c, t, ct) => { res.writeHead(c, { 'content-type': ct || 'application/json' }); res.end(t); };
-    if (!/^\/v1\/text-to-speech\/OQt0mf8rKBYkweCSQ9d4\?output_format=mp3_44100_64$/.test(req.url)) return send(404, '{"detail":"wrong url"}');
+    if (!/^\/v1\/text-to-speech\/MTGAJpjryOZn2Xr8FOtm\?output_format=mp3_44100_64$/.test(req.url)) return send(404, '{"detail":"wrong url"}');
     if (key === 'bad') return send(401, '{"detail":{"status":"invalid_api_key"}}');
     if (key === 'broke') return send(401, '{"detail":{"status":"quota_exceeded","message":"This request exceeds your quota"}}');
     if (key === 'busy') return send(429, '{"detail":{"status":"too_many_concurrent_requests"}}');
     if (key === 'slow') return setTimeout(() => send(200, Buffer.alloc(400, 1), 'audio/mpeg'), 9500);
-    if (key === 'nomodel' && body.model_id === 'eleven_v3') return send(422, '{"detail":{"status":"model_not_found","message":"model eleven_v3 not available"}}');
+    if (key === 'nomodel' && body.model_id === 'eleven_v4') return send(422, '{"detail":{"status":"model_not_found","message":"model eleven_v4 not available"}}');
     send(200, Buffer.concat([Buffer.from('ID3'), Buffer.alloc(600, 7)]), 'audio/mpeg');
   });
 }).listen(MOCK);
@@ -36,7 +36,7 @@ const J = r => { try { return JSON.parse(r.body.toString()); } catch (e) { retur
   console.log('— no key configured');
   await withServer({ ELEVENLABS_API_KEY: '' }, async port => {
     const s = J(await req(port, 'GET', '/api/tts/status'));
-    ok(s.configured === false && s.voiceId === 'OQt0mf8rKBYkweCSQ9d4', 'status: not configured, voice ID OQt0mf8rKBYkweCSQ9d4');
+    ok(s.configured === false && s.voiceId === 'MTGAJpjryOZn2Xr8FOtm', 'status: not configured, voice ID MTGAJpjryOZn2Xr8FOtm');
     const r = await req(port, 'POST', '/api/tts', { text: 'Desert Comet!', kind: 'name' });
     ok(r.status === 503 && J(r).error === 'not-configured' && hits.length === 0, 'a request without a key is refused locally (503 not-configured), nothing sent upstream');
   });
@@ -47,19 +47,19 @@ const J = r => { try { return JSON.parse(r.body.toString()); } catch (e) { retur
     ok(s.configured === true && !JSON.stringify(s).includes('sk_test'), 'status: configured — and the key never appears in a response');
     const t0 = Date.now(), r1 = await req(port, 'POST', '/api/tts', { text: 'Desert Comet!', kind: 'name' }), ms = Date.now() - t0;
     ok(r1.status === 200 && r1.headers['content-type'] === 'audio/mpeg' && r1.headers['x-tts-cache'] === 'miss' && r1.body.length > 200, `first request: audio/mpeg from ElevenLabs (${ms} ms through the server)`);
-    ok(hits.length === 1 && hits[0].key === 'sk_test_secret_123' && hits[0].body.model_id === 'eleven_v3' && hits[0].body.text === '[excited] Desert Comet!', 'upstream call: key in the xi-api-key header (server-side), voice OQt0mf8rKBYkweCSQ9d4, eleven_v3, an excited name read');
+    ok(hits.length === 1 && hits[0].key === 'sk_test_secret_123' && hits[0].body.model_id === 'eleven_v4' && hits[0].body.text === '[urgent, fast and loud] Desert Comet!', 'upstream call: key in the xi-api-key header (server-side), voice MTGAJpjryOZn2Xr8FOtm, eleven_v4, an urgent name read (the library delivery)');
     const r2 = await req(port, 'POST', '/api/tts', { text: 'Desert Comet!', kind: 'name' });
     ok(r2.status === 200 && r2.headers['x-tts-cache'] === 'hit' && hits.length === 1, 'the same phrase again: served from the disk cache, no second upstream call (no credits spent)');
     ok(fs.readdirSync(dir).length === 1, 'cached on disk once');
     const r3 = await req(port, 'POST', '/api/tts', { text: '<script>alert(1)</script> Quiet Thunder' + 'x'.repeat(300), kind: 'name' });
-    ok(r3.status === 200 && hits[1].body.text.length <= 132 && !/[<>]/.test(hits[1].body.text), 'input is cleaned (no markup) and capped at 120 characters');
+    ok(r3.status === 200 && hits[1].body.text.length <= 146 && !/[<>]/.test(hits[1].body.text), 'input is cleaned (no markup) and capped at 120 characters');
     let lim = null; for (let i = 0; i < 25; i++) { const r = await req(port, 'POST', '/api/tts', { text: 'Name ' + i, kind: 'name' }); if (r.status === 429) { lim = i; break; } }
     ok(lim != null && lim <= 20 && J(await req(port, 'POST', '/api/tts', { text: 'Another', kind: 'name' })).error === 'rate-limited', `per-IP rate limit: request ${lim + 2} within a minute is refused (rate-limited)`);
     ok((await req(port, 'POST', '/api/tts', { text: 'Desert Comet!', kind: 'name' })).status === 200, '…but cached phrases are still served while rate-limited');
   });
   console.log('\n— daily budget');
   hits = [];
-  await withServer({ ELEVENLABS_API_KEY: 'k', ELEVENLABS_DAILY_CHARS: '50' }, async port => {
+  await withServer({ ELEVENLABS_API_KEY: 'k', ELEVENLABS_DAILY_CHARS: '80' }, async port => {
     const a = await req(port, 'POST', '/api/tts', { text: 'Desert Comet!', kind: 'name' }), b = await req(port, 'POST', '/api/tts', { text: 'Brumby Dancer!', kind: 'name' }), c = await req(port, 'POST', '/api/tts', { text: 'Copper Coast!', kind: 'name' });
     ok(a.status === 200 && b.status === 200 && c.status === 429 && J(c).error === 'daily-limit' && hits.length === 2, 'ELEVENLABS_DAILY_CHARS stops spending for the day (counted as ElevenLabs bills: delivery tags included — third name refused, 2 upstream calls)');
   });
