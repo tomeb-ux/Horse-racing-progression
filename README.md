@@ -346,7 +346,7 @@ node tests/commentary-scenarios.js 160   # seven kinds of race (packed, wire-to-
 node tests/eleven-plan.js        # every phrase and horse name recorded in the new voice
 node tests/season_balance.js 10 # division balance with the real race engine (multi-process)
 node tests/career_difficulty.js 100 3   # career difficulty vs Quick Race Hard (new horse, normal, finals)
-node tests/riding-control.js     # the start, riding actions, steering, personalities, final drive, the hang and the lunge
+node tests/riding-control.js     # the start, riding actions, steering, personalities, final drive and the lunge
 PORT=8095 node tests/career-browser.js   # (server running) career, chaos isolation, save migration and spoken commentary in a real browser
 npm run test:protocol
 ```

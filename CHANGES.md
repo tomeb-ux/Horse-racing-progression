@@ -1,6 +1,6 @@
 # Final Furlong — change log
 
-## Update: smooth racing, a clearer start, a real finish, and a career that stays hard
+## Update: smooth racing, a clearer start, a lunge at the line, and a career that stays hard
 - **Microstutter fixed at its cause.** The simulation runs at a fixed 120 steps per second and the screen draws at
   whatever the display does (60, 75, 90, 120, 144 Hz…); each frame used to draw the latest step, so the distance a horse
   moved per frame jumped between one and two steps (±50 % at 60 Hz) and at 144 Hz it moved on some frames and not on
@@ -21,9 +21,7 @@
   horse drifts out of balance), the meter reads *drifting forward — ease him back with S*; the balance zone is wider, the
   horse calmer and readiness builds faster. Space when the gates open, as before. The stride pushes show their exact
   timing window — the green lights gold when a push now counts.
-- **The finish is ridden, not just tapped.** In the last 420 m a horse under pressure **hangs** left or right in waves
-  (tired and fractious horses more): a warning shows which way and which key straightens it; a horse left hanging drifts
-  and loses about a length. In the final strides one **lunge** (Space as the pin crosses the gold) throws the horse at
+- **The lunge.** In the final strides one **lunge** (Space as the pin crosses the gold) throws the horse at
   the line — up to half a metre, a short head in a photo; too early and it's over before the line. The rival riders lunge
   too, Hard jockeys more accurately.
 - **Career difficulty.** Every career jockey now rides at Hard, and rival stables bring their runners primed to your
@@ -32,7 +30,7 @@
   ~9 % with a top-3 ~40 % (typically 3rd–5th); normal races ~20 %; the Provincial and Metropolitan finals 4–11 % — the
   same as Quick Race on Hard (11 %). The rivals rise with your horse, so it stays a contest the whole career. The Group 1
   stars were already stronger than that and are left as they are. The form guide shows race-day ratings.
-- Tests: `tests/riding-control.js` 27 checks (8 new for the hang and the lunge), `tests/career_difficulty.js`,
+- Tests: `tests/riding-control.js` 25 checks (6 new for the lunge), `tests/career_difficulty.js`,
   `tools/smooth.js`.
 
 ## Update: ride the horse — a three-stage start, distinct riding actions, horses with character

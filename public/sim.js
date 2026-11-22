@@ -395,7 +395,7 @@ class Horse {
     this.settle = false; this.restrain = false; this.relax = 0; this.keen = 0; this.restrainHeat = 0; this.postCheckT = 0; this.restrainLvl = 0;
     this.steerIn = null; this.steerAssist = true; this.sideBlocked = 0; this.steerHoldT = 0; this.steerSide = 0;
     this.driveT = 0; this.driveEff = 1; this.jumpPush = 0; this.nudgeT = 0; this.nudgeTo = 0; this.kicks = 0; this.kickLastStride = -1; this.mashN = 0;
-    this.hang = { side: 0, amt: 0, tgt: 0, t: 0.4, rng: null, n: 0 }; this.crooked = 0; this.crookT = 0; this.lungeT = null; this.lungeTtl = null; this.lungeAim = null; this.lungeHurt = false;
+    this.lungeT = null; this.lungeTtl = null; this.lungeAim = null; this.lungeHurt = false;
     this._p0 = 0; this._l0 = 0; this._f0 = 0; this._vOk = false;   // the renderer's interpolation state (numbers from the start: stable shape, no boxing)
     // balance & incidents (see Horse.balance): 1 = perfectly balanced
     this.stab = 1; this.stress = 0; this.aDem = 0; this.latMsPrev = 0; this.ctrlT = 0; this.incCool = 0; this.stumV = 0; this.contactCool = 0; this.lean = 0;
@@ -433,22 +433,6 @@ class Horse {
     // at the line it will be stretched by: (what the press will be worth)
     const tl = ttl, ext = tl < LUNGE_UP ? tl / LUNGE_UP : tl < LUNGE_HOLD ? 1 : Math.max(0, 1 - (tl - LUNGE_HOLD) / (LUNGE_END - LUNGE_HOLD));
     return { kind: "lunge", ttl, q: ext, res: ext > 0.85 ? "perfect" : ext > 0.4 ? "good" : ttl > LUNGE_END ? "early" : "late" };
-  }
-  // the hang: waves of drifting off a straight line in the final furlongs (player's horse; AI riders keep theirs straight)
-  hangStep(dt, race, remainM) {
-    const H = this.hang;
-    if (this.bot || !this.isPlayer || !this.started || this.finished || this.fallen || remainM > HANG_AT) { H.amt = Math.max(0, H.amt - 2 * dt); H.tgt = 0; return; }
-    if (!H.rng) H.rng = mulberry32((nameSeed(this.def.name + "/hang") ^ (race.seed | 0)) >>> 0);
-    const r = H.rng, ask = clamp((this.eAct - 0.75) / 0.2, 0, 1) * 0.7 + (this.drive ? 0.3 : 0), tired = clamp(1 - this.S / 60, 0, 1);
-    H.t -= dt;
-    if (H.t <= 0) {
-      if (H.tgt > 0) { H.tgt = 0; H.t = 0.9 + r() * 1.3; }                          // straightens up for a while
-      else if (r() < 0.45 + 0.35 * (1 - this.rp.composure) + 0.25 * tired) {       // …then hangs again, either way
-        H.side = r() < 0.5 ? -1 : 1; H.tgt = 0.55 + 0.45 * r(); H.t = 1.3 + r() * 1.4; H.n++;
-      } else H.t = 0.6 + r() * 0.8;
-    }
-    const want = Math.min(1, H.tgt * (0.35 + 0.65 * ask) * (0.75 + 0.5 * tired + 0.4 * (1 - this.rp.composure)));
-    H.amt += (want - H.amt) * (1 - Math.exp(-dt / 0.35));
   }
   rhythmPin() { const u = (this.rhythmT / (RHYTHM_PERIOD / 2)) % 2; return u < 1 ? u : 2 - u; }
   // accuracy of a tap right now: 1 = pin dead centre, 0 = outside the green
@@ -601,12 +585,11 @@ class Horse {
       if (race.clock - this.lastBeatT > BEAT * 1.6) { this.streak = Math.max(0, this.streak - 1); this.combo = this.streak; this.lastBeatT += BEAT; }
       // the rhythm only turns into speed if the horse is being asked to sprint and has room to: holding back or boxed in
       // wastes it; driving well-timed adds to it (less so once the horse has been driven too long)
-      const effGate = clamp((this.eAct - 0.7) / 0.22, 0.25, 1), room = (this.blocked ? 0.45 : 1) * (1 - 0.5 * this.crooked);
+      const effGate = clamp((this.eAct - 0.7) / 0.22, 0.25, 1), room = this.blocked ? 0.45 : 1;
       const target = Math.min(1, MOM_LEVELS[Math.min(7, this.streak)] * (0.2 + 0.8 * Math.pow(this.tapQ, 1.4)) * effGate * room + (this.drive && this.streak >= 2 ? 0.12 * this.driveEff : 0));
       const k = target > this.mom ? 1 - Math.exp(-dt / 0.9) : 1 - Math.exp(-dt / 0.6);
       this.mom += (target - this.mom) * k;
     } else this.lastBeatT = -1;
-    this.hangStep(dt, race, remainM);
     if (this.lungeT != null) {
       this.lungeT += dt;
       if (!this.lungeHurt && !this.finished && this.lungeT > LUNGE_END) { this.lungeHurt = true; this.v *= 0.985; this.mom = Math.max(0, this.mom - 0.08); }   // lunged too soon: it loses its action
@@ -676,7 +659,6 @@ class Horse {
     if (this.jumpPush > 0 && race.clock < 6) vT *= 1 + 0.06 * this.jumpPush * clamp(1 - (race.clock - 2.5) / 3.5, 0, 1);   // pushed into its stride, it runs on harder for the first strides               // your horse: ease right off and it pulls up to a stop at 0%
     vT = Math.min(vT, this.vmax * 1.09 * this.going.v);        // a hard physical ceiling, whatever the riding
     if (this.penT > 0) vT *= 0.985;                            // unbalanced by a wild tap
-    if (this.crooked > 0.02) vT *= 1 - 0.03 * this.crooked;      // hanging: not running straight, not everything goes forward
     if (this.restrain) vT = Math.min(vT, this.v - 1.8);       // the check itself
     // chaos: the AI field runs as a tight bunch — a horse off the back of the pack is let roll a little quicker, one
     //  off the front is held a little, so gaps close up. Small and bounded (≤6%), so it's still a proper race; off in
@@ -726,15 +708,6 @@ class Horse {
       }
       want = this.steerIn * maxLat * (0.5 + 0.5 * clamp(this.steerHoldT / 0.4, 0, 1));
       if (this.steerIn === 0 && this.nudgeT > 0) { this.nudgeT -= dt; want = clamp((this.nudgeTo - this.laneF) * 2.4, -maxLat * 0.6, maxLat * 0.6); }
-      // a hanging horse drifts; the rider's opposite steer goes first into straightening it, only the rest moves it
-      const H = this.hang; let crookT = 0;
-      if (H && H.amt > 0.01) {
-        const counter = this.steerIn !== 0 && Math.sign(this.steerIn) === -H.side, str = counter ? 0.5 + 0.5 * clamp(this.steerHoldT / 0.4, 0, 1) : 0;
-        if (counter) want = H.side * maxLat * (H.amt * 0.75 - str); else want += H.side * maxLat * H.amt * 0.75;
-        crookT = counter ? Math.max(0, H.amt - str * 1.4) : H.amt;
-      }
-      this.crooked += (crookT - this.crooked) * (1 - Math.exp(-dt / 0.25));
-      if (this.crooked > 0.3) this.crookT += dt;
       this.sideBlocked = 0;
       if (this.steerIn !== 0 && this.steerAssist) {
         const probe = this.laneF + Math.sign(this.steerIn) * 0.55;
@@ -896,14 +869,11 @@ class Horse {
 // the start's stride push: accuracy falls to 0 at ±STRIDE_W of a stride from the drive phase; ≥ STRIDE_OK is a good push
 const STRIDE_W = 0.27, STRIDE_OK = 0.4;
 /* the finish, beyond the rhythm taps:
-   HANGING — in the last HANG_AT metres a horse under pressure stops running straight: it hangs in or out in waves
-   (tired, fractious horses more). The rider straightens it by holding the opposite steer (A/D); a horse left hanging
-   drifts across the track and loses speed and momentum (it isn't putting everything into going forward).
    THE LUNGE — one press of Space in the final strides throws the horse at the line: its head and neck stretch out
    (up to LUNGE_M) for a moment. Timed so the line comes while it is stretched (about 0.12–0.42 s before the line) it
    gains up to LUNGE_M; too early and it is over before the line and costs the horse its action. AI riders lunge too,
    as accurately as their skill allows. */
-const HANG_AT = 420, LUNGE_TTL = 0.9, LUNGE_M = 0.45, LUNGE_UP = 0.12, LUNGE_HOLD = 0.42, LUNGE_END = 0.72;
+const LUNGE_TTL = 0.9, LUNGE_M = 0.45, LUNGE_UP = 0.12, LUNGE_HOLD = 0.42, LUNGE_END = 0.72;
 const DIFF = {
   easy:   { iq: 0.2,  react: [1.0, 1.6],  pacingErr: 0.36, kickErr: 280, consistency: 0.42, rhythm: 0.2,  hold: 0 },
   medium: { iq: 0.46, react: [0.65, 1.1], pacingErr: 0.2,  kickErr: 160, consistency: 0.64, rhythm: 0.42, hold: 0 },
@@ -2165,4 +2135,4 @@ const SIM_EXPORTS = { rideTraits, ridePersonality, runRidingTests, simRace, race
 /*@sim-end*/
 // Node (multiplayer server, tests): export the simulation. In a browser this file is a plain script and the
 // declarations above are shared globals.
-if (typeof module !== "undefined" && module.exports) module.exports = { HANG_AT, LUNGE_TTL, LUNGE_M, LUNGE_UP, LUNGE_HOLD, LUNGE_END, STRIDE_W, STRIDE_OK, Race, Horse, Bot, ROSTER, DISTANCES, GOING, DIFF, SIM_DT, REC_F, RHYTHM_AT, RHYTHM_PERIOD, HORSE_LEN, NOSE_OFF: typeof NOSE_OFF !== "undefined" ? NOSE_OFF : null, START_CATS, KNACK, rideLevel, finishGap, momLevel, applyRiderInput, riderPress, riderKick, scaleDef, DIST_LABEL, clamp, SIM_EXPORTS, racePhase, isTurn, LEN_M, HOME_STRAIGHT, FINAL_BEND, marginText, TRACKS, TRACK_DEFS, getTrack, trackPoint, laneOff, T, FINISH_D, NLANES, LANE_W };
+if (typeof module !== "undefined" && module.exports) module.exports = { LUNGE_TTL, LUNGE_M, LUNGE_UP, LUNGE_HOLD, LUNGE_END, STRIDE_W, STRIDE_OK, Race, Horse, Bot, ROSTER, DISTANCES, GOING, DIFF, SIM_DT, REC_F, RHYTHM_AT, RHYTHM_PERIOD, HORSE_LEN, NOSE_OFF: typeof NOSE_OFF !== "undefined" ? NOSE_OFF : null, START_CATS, KNACK, rideLevel, finishGap, momLevel, applyRiderInput, riderPress, riderKick, scaleDef, DIST_LABEL, clamp, SIM_EXPORTS, racePhase, isTurn, LEN_M, HOME_STRAIGHT, FINAL_BEND, marginText, TRACKS, TRACK_DEFS, getTrack, trackPoint, laneOff, T, FINISH_D, NLANES, LANE_W };

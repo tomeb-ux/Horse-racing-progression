@@ -71,8 +71,7 @@ voices (tests stub `speechSynthesis`). The build container has no outbound web a
 ## Status
 Smoothness / start / finish / career difficulty (latest): render interpolation between fixed sim steps (`visPrev` /
 `visBegin` / `visEnd` in index.html frame(); F7 toggles with F8 on; measure with `tools/smooth.js`). Start cues
-(`startCue`, `#smKeyS/W`; easier stalls in `sim.js trackOne`; push window `STRIDE_W/STRIDE_OK`). Finish: the hang
-(`Horse.hangStep`, `crooked`, HANG_AT) and the lunge (`Horse.lunge`, LUNGE_*; AI riders via `lungeAim`). Career:
+(`startCue`, `#smKeyS/W`; easier stalls in `sim.js trackOne`; push window `STRIDE_W/STRIDE_OK`). Finish: the lunge (`Horse.lunge`, LUNGE_*; AI riders via `lungeAim`). Career:
 `season.js raceField` (race-day lift in time-trial lengths, `racePower` fitted from engine time trials; LIFT profiles),
 applied in `career.js raceDayField`; all career jockeys Hard. Calibrate with `node tests/career_difficulty.js 100 3`.
 

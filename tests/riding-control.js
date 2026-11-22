@@ -102,31 +102,27 @@ console.log('\n— the final drive');
   while (r.dist - p.progress > 440) { p.effort = 0.8; r.simStep(SIM_DT); }
   const S0 = p.S; let t = 0, last = -9; while (t < 2) { p.effort = 0.95; if (t - last >= 0.1) { p.tap(0.9, r.clock); last = t; } r.simStep(SIM_DT); t += SIM_DT; }
   ok(p.stat.extraTaps >= 10 && p.penT > 0 && S0 - p.S > 2, `mashing the rhythm key wastes energy and breaks the stride (${p.stat.extraTaps} wasted taps, ${(S0 - p.S).toFixed(1)} stamina in 2 s)`); }
-/* ---- the finish: the hang and the lunge ---- */
+/* ---- the finish: the lunge ---- */
 console.log('\n— the finish');
-// mode: 'ignore' (never corrects), 'fix' (holds the opposite steer, 0.3 s to react), 'late' (reacts after 1 s);
 // lunge: null = none, or the time-to-line at which Space is pressed
-function finish(seed, mode, lunge, horse) {
+function finish(seed, lunge, horse) {
   const r = new Race({ distance: 1200, field: 1, diff: 'medium', playerHorse: horse != null ? horse : 4, seed, going: 'good', incidents: 'off' });
   r.state = 'count'; r.openGates(); const p = r.player; r.st.launched = true; r.applyStart(p, 0.7, 0.2);
-  let t = 0, seenT = 0, res = null;
+  let t = 0, res = null;
   while (!p.finished && t < 200) {
-    const rem = r.dist - p.progress; let steer = 0;
-    if (p.hang.amt > 0.15) seenT += SIM_DT; else seenT = 0;
-    if (mode !== 'ignore' && seenT > (mode === 'late' ? 1.0 : 0.3)) steer = -p.hang.side;
-    sim.applyRiderInput(r, p, { effort: rem < 420 ? 1 : 0.72, steer, drive: rem < 250 }, SIM_DT);
+    const rem = r.dist - p.progress;
+    sim.applyRiderInput(r, p, { effort: rem < 420 ? 1 : 0.72, steer: 0, drive: rem < 250 }, SIM_DT);
     if (lunge != null && p.lungeT == null && p.ttl() <= lunge) res = sim.riderPress(r, p);
     r.step(SIM_DT); t += SIM_DT;
   }
-  return { t: p.finishTime, crook: p.crookT, waves: p.hang.n, res };
+  return { t: p.finishTime, res };
 }
-{ const sd = [11, 12, 13, 14, 15, 16, 17, 18], m = (mode, l) => sd.map(s => finish(s, mode, l));
-  const ig = m('ignore'), fx = m('fix'), lt = m('late');
-  ok(mean(ig.map(x => x.waves)) >= 2, `under pressure in the straight the horse hangs, in waves (${mean(ig.map(x => x.waves)).toFixed(1)} times in the last ${sim.HANG_AT} m)`);
-  const lostL = (mean(ig.map(x => x.t)) - mean(fx.map(x => x.t))) * 16.5 / 2.4;
-  ok(lostL > 0.5 && lostL < 3, `leaving it hanging costs ${lostL.toFixed(1)} lengths against straightening it (crooked ${mean(ig.map(x => x.crook)).toFixed(1)} s vs ${mean(fx.map(x => x.crook)).toFixed(1)} s)`);
-  ok(mean(lt.map(x => x.t)) > mean(fx.map(x => x.t)) && mean(lt.map(x => x.t)) < mean(ig.map(x => x.t)), `a slow correction costs part of it (${((mean(lt.map(x => x.t)) - mean(fx.map(x => x.t))) * 16.5 / 2.4).toFixed(1)} lengths)`);
-  const none = m('fix'), good = m('fix', 0.27), early = m('fix', 0.85), late = m('fix', 0.04);
+{ const sd = [11, 12, 13, 14, 15, 16, 17, 18], m = (l) => sd.map(s => finish(s, l));
+  // the horse always runs straight: no drift in the straight without the rider steering
+  { const r = new Race({ distance: 1000, field: 1, diff: 'medium', playerHorse: 4, seed: 5, going: 'good', incidents: 'off' }); r.state = 'count'; r.openGates(); const p = r.player; r.st.launched = true; r.applyStart(p, 0.7, 0.2);
+    let lane0 = null; while (!p.finished) { const rem = r.dist - p.progress; if (rem < 420 && lane0 == null) lane0 = p.laneF; sim.applyRiderInput(r, p, { effort: rem < 420 ? 1 : 0.72, steer: 0, drive: rem < 250 }, SIM_DT); r.step(SIM_DT); }
+    ok(Math.abs(p.laneF - lane0) < 0.05, `driven out in the straight with no steering, the horse keeps its line (moved ${Math.abs(p.laneF - lane0).toFixed(2)} lanes)`); }
+  const none = m(null), good = m(0.27), early = m(0.85), late = m(0.04);
   const gain = (L) => (mean(none.map(x => x.t)) - mean(L.map(x => x.t))) * 16.5;
   ok(gain(good) > 0.3 && gain(good) <= sim.LUNGE_M + 0.05 && good.every(x => x.res && x.res.kind === 'lunge' && x.res.res === 'perfect'), `a lunge timed for the line gains ${gain(good).toFixed(2)} m (a head is ~0.4 m)`);
   ok(gain(early) < 0, `lunging too soon is over before the line and costs ground (${gain(early).toFixed(2)} m, "${early[0].res.res}")`);
