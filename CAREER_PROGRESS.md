@@ -21,6 +21,14 @@ Implementation plan (approved): `CAREER_PLAN.md`.
   screenshots from several angles — especially the main stable courtyard, the farmhouse, the paddocks and the training area — so the owner
   can review the visual quality before Phase 5.**
 - **Testing is risk-based from Phase 4 on** (owner's instruction) — see "Testing policy" below. Tests are never weakened or deleted.
+- **Owner's change of direction after the Phase 4 review ("it's really good — make the game centre on the horse property"):**
+  1. **Main menu = Settings, Quick Race, Career Mode (How to Play stays), over the horse property as the background** (not the old racecourse).
+  2. **Career Mode loads straight into the farm** — walk around it. (First-ever career: create the first horse, then land in the farm.) The old Career hub (standings, rivals, training, trophies, history) stays but is reached from the farm's pause menu, not as the entry screen.
+  3. **Go inside the farmhouse and walk around a basic room.** A **race calendar board** (or similar) in the house is where you **select the race** (and the horse) — this replaces "walk to the float to travel".
+  4. **Swap between first- and third-person.**
+  5. **Booking a race (agreeing it on the calendar) → put the horse in the trailer → drive it off the property**, then the race. First version (Phase 5): automatic loading + drive-off cinematic after you press E at the float; the *interactive* version (lead the horse from its box and load it yourself) belongs to Phase 6/13.
+  6. After a career race the player **returns to the farm** (not the hub).
+  These are folded into Phase 5 and the later phases (6 horse/farm interactions, 13 transport) — see "Exactly what Phase 5 requires".
 - Development runs one approved phase at a time. After each phase: tests, a git commit, a playable build (artifact +
   GitHub zip) and an update of this file.
 - Prize money for optional races stays at nothing (as before); championship rounds pay places 1–5. Real purse and
