@@ -21,7 +21,7 @@ public/            what the browser loads
   venues.js        real racecourse scenery (Royal Randwick) built from the track engine's geometry
   stable3d.js      the 3D racing stable: grooming bay, five boxes, trophy room, orbit camera
   scenes.js        scene + input-context manager (menu / stable / office / farm / race), loading overlay, resource leak check
-  farm*.js         the Career farm: farm-world (layout, textures, batching), farm-build (buildings), farm-trees, farm-ground (land, sky, plants), farm (walking, camera, interaction)
+  farm*.js         the horse property: farm-world (layout, textures, batching), farm-build (buildings, float + ute), farm-trees, farm-ground (land, sky, plants), farm-people (the player's character), farm-house (the walkable farmhouse), farm-ui (race calendar + wardrobe), farm-trip (loading the float and driving off), farm (menu background, walking, first/third person, camera, interaction)
   career-core.js   career data architecture (pure logic): save v4 + migration, calendar/dates, money ledger, prizes, horse age/fitness data, dated race programme, backups, export/import
   career.js        Career Mode screens (creator, stable, training, rivals, championship, Office) and the bridge to the race engine
   mp.js            online client: lobby, connection, snapshot interpolation, input sending
@@ -342,6 +342,7 @@ If the game page is hosted separately (say, on a static host) and the server els
 ## Tests
 ```bash
 PORT=8095 node tests/farm-browser.js     # (server running) the farm: layout, horses in boxes, collision, reachability, budgets
+PORT=8095 node tests/farm-flow-browser.js # (server running) the menu over the property, Career → farm, farmhouse + calendar booking, float → drive-off → race → back
 PORT=8095 node tests/scenes-browser.js   # (server running) scene separation: input isolation, transitions, leak check
 node tests/career-core.js       # career data v4: migration of v1/v2/v3 saves, calendar, ledger (no double prizes), schedule, backups, export/import
 node tests/season.js            # championship + rivals: seasons, points, tie-breakers, skips, H2H, retirement, migration

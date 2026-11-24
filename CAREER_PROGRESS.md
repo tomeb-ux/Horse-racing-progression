@@ -42,8 +42,8 @@ Implementation plan (approved): `CAREER_PLAN.md`.
 | 1 — Existing project audit | **Done.** Findings are in `CAREER_PLAN.md` §1 |
 | 2 — Career data architecture + save migration | **Done and approved by the owner** (on `main`, published) |
 | 3 — Scene separation | **Done and approved by the owner** (on `main`, published) |
-| 4 — Farm environment | **Done — awaiting the owner's visual review** (screenshots delivered; details below) |
-| 5 — Third-person character | **Next.** Not started — do not begin until Phase 4 is approved |
+| 4 — Farm environment | **Done and approved by the owner** ("it's really good") |
+| 5 — Character, house, calendar booking, first/third person, menu over the property, trailer departure | **Done — awaiting the owner's review** (details below) |
 | 6 — Farm interactions | Not started |
 | 7 — Finances | Not started |
 | 8 — Staff and facilities | Not started |
@@ -308,11 +308,32 @@ Policy applied: **Tier 2 — farm-only change** (new farm files, `career.js` gai
 - **First entry builds the property** (~1 s of geometry + texture generation on a fast machine, ~3 s on this software renderer) behind the loading overlay; later visits are instant.
 - Software-GL screenshots show the farm without antialiasing at 1600 × 900; the real game uses the renderer's normal settings.
 
-## Exactly what Phase 5 requires (from `CAREER_PLAN.md` §3 and `CAREER_EXPANSION_SPEC.md` §5; do not start until the owner approves Phase 4)
-Replace the stand-in figure in `public/farm.js` with the real third-person character:
-1. **Character** (rigid-part, low-poly but believable human; pattern of `presentation.js makeStrapper`, upgraded): head / hair / skin / build options and **three outfits** — stable, training (riding gear), race-day (with helmet); saved in `C.player` (already in the v4 save: `look{head,hair,hairCol,skin,build}`, `outfit`, `colours`). Procedural walk and jog cycle.
-2. **Movement:** WASD relative to the camera, Shift = jog, smooth turning and stopping, XZ collision (already in place against the new colliders), terrain height (already in place).
-3. **Camera:** behind and above, mouse/drag orbit with a sensitivity setting, **occlusion pull-in** (raycast against the collider proxies) so walls/trees never block the view, no shake.
-4. **Appearance editor** in the Office (a screen over the farm or a Career screen) writing `C.player`.
-5. **Tests (Tier 2):** `tests/farm-browser.js` + `tests/scenes-browser.js` still green, new checks for the character (appearance saved/reloaded, three outfits, walk-cycle animates only when moving, camera never inside a collider, sensitivity setting), short racing smoke; performance budget re-measured with the character (≤ 250 draw calls, ≤ 500k triangles).
-6. When done: update this file and HANDOFF.md, commit, build, publish to the existing artifact, **give the owner screenshots of the character and outfits**, then STOP.
+## Phase 5 — what was implemented (the property is now the heart of the game; revised after the owner's Phase 4 review)
+
+**The flow the owner asked for, end to end:** main menu (over the property) → *Career Mode* → you are standing in the courtyard (first-ever career: you create the first horse, then land there) → walk to the **farmhouse** and go inside → walk to the **race-calendar board** and press E → pick the race and the horse and *Book* → walk to the **horse float** and press E → the horse is led up the ramp, the ramp goes up, you get in the ute and **drive off the property** → the booked race starts → after the race, *Return to the Farm*.
+
+| What | Where | Notes |
+|---|---|---|
+| **Main menu over the property** | `farm.js` (menu showcase), `index.html` | Settings, Quick Race, Career Mode (How to Play kept; multiplayer still hidden). The background is the real farm: a slow camera drift over the courtyard, **your own horses in their boxes** (or five of the game's horses if you have no career yet — drawing the menu never creates a save), and the **Quick Race horse** you picked standing in the courtyard. The Settings / Quick-Race-select / How-to-Play screens sit on it too. Built ~60 ms after the page loads; until then the old background shows. |
+| **Career Mode lands on the farm** | `career.js` (`CAREER.begin`) | Brand-new career → horse creator → *Create* → straight out onto the property. Existing career → straight onto the property. The old Career hub (standings, calendar, training, stable, rivals, trophies, history) is reached from the **pause menu** (Esc → *Career*) and has a **Back to the Farm** button. |
+| **Real character, three outfits** | `farm-people.js` | A rigid-part human (~30 meshes): head, face, hair (6 styles), skin (6), build (5), arms/legs with elbows/knees, walk / jog / idle animation driven by speed. Outfits: **stable wear** (akubra, work shirt, jeans, boots), **riding gear** (helmet, polo, breeches, tall boots, gloves), **race day** (jacket in your colour, white breeches, helmet with silk cover). Saved in `C.player` (v4 field that already existed). |
+| **First / third person** | `farm.js` | **V** swaps. Third person: orbit camera behind and above with **pull-in** (marches from the full distance inwards and takes the first spot that is not inside a building, under the ground, or outside the room), eases back out in the open. First person: eye at 1.62 m, wider view (72°), figure hidden, a small cross-hair. The choice is remembered (`ff_person`) and is the default in Settings. |
+| **Mouse look** | `farm.js`, Settings | Drag to look, or click to capture the mouse (Esc releases it and opens the pause menu); ← → also turn; wheel zooms in third person. Sensitivity (Slow … Fast) and the capture option are in **Settings → Farm**. |
+| **Pause menu** | `farm.js` | Esc: Resume / Career (stable, training, records) / Main menu. Nothing moves while it is open. |
+| **Farmhouse interior** | `farm-house.js` | Press E at the front steps → fade → a 10 × 8 m room with its own scene and lights: a **race-calendar board** (cork board with this month's grid — race days marked, today ringed, the booked race circled — and a card for the next race), a **desk with the stable ledger** (opens the Office), a **trophy cabinet** (your trophies appear on its shelves; opens the Trophy Room), a **wardrobe with a mirror**, sofa, rug, bookshelf, kitchen, windows, pictures, pendant lights. Walls, furniture and the cabinet are solid; going in and out leaks nothing. Coming back from the Office / Trophy Room puts you back inside the house where you stood. |
+| **Calendar and booking** | `farm-ui.js`, `career.js` (`calendarData / horsesFor / book / cancelBooking / booking / startBooked`) | E at the board opens the **Race Calendar**: month grid (browse months), upcoming races, the selected race's date, time of day, venue, distance, forecast and prize, and **your horses with who is qualified and why not**. *Book* saves `C.booking` (race, horse, date). Only the **current championship round** can be booked (later rounds say "Opens after the previous round"); optional races can be booked when they fall before the next round. A booking can be cancelled or replaced. The objective line at the top tells you what to do next. |
+| **Wardrobe** | `farm-ui.js` | E at the mirror: outfit, skin, hair style/colour, face, build, shirt/trousers/boots colours. Changes apply to the character at once (the camera swings round to show you) and save to the career as you click. |
+| **Loading up and driving off** | `farm-trip.js`, `farm-build.js` (the float + ute are now their own group with a hinged ramp) | At the float with a race booked the prompt reads "Load *Horse* and leave for *Race*". E → fade to the hardstand → you lead the real horse model up the ramp → the ramp is raised → you walk round the float to the ute → the rig drives east down the farm drive to the road gate with a chase camera → fade to black "Travelling to *Venue*…" → the booked race starts through the normal entry code (`CAREER.startBooked`). **Space / Enter / E / Esc skips it.** In this phase it is a short cutscene; leading the horse yourself comes with the horse interactions (Phase 6) and the full transport flow (Phase 13). |
+| **Back from the race** | `index.html`, `career.js` (`returnHome`) | The results button now reads **Return to the Farm** and puts you by the float; the round result, prize and points are recorded exactly as before. |
+
+**Not changed:** race physics, timing, starting, horse attributes, results, commentary, Quick Race rules and the save format (the only data added is `C.booking`, which older builds ignore; `C.player` already existed).
+
+## Known issues / limits after Phase 5
+- **The drive-off is a cutscene**, not interactive (by design for this phase): you do not lead the horse out of its box yourself yet, and the race venue is not shown arriving. Phases 6 and 13 deepen it.
+- **No horse leaves the box visually in the menu showcase** and the paddocks are still empty (Phase 6).
+- **One booking at a time**; booking a different race replaces it. Optional races are bookable only when they fall before the next open championship round (so the date can never skip a round).
+- **The character is rigid-part** (like the parade strappers): readable and animated, not a skinned model. Faces are simple.
+- **The first entry builds the farmhouse (~50 ms) and the property (~1 s)**; the menu background builds the property ~60 ms after the page loads, so a very slow machine may show the old background for a moment.
+- Pointer capture needs a user click (browser rule); if it is refused the game falls back to drag-to-look.
+- Time of day and weather are still not applied to the farm (Phase 12).
+

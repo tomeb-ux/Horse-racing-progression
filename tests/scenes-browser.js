@@ -36,12 +36,12 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
       try { startRace(quickCfg()); } finally { Math.random = rnd; } }); await p.waitForFunction(() => race && race.state !== 'load', null, { timeout: 60000 }); await frames(3); };
 
   console.log('\n— scenes follow the game state');
-  let s = await S(); ok(s.scene === 'menu' && s.input === 'ui' && !s.farm.built, 'the game starts in the menu scene with the keyboard in the UI context and no farm built');
+  let s = await S(); ok(s.scene === 'menu' && s.input === 'ui' && s.farm.showcase && !s.farm.active && s.farm.listeners === 0, 'the game starts in the menu scene with the keyboard in the UI context; the property is only its background (no farm listeners)');
   await p.evaluate(() => CAREER.open()); await sleep(300); s = await S();
   ok(s.scene === 'stable' && s.input === 'ui' && s.ui === 'c_hub', 'Career screens are the stable scene');
   await p.evaluate(() => CAREER._test.openOffice()); s = await S(); ok(s.scene === 'office', 'the Office is its own scene');
   await p.evaluate(() => CAREER.open());
-  ok(await p.evaluate(() => [...document.querySelectorAll('#hubBtns button')].some(b => b.textContent === 'Farm (preview)')), 'the Career hub has a Farm button');
+  ok(await p.evaluate(() => [...document.querySelectorAll('#hubBtns button')].some(b => b.textContent === 'Back to the Farm')), 'the Career hub has a Back to the Farm button');
 
   console.log('\n— entering the farm (through the loading overlay)');
   const pr = await p.evaluate(() => { const o = SCENES.enter('farm'); const el = document.getElementById('sceneLoad'); return { shown: !!el && !el.hidden, txt: el && el.textContent, o: typeof o.then }; });
@@ -86,12 +86,14 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
   await p.evaluate(() => FARM._test.setPos(0, 4)); await frames(3);
   ok((await S()).farm.prompt === '' && (await p.evaluate(() => FARM._test.interact())) === false, 'away from the float there is no prompt and E does nothing');
   await p.evaluate(() => FARM._test.setPos(FARM._test.TRAVEL.x, FARM._test.TRAVEL.z)); await frames(4);
-  ok((await S()).farm.prompt === 'E — Travel to next race', 'at the float the prompt "E — Travel to next race" appears');
-  await p.keyboard.press('e'); await sleep(400); s = await S();
-  ok(s.ui === 'c_event' && s.scene === 'stable' && s.input === 'ui' && !s.farm.active && s.farm.horses === 0 && s.farm.plaques === 0 && s.farm.listeners === 0, 'pressing E leaves the farm for the event screen: farm horses and plaques disposed, farm listeners removed');
+  ok(/^E — Horse float/.test((await S()).farm.prompt), 'at the float the prompt "E — Horse float …" appears');
+  await p.keyboard.press('e'); await sleep(300); s = await S(); ok(s.ui === 'farm' && s.farm.active, 'with no race booked, E at the float keeps you on the farm');
+  await p.evaluate(() => CAREER.travelToNextRace()); await sleep(400); s = await S();
+  ok(s.ui === 'c_event' && s.scene === 'stable' && s.input === 'ui' && !s.farm.active && s.farm.horses === 0 && s.farm.plaques === 0 && s.farm.listeners === 0, 'leaving for a race screen disposes the farm horses and plaques and removes the farm listeners');
   ok(await p.evaluate(() => /Maiden Plate/.test(document.getElementById('car_event').textContent)), 'the event screen is the real next championship round (Maiden Plate)');
   await p.evaluate(() => SCENES.enter('farm', { instant: true })); await frames(3);
-  await p.keyboard.press('Escape'); await sleep(300); s = await S(); ok(s.ui === 'c_hub' && s.scene === 'stable' && !s.farm.active && s.farm.listeners === 0, 'Esc on the farm returns to the Career hub');
+  await p.keyboard.press('Escape'); await sleep(300); s = await S(); ok(s.ui === 'farm' && s.farm.paused, 'Esc on the farm opens the pause menu');
+  await p.click('#fpHub'); await sleep(400); s = await S(); ok(s.ui === 'c_hub' && s.scene === 'stable' && !s.farm.active && s.farm.listeners === 0, 'Career on the pause menu hands over to the Career hub');
 
   console.log('\n— a race: riding keys work, farm state is gone');
   await p.evaluate(() => SCENES.enter('farm', { instant: true })); await frames(2);

@@ -432,7 +432,7 @@ const CAREER = (() => {
     row.appendChild(navBtn("Stable", () => openStable()));
     row.appendChild(navBtn(h ? "Create Horse" : "Create Your Horse", () => openCreate(), h ? "" : "primary"));
     row.appendChild(navBtn("Office", () => openOffice()));
-    if (typeof SCENES !== "undefined" && typeof FARM !== "undefined") row.appendChild(navBtn("Farm (preview)", () => SCENES.enter("farm")));
+    if (typeof SCENES !== "undefined" && typeof FARM !== "undefined") row.appendChild(navBtn("Back to the Farm", () => SCENES.enter("farm"), h ? "primary" : ""));
     row.appendChild(navBtn("Rivals", () => openRivals()));
     row.appendChild(navBtn("Trophy Room", () => openTrophies()));
     row.appendChild(navBtn("Championship History", () => openHistory()));
@@ -613,7 +613,7 @@ const CAREER = (() => {
       </div>
       <div class="car-row"><button class="btn" id="ofBack">Back</button></div>`);
     const q = id => el.querySelector(id), msg = (t, bad) => { q("#ofMsg").innerHTML = t; q("#ofMsg").style.color = bad ? "var(--bad)" : "var(--fg)"; };
-    q("#ofBack").onclick = () => openHub();
+    q("#ofBack").onclick = () => home();
     q("#ofExport").onclick = () => {
       try { const text = exportText(), a = document.createElement("a"), d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
         a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = "final-furlong-career-" + stamp + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
@@ -958,7 +958,7 @@ const CAREER = (() => {
       foot: `<button class="btn" id="trStable">Stable</button><button class="btn" id="trBack">Career Hub</button>`,
     });
     el.querySelector("#trStable").onclick = () => openStable();
-    el.querySelector("#trBack").onclick = () => openHub();
+    el.querySelector("#trBack").onclick = () => home();
     show("c_trophy");
   }
 
@@ -1066,7 +1066,7 @@ const CAREER = (() => {
     // step navigation (going back never loses anything)
     el.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { draft.step = +b.getAttribute("data-step"); afterStep(); });
     const afterStep = () => { if (draft.step === 2) STABLE3D.preset("silks"); else if (draft.step === 1) STABLE3D.preset("full"); STABLE3D.setRider(draft.step === 2 || draft.step === 5); drawCreate(); };
-    el.querySelector("#cBack").onclick = () => { if (draft.step === 1) { const id = draft.editId; draft = null; return id ? openProfile(C.horses.findIndex(h => h.id === id)) : (C.horses.length ? openStable() : openHub()); } draft.step--; afterStep(); };
+    el.querySelector("#cBack").onclick = () => { if (draft.step === 1) { const id = draft.editId; draft = null; return id ? openProfile(C.horses.findIndex(h => h.id === id)) : (C.horses.length ? openStable() : firstRun ? (firstRun = false, show("menu")) : openHub()); } draft.step--; afterStep(); };
     const nx = el.querySelector("#cNext"); if (nx) nx.onclick = () => { if (draft.step === 1 && !cleanName(draft.name, "")) { toast("Give your horse a name first", "warn", 1.4); return; } draft.step++; afterStep(); };
     const dn = el.querySelector("#cDone"); if (dn) dn.onclick = () => edit ? saveAppearance() : confirmCreate();
     // inputs
@@ -1138,6 +1138,7 @@ const CAREER = (() => {
     CORE.fillHorse(h, C, { how: "created", age: 3, fitness: 100 });
     C.horses.push(h); C.active = C.horses.length - 1; save(); draft = null;
     toast(esc(h.name) + " moves into box " + C.horses.length + "!", "good", 2);
+    if (firstRun) { firstRun = false; hidePanel(); SCENES.enter("farm"); return; }       // your first horse: straight out to the property
     openProfile(C.active);
   }
   function saveAppearance() {
@@ -1291,8 +1292,88 @@ const CAREER = (() => {
     });
     L.slots = slots(); return L;
   }
-  // the farmhouse door: the Office screen (its Back button returns to the Career hub)
-  function enterOffice() { if (!C) load(); race = null; hidePanel(); openOffice(); }
+  // ---------- the farm as the home screen (Phase 5): the way in, the calendar board, booking, the way back ----------
+  let firstRun = false, fromFarm = false;
+  // back out of a screen opened from inside the farmhouse (the ledger, the trophy cabinet): to the property, not the hub
+  function home() { if (fromFarm && typeof SCENES !== "undefined") { fromFarm = false; hidePanel(); SCENES.enter("farm"); } else openHub(); }
+  // the ledger (the Office screen) and the trophy cabinet, opened from the farmhouse; their Back button returns to the property
+  function enterOffice() { if (!C) load(); race = null; hidePanel(); fromFarm = true; openOffice(); }
+  function openScreen(name) {
+    if (!C) load(); race = null; hidePanel(); fromFarm = true;
+    if (name === "trophies") openTrophies(); else if (name === "office") openOffice(); else { fromFarm = false; openHub(); }
+  }
+  // Career Mode from the main menu: straight onto the property. A brand-new career makes its first horse first.
+  function begin() {
+    load(); race = null; hidePanel(); fromFarm = false;
+    if (!C.horses.length) { firstRun = true; return openCreate(); }
+    SCENES.enter("farm");
+  }
+  // the board's month (and the booking screen's): races on the calendar, today, what is booked
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const MS_DAY = 86400000;
+  function metaOf(e) { return e.kind === "round" ? SEASON.roundDef(S(), e.round) : BY_ID[e.ref]; }
+  function eventInfo(e) {
+    const s = S(), meta = metaOf(e); if (!meta) return null;
+    const nr = CORE.nextOpenRoundDay(C);
+    let open = false, why = "";
+    if (e.day < C.day) why = "Already run";
+    else if (e.kind === "round") { const st = s.rounds[e.round] && s.rounds[e.round].st; open = !SEASON.done(s) && e.round === s.cur && st === "open"; why = open ? "" : st === "done" ? "Completed" : st === "skip" ? "Skipped" : "Opens after the previous round"; }
+    else { open = nr == null || e.day < nr; why = open ? "" : "Held after the next championship round"; }
+    return { eid: e.id, kind: e.kind === "round" ? "round" : "optional", ref: e.ref, round: e.round, name: meta.name, venue: meta.venue, dist: meta.dist, grade: meta.grade, prize: meta.prize || "", crown: !!meta.crown, major: !!meta.major,
+      day: e.day, date: CORE.fmtDate(e.day), dateShort: CORE.fmtDate(e.day, { short: true }), tod: CORE.TOD_LABEL[e.tod] || "", weather: (CORE.WX_LABEL[e.forecast && e.forecast.weather] || ""), going: e.forecast ? e.forecast.going : "good", open, why, meta };
+  }
+  function calendarData(off) {
+    if (!C) load(); CORE.syncCalendar(C);
+    const t0 = CORE.dateOf(0).getTime(), now = CORE.parts(C.day), base = now.y * 12 + now.m + (off | 0), y = Math.floor(base / 12), m = ((base % 12) + 12) % 12;
+    const first = Math.round((Date.UTC(y, m, 1) - t0) / MS_DAY), dim = new Date(Date.UTC(y, m + 1, 0)).getUTCDate(), dow = new Date(Date.UTC(y, m, 1)).getUTCDay();
+    const cells = {}, list = [], bk = C.booking || null;
+    for (const e of (C.cal && C.cal.events) || []) {
+      const info = eventInfo(e); if (!info) continue;
+      if (e.day >= first && e.day < first + dim) cells[e.day - first + 1] = { kind: info.kind, eid: info.eid, name: info.name, open: info.open };
+      if (e.day >= C.day && list.length < 14 && (info.kind === "round" ? !(S().rounds[e.round] && S().rounds[e.round].st !== "open") : true)) list.push(info);
+    }
+    list.sort((a, b) => a.day - b.day);
+    const todayIn = C.day >= first && C.day < first + dim ? C.day - first + 1 : 0;
+    return { monthLabel: MONTH_NAMES[m] + " " + y, firstDow: dow, daysInMonth: dim, first, today: todayIn, todayLabel: CORE.fmtDate(C.day), cells, list, booked: bk && bk.day >= first && bk.day < first + dim ? bk.day - first + 1 : 0, booking: bk ? Object.assign({}, bk) : null, off: off | 0 };
+  }
+  // the board on the farmhouse wall: this month, the next race, and what is booked
+  function boardInfo() {
+    if (!C) load(); const cd = calendarData(0), nx = cd.list.find(x => x.open) || cd.list[0] || null, races = {};
+    for (const d in cd.cells) races[d] = cd.cells[d].kind;
+    const bk = C.booking, h = bk && C.horses.find(x => x.id === bk.hid);
+    return { monthLabel: cd.monthLabel, firstDow: cd.firstDow, daysInMonth: cd.daysInMonth, today: cd.today, races, booked: cd.booked,
+      next: nx ? { name: nx.name, date: nx.date, venue: nx.venue, dist: fmtDist(nx.dist), grade: nx.grade, prize: nx.prize || "Prize money", cond: [nx.tod, nx.weather, going(nx.going) + " going"].filter(Boolean).join(" · ") } : null,
+      bookedText: bk && h ? bk.name + "\n" + h.name + " · " + CORE.fmtDate(bk.day, { short: true }) + "\nTake " + h.name + " to the float." : "" };
+  }
+  // which of the stable's horses can run in an event (with the reasons), for the booking screen
+  function horsesFor(eid) {
+    if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), info = e && eventInfo(e); if (!info) return [];
+    return C.horses.map((h, i) => { const el = SEASON.eligibility(h, info.meta), st = detectStyle(h.attrs); return { i, id: h.id, name: h.name, rating: rating(h), style: st.label, pref: st.dist, fit: h.fitness, form: (h.history || []).slice(-5).map(x => x.dnf || !x.place ? "F" : x.place).join("-"), ok: el.ok, reqs: el.reqs.map(r => ({ ok: r.ok, label: r.label, detail: r.detail })) }; });
+  }
+  function book(eid, hid) {
+    if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), info = e && eventInfo(e), h = C.horses.find(x => x.id === hid);
+    if (!info || !h) return { ok: false, error: "That race or horse isn't available." };
+    if (!info.open) return { ok: false, error: info.why || "That race can't be booked yet." };
+    if (!SEASON.eligibility(h, info.meta).ok) return { ok: false, error: h.name + " isn't qualified for the " + info.name + "." };
+    C.booking = { eid: info.eid, hid: h.id, kind: info.kind, ref: info.ref, round: info.round, name: info.name, venue: info.venue, day: info.day, at: C.day };
+    C.active = C.horses.indexOf(h); save(); return { ok: true, booking: Object.assign({}, C.booking) };
+  }
+  function cancelBooking() { if (!C) load(); const had = !!C.booking; delete C.booking; save(); return had; }
+  function booking() { if (!C) load(); const b = C.booking; if (!b) return null; const h = C.horses.find(x => x.id === b.hid), e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (!h || !e || e.day < C.day) { delete C.booking; save(); return null; } return Object.assign({ horse: h.name, hi: C.horses.indexOf(h), def: toDef(h) }, b); }
+  // the booked race starts (the float has left the property): the same entry the hub's buttons use
+  function startBooked() {
+    const b = booking(); if (!b) return { ok: false, error: "Nothing is booked." };
+    delete C.booking; save(); hidePanel(); race = null;
+    if (b.kind === "round") enterOfficial(b.round, b.hi);
+    else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); enterOptional(b.ref, b.hi); }
+    return { ok: true };
+  }
+  // the player's character (Phase 5): saved as the changes are made in the wardrobe
+  function setPlayer(p) { if (!C) load(); const cur = C.player || {}; C.player = CORE.cleanPlayer({ look: Object.assign({}, cur.look, p.look), colours: Object.assign({}, cur.colours, p.colours), outfit: p.outfit || cur.outfit }); save(); return C.player; }
+  // is there a stored career? (the main-menu background shows your horses only if so; it never creates a save by itself)
+  function hasSave() { try { return !!localStorage.getItem("ff_career"); } catch (e) { return false; } }
+  // after a career race: back to the property (the results screen's button)
+  function returnHome() { race = null; hidePanel(); fromFarm = false; if (typeof FARM !== "undefined") FARM.arrive("hardstand"); SCENES.enter("farm", { instant: true }); }
   // "travel to race": the usual event screen for the next championship round (choose the horse there)
   function travelToNextRace() {
     if (!C) load(); race = null; hidePanel();
@@ -1312,6 +1393,6 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice,
+  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, setPlayer, hasSave,
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

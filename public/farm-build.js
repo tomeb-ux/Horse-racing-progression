@@ -17,7 +17,7 @@ const FARMBUILD = (() => {
 
   function build(scene, o) {
     o = o || {};
-    const B = new W.Batch(), col = [], seg = [], pts = [], stalls = [], signs = [], owned = { tex: [], geo: [], mat: [] };
+    let B = new W.Batch(), rigB = null, col = [], seg = [], pts = [], stalls = [], signs = [], owned = { tex: [], geo: [], mat: [] };
     const bx = (mat, x0, y0, z0, x1, y1, z1, c, opt) => B.box(mat, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, c, opt);
     const gy = (x, z) => W.heightAt(x, z);
     const colBox = (x0, z0, x1, z1) => col.push({ x0, x1, z0, z1 });
@@ -166,7 +166,7 @@ const FARMBUILD = (() => {
       for (const z of [-5.6, -3.0, 3.0]) winX(x1, z, 1); winX(x0, -4.5, -1); winX(x0, 0.5, -1); winX(x0, 2.8, -1);
       for (const x of [-56, -52.5, -49, -46.5]) { winZ(x, z0, -1); winZ(x, z1, 1); }
       sign(o.stableName || "Southern Cross Stable", "Training & racing", x1 + 0.12, fl + 2.65, cz, 1.7, 0.42, Math.PI / 2, "#223a2e");
-      pts.push({ id: "office", x: vx1 + 1.6, z: cz, r: 2.6, text: "E — Enter the farmhouse office" });
+      pts.push({ id: "office", x: vx1 + 1.6, z: cz, r: 2.6, text: "E — Enter the farmhouse" });
       // rainwater tank + stand
       B.cyl(M.iron, -60.8, 0.5, -5.5, 1.55, 2.4, 0xb9bdbf, 16, { rTop: 1.55, tile: 1.216 }); B.cyl(M.iron, -60.8, 2.9, -5.5, 1.55, 0.18, 0xa9aeb0, 16, { rTop: 0.5, tile: 1.216 }); B.cyl(M.wood, -60.8, 0, -5.5, 1.3, 0.5, 0x6b5238, 12, { tile: 1.0 }); colBox(-62.5, -7.2, -59.1, -3.8);
       // picket-fenced garden (white pickets, gate gap on the east side for the path)
@@ -218,19 +218,21 @@ const FARMBUILD = (() => {
     };
     // ============================================================ HORSE FLOAT, UTE, HARDSTAND
     const floatAndUte = () => {
-      const fx = L.float.x, fz = L.float.z, y0 = 0.62;
-      bx(M.concrete, fx - 9.5, 0, fz - 4.6, fx + 8.5, 0.05, fz + 4.8, 0xb5b2aa, { tile: 6 });
+      const FX = L.float.x, FZ = L.float.z, y0 = 0.62;
+      bx(M.concrete, FX - 9.5, 0, FZ - 4.6, FX + 8.5, 0.05, FZ + 4.8, 0xb5b2aa, { tile: 6 });
+      // the rig (float + ute) is built at its own origin into its own batch, so it becomes a group that can drive off the property
+      const mainB = B; B = new W.Batch(); const rig = () => { const fx = 0, fz = 0;
       // float: chassis, floor, painted body, roof, ramp (down), window slots, wheels, drawbar, jockey wheel
       bx(M.steel, fx - 2.8, y0 - 0.15, fz - 1.0, fx + 2.8, y0, fz + 1.0, COL.steel); bx(M.paint, fx - 2.8, y0, fz - 1.15, fx + 2.8, y0 + 0.08, fz + 1.15, 0xcfd3d6);
       bx(M.paint, fx - 2.8, y0 + 0.08, fz - 1.15, fx + 2.8, y0 + 2.0, fz - 1.07, 0xeef0ef); bx(M.paint, fx - 2.8, y0 + 0.08, fz + 1.07, fx + 2.8, y0 + 2.0, fz + 1.15, 0xeef0ef);
-      bx(M.paint, fx + 2.72, y0 + 0.08, fz - 1.15, fx + 2.8, y0 + 2.0, fz + 1.15, 0xe3e6e5); bx(M.paint, fx - 2.8, y0 + 0.08, fz - 1.15, fx - 2.72, y0 + 2.0, fz + 1.15, 0xe3e6e5);
+      bx(M.paint, fx + 2.72, y0 + 0.08, fz - 1.15, fx + 2.8, y0 + 2.0, fz + 1.15, 0xe3e6e5); bx(M.paint, fx - 2.72, y0 + 1.93, fz - 1.07, fx + 2.72, y0 + 2.0, fz + 1.07, 0x6c7378); bx(M.paint, fx - 2.72, y0 + 0.08, fz - 1.07, fx + 2.72, y0 + 0.12, fz + 1.07, 0x8a6a46);   // open at the rear (the ramp is the door): ceiling and floor boards inside
       for (let k = 0; k < 6; k++) { const wx = fx - 2.3 + k * 0.9; bx(M.glass, wx - 0.3, y0 + 1.25, fz - 1.19, wx + 0.3, y0 + 1.75, fz - 1.14, 0x2a3a40); bx(M.glass, wx - 0.3, y0 + 1.25, fz + 1.14, wx + 0.3, y0 + 1.75, fz + 1.19, 0x2a3a40); bx(M.steel, wx - 0.34, y0 + 1.22, fz + 1.14, wx + 0.34, y0 + 1.25, fz + 1.2, COL.galv); bx(M.steel, wx - 0.34, y0 + 1.22, fz - 1.2, wx + 0.34, y0 + 1.25, fz - 1.14, COL.galv); }
       for (const sz of [-1, 1]) { bx(M.paint, fx - 2.8, y0 + 0.3, fz + sz * 1.15 - (sz < 0 ? 0.03 : 0), fx + 2.8, y0 + 0.78, fz + sz * 1.15 + (sz > 0 ? 0.03 : 0), 0x1f3a52); bx(M.steel, fx - 2.8, y0 + 0.2, fz + sz * 1.15 - (sz < 0 ? 0.04 : 0), fx + 2.8, y0 + 0.26, fz + sz * 1.15 + (sz > 0 ? 0.04 : 0), COL.galv);
         for (const wx of [fx - 0.7, fx + 0.5]) bx(M.rubber, wx - 0.62, y0 - 0.1, fz + sz * 1.0 - (sz < 0 ? 0.28 : -0.0), wx + 0.62, y0 + 0.5, fz + sz * 1.0 + (sz > 0 ? 0.28 : 0), 0x2a2d30); }
       for (const sz of [-0.9, 0.9]) bx(M.paint, fx - 2.84, y0 + 0.4, fz + sz - 0.12, fx - 2.8, y0 + 0.62, fz + sz + 0.12, 0xb8221c);          // tail lights
       B.quad(M.paint, [fx - 2.9, y0 + 2.0, fz - 1.25], [fx + 2.9, y0 + 2.0, fz - 1.25], [fx + 2.9, y0 + 2.35, fz], [fx - 2.9, y0 + 2.35, fz], 0xf4f5f4, [[0, 0], [1, 0], [1, 1], [0, 1]], [0, 1, -0.3]); B.quad(M.paint, [fx + 2.9, y0 + 2.0, fz + 1.25], [fx - 2.9, y0 + 2.0, fz + 1.25], [fx - 2.9, y0 + 2.35, fz], [fx + 2.9, y0 + 2.35, fz], 0xf4f5f4, [[0, 0], [1, 0], [1, 1], [0, 1]], [0, 1, 0.3]);
       B.quad(M.rubber, [fx - 2.9, y0 + 2.0, fz - 1.25], [fx - 2.9, y0 + 2.0, fz + 1.25], [fx - 2.9, y0 + 2.35, fz], [fx - 2.9, y0 + 2.35, fz], 0xe8eae9, [[0, 0], [1, 0], [1, 1], [1, 1]], [-1, 0, 0]);
-      B.quad(M.timber, [fx - 2.8, y0 + 0.1, fz - 1.0], [fx - 2.8, y0 + 0.1, fz + 1.0], [fx - 4.9, 0.08, fz + 1.0], [fx - 4.9, 0.08, fz - 1.0], 0x8a6a46, [[0, 0], [1, 0], [1, 3], [0, 3]], [-0.3, 1, 0]);                       // tail ramp lowered
+      // (the tail ramp is a separate hinged mesh, added below, so it can be raised before the rig drives off)
       for (const sz of [-1.05, 1.05]) for (const wx of [fx - 0.7, fx + 0.5]) { cylAxis(M.rubber, wx, 0.5, fz + sz, 0.5, 0.26, "z", COL.rubber, 14); cylAxis(M.steel, wx, 0.5, fz + sz + Math.sign(sz) * 0.14, 0.27, 0.04, "z", COL.galv, 10); }
       bx(M.steel, fx + 2.8, y0 - 0.08, fz - 0.07, fx + 4.6, y0 + 0.0, fz + 0.07, COL.steel); bx(M.steel, fx + 3.9, 0.12, fz - 0.04, fx + 3.98, y0 - 0.08, fz + 0.04, COL.galv);
       const ux = fx + 7.0, uy = 0.34;       // the ute (4WD, white) hitched to the float
@@ -238,10 +240,11 @@ const FARMBUILD = (() => {
       bx(M.glass, ux - 0.2, uy + 0.9, fz - 0.92, ux + 1.3, uy + 1.45, fz + 0.92, 0x2e444d); bx(M.paint, ux - 2.3, uy + 0.8, fz - 0.92, ux - 0.45, uy + 1.0, fz + 0.92, 0xdcdede); bx(M.steel, ux + 2.28, uy + 0.25, fz - 0.9, ux + 2.45, uy + 0.55, fz + 0.9, COL.steel); bx(M.paint, ux + 2.28, uy + 0.4, fz - 0.85, ux + 2.32, uy + 0.55, fz - 0.55, 0xf4e3a0); bx(M.paint, ux + 2.28, uy + 0.4, fz + 0.55, ux + 2.32, uy + 0.55, fz + 0.85, 0xf4e3a0); bx(M.steel, ux + 2.28, uy + 0.57, fz - 0.4, ux + 2.33, uy + 0.75, fz + 0.4, COL.black); for (const sz of [-0.93, 0.93]) bx(M.steel, ux - 2.3, uy + 0.8, fz + sz - 0.02, ux + 0.0, uy + 1.0, fz + sz + 0.02, COL.galv);
       bx(M.steel, ux - 2.42, uy + 0.25, fz - 0.9, ux - 2.28, uy + 0.5, fz + 0.9, COL.steel); bx(M.steel, ux - 2.0, uy + 0.82, fz - 0.4, ux - 1.2, uy + 1.0, fz + 0.4, COL.black);
       for (const sx of [-1.45, 1.35]) for (const sz of [-0.95, 0.95]) { cylAxis(M.rubber, ux + sx, 0.42, fz + sz, 0.42, 0.28, "z", COL.rubber, 14); cylAxis(M.steel, ux + sx, 0.42, fz + sz + Math.sign(sz) * 0.15, 0.22, 0.03, "z", COL.galv, 10); }
-      colBox(fx - 4.6, fz - 1.4, fx + 4.7, fz + 1.4); colBox(ux - 2.5, fz - 1.1, ux + 2.5, fz + 1.1);
-      sign("TRANSPORT", "Horses to the races", fx - 0.4, 3.9, fz + 3.2, 2.2, 0.55, 0, "#223a2e");
-      bx(M.wood, fx - 1.1, 0, fz + 3.12, fx - 1.0, 3.5, fz + 3.22, 0x6b5238, { grain: true }); bx(M.wood, fx + 0.2, 0, fz + 3.12, fx + 0.3, 3.5, fz + 3.22, 0x6b5238, { grain: true });
-      pts.push({ id: "travel", x: fx - 0.2, z: fz + 5.3, r: 3.0, text: "E — Travel to next race" });
+      }; rig(); rigB = B; B = mainB;
+      colBox(FX - 4.6, FZ - 1.4, FX + 4.7, FZ + 1.4); colBox(FX + 7 - 2.5, FZ - 1.1, FX + 7 + 2.5, FZ + 1.1);
+      sign("TRANSPORT", "Horses to the races", FX - 0.4, 3.9, FZ + 3.2, 2.2, 0.55, 0, "#223a2e");
+      bx(M.wood, FX - 1.1, 0, FZ + 3.12, FX - 1.0, 3.5, FZ + 3.22, 0x6b5238, { grain: true }); bx(M.wood, FX + 0.2, 0, FZ + 3.12, FX + 0.3, 3.5, FZ + 3.22, 0x6b5238, { grain: true });
+      pts.push({ id: "travel", x: FX - 0.2, z: FZ + 5.3, r: 3.0, text: "E — Horse float" });
     };
     // ============================================================ EXERCISE OVAL: rails, furlong poles, starting gates, timing hut
     const stadium = (r, t) => {                     // point at parameter t∈[0,1) on a stadium offset r from the centreline (straights ±60 m, semicircles about x = ±60)
@@ -348,7 +351,10 @@ const FARMBUILD = (() => {
     };
     stable(); house(); feedShed(); vetBay(); floatAndUte(); track(); paddocks(); courtyard(); boundary();
     const meshes = B.flush(scene, true, true);
-    return { colliders: col, segs: seg, points: pts, stalls, meshes, owned, stadium };
+    const rigGroup = new THREE.Group(); rigGroup.position.set(L.float.x, 0, L.float.z); scene.add(rigGroup); for (const m of rigB.flush(rigGroup, true, true)) meshes.push(m);
+    { const rg = new THREE.BoxGeometry(2.12, 0.07, 2.0); rg.translate(-1.06, 0, 0); const rm = new THREE.Mesh(rg, M.timber); rm.castShadow = true; rm.receiveShadow = true;
+      const hinge = new THREE.Group(); hinge.position.set(-2.8, 0.72, 0); hinge.rotation.z = 0.296; hinge.add(rm); rigGroup.add(hinge); rigGroup.userData.ramp = hinge; owned.geo.push(rg); }
+    return { colliders: col, segs: seg, points: pts, stalls, meshes, owned, stadium, rig: rigGroup };
   }
   return { build, COL };
 })();

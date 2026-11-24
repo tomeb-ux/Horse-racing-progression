@@ -52,7 +52,7 @@ const SPEECH_STUB = () => {
 
   console.log('\n— menu & old save');
   ok(!(await p.$('#btnChamp')), 'stand-alone Championship button removed (Career is the championship)');
-  await p.click('#btnCareer'); await sleep(300);
+  await p.click('#btnCareer'); await sleep(300); await p.evaluate(() => { if (ui.state === 'farm') CAREER.open(); }); await sleep(300);
   const mig = await p.evaluate(() => { const C = CAREER.data; return { v: C.v, n: C.horses.length, names: C.horses.map(h => h.name), tro: C.trophies.length, wins: C.wins, stable: C.stable, season: C.season && C.season.n, div: C.season && C.season.div, hist: C.horses[0].history.map(e => e.dist + '/' + e.tier), xp: C.horses[0].xp, lvl: C.horses[0].lvl, attrs: C.horses[0].attrs.top }; });
   ok(mig.v === 4 && mig.n === 2 && mig.names.join() === 'Legacy Lad,Second Wind' && mig.tro === 1 && mig.wins === 7 && mig.stable === 'Old Timers Stable' && mig.lvl === 4 && mig.attrs === 70, `v1 save migrated to v4 with horses, trophies, wins and progression intact (${JSON.stringify(mig)})`);
   ok(mig.season === 1 && mig.div === 0 && mig.hist.join() === '1200/1,1200/2', 'a championship season was added and old race history gained distance/grade facts');
@@ -182,7 +182,7 @@ const SPEECH_STUB = () => {
   await p.evaluate(() => quitToMenu());
 
   console.log('\n— …but never in an official championship race');
-  await p.click('#btnCareer'); await sleep(200);
+  await p.click('#btnCareer'); await sleep(200); await p.evaluate(() => { if (ui.state === 'farm') CAREER.open(); }); await sleep(200);
   await p.click('#hubEnter'); await sleep(200);
   ok(await p.evaluate(() => /Entry requirements/.test(document.getElementById('car_event').textContent) && document.querySelectorAll('#car_event [data-go]').length >= 2), 'event view lists eligible horses with requirements');
   const fg = await p.evaluate(() => { const rows = [...document.querySelectorAll('#evForm tr[data-rv]')]; const f = SEASON.runners(CAREER.data, CAREER.data.season.cur);
@@ -225,7 +225,7 @@ const SPEECH_STUB = () => {
   await p.evaluate(() => CAREER.onResult(race, 1));
   ok(await p.evaluate(() => CAREER.data.season.cur === 1 && SEASON.standings(CAREER.data).find(r => r.you).pts) === after.pts, 'calling the result hook again awards nothing');
   await p.reload(); await p.waitForFunction(() => typeof CAREER !== 'undefined'); await p.evaluate(() => { renderer.render = () => {}; });
-  await p.click('#btnCareer'); await sleep(200);
+  await p.click('#btnCareer'); await sleep(200); await p.evaluate(() => { if (ui.state === 'farm') CAREER.open(); }); await sleep(200);
   ok(await p.evaluate(p0 => CAREER.data.season.cur === 1 && SEASON.standings(CAREER.data).find(r => r.you).pts === p0 && CAREER.data.season.rounds[0].st === 'done', after.pts), 'after a page reload the calendar and points are unchanged');
   ok(await p.evaluate(c => { const C = CAREER.data; return C.cash === c + 24000 && C.ledger.filter(e => e.kind === 'prize').length === 1 && C.day === CORE.roundEvent(C, 0).day && CORE.audit(C).length === 0; }, cash0), 'after the reload the prize is still there exactly once, the date and ledger are intact');
 

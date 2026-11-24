@@ -79,13 +79,16 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
 
   console.log('\n— interaction points work');
   await p.evaluate(() => FARM._test.setPos(FARM._test.TRAVEL.x, FARM._test.TRAVEL.z)); await frames(3);
-  ok((await p.evaluate(() => FARM.info())).prompt === 'E — Travel to next race', 'at the float: "E — Travel to next race"');
+  ok((await p.evaluate(() => FARM.info())).prompt === 'E — Horse float (book a race on the farmhouse calendar first)', 'at the float with nothing booked: "E — Horse float (book a race on the farmhouse calendar first)"');
   const of = await p.evaluate(() => { const o = FARM._test.points.find(q => q.id === 'office'); FARM._test.setPos(o.x, o.z); return o.text; }); await frames(3);
   ok((await p.evaluate(() => FARM.info())).prompt === of && /farmhouse/i.test(of), `at the farmhouse door: "${of}"`);
+  await p.keyboard.press('e'); await frames(4); await p.evaluate(() => FARM._test.skipFade()); await frames(3);
+  ok(await p.evaluate(() => FARM.active && FARM.info().place === 'in' && ui.state === 'farm'), 'E at the farmhouse door goes inside (the interior is its own room; the Office is the desk in it)');
+  await p.evaluate(() => { const o = FARM._test.points.find(q => q.id === 'ledger'); FARM._test.setPos(o.x, o.z); }); await frames(3);
   await p.keyboard.press('e'); await frames(4);
-  ok(await p.evaluate(() => ui.state === 'c_office' && SCENES.scene === 'office' && !FARM.active && FARM.info().listeners === 0), 'E at the farmhouse opens the Office; the farm hands over cleanly (scene "office", listeners removed)');
-  await p.evaluate(() => { document.getElementById('ofBack').click(); }); await frames(2);
-  ok(await p.evaluate(() => ui.state === 'c_hub'), 'and Back from the Office returns to the Career hub');
+  ok(await p.evaluate(() => ui.state === 'c_office' && SCENES.scene === 'office' && !FARM.active && FARM.info().listeners === 0), 'E at the desk opens the Office; the farm hands over cleanly (scene "office", listeners removed)');
+  await p.evaluate(() => { document.getElementById('ofBack').click(); }); await p.waitForFunction(() => ui.state === 'farm' && FARM.active, null, { timeout: 30000 });
+  ok(await p.evaluate(() => ui.state === 'farm'), 'and Back from the Office returns to the farm');
   await enter();
 
   console.log('\n— the budget (measured, software renderer, 960 × 540)');

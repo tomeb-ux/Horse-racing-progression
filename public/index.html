@@ -432,6 +432,9 @@ body.touch #touchUI{display:flex;}
         <div style="font-size:11px;color:var(--fg-dim);max-width:420px;text-align:center;">Stumbles only: bad riding (sharp steering in a bend, snatching up, forcing gaps, heavy contact) can make a horse stumble. Full incidents: keep riding dangerously after the warnings and a horse can fall — out of the race. Same rules for every runner.</div>
         <div style="font-size:11px;color:var(--fg-dim);max-width:420px;text-align:center;">Optional accessibility setting: your horse uses 15% less energy and tires more slowly. Rival horses are never changed. Off by default.</div>
         <div class="opt-label">Auto replay after each race</div><div class="opt-row" id="optReplay"></div>
+        <div class="opt-label">Farm: default view</div><div class="opt-row" id="optPerson"></div>
+        <div class="opt-label">Farm: mouse look sensitivity</div><div class="opt-row" id="optLook"></div>
+        <div class="opt-label">Farm: click to capture the mouse</div><div class="opt-row" id="optLock"></div>
         <div class="opt-label">Race commentary voice</div><div class="opt-row" id="optComm" style="flex-wrap:wrap;justify-content:center"></div>
         <div id="optElevenStatus" style="font-size:12px;color:var(--fg-dim);max-width:480px;text-align:center;line-height:1.45"></div>
         <div class="opt-row" id="optElevenOpts" style="flex-wrap:wrap;justify-content:center"></div>
@@ -664,6 +667,9 @@ const settings = {
   diff: store.get("diff", "medium"),
   going: store.get("going", "good"),
   cam: store.get("cam", 0),
+  person: store.get("person", 3) === 1 ? 1 : 3,
+  lookSens: [0.5, 0.75, 1, 1.5, 2].includes(store.get("lookSens", 1)) ? store.get("lookSens", 1) : 1,
+  lockMouse: store.get("lockMouse", true) !== false,
   assist: store.get("assist", false),
   steer: store.get("steer", "assisted"),
   autoReplay: store.get("autoReplay", true),
@@ -3528,6 +3534,7 @@ function setMenuHorse(idx) {
   menuHorsePos = { x: p.x, z: p.z };
   menuHorseMesh.position.set(p.x, 0, p.z);
   world.add(menuHorseMesh);
+  if (typeof FARM !== "undefined" && FARM.setShowHorse) FARM.setShowHorse(typeof idx === "number" ? ROSTER[idx] : idx);      // the same horse stands in the courtyard behind the menu
 }
 setMenuHorse(settings.playerHorse);
 
@@ -3686,6 +3693,9 @@ function buildSettings() {
   chipRow($("optSteer"), ["assisted", "advanced"], settings.steer, v => { settings.steer = v; store.set("steer", v); }, v => v === "assisted" ? "Assisted" : "Advanced");
   chipRow($("optIncidents"), ["off", "stumbles", "full"], settings.incidents, v => { settings.incidents = v; store.set("incidents2", v); }, v => ({ off: "Off", stumbles: "Stumbles only", full: "Full incidents" })[v]);
   chipRow($("optAssist"), [false, true], settings.assist, v => { settings.assist = v; store.set("assist", v); }, v => v ? "On" : "Off");
+  chipRow($("optPerson"), [3, 1], settings.person, v => { settings.person = v; store.set("person", v); }, v => v === 1 ? "First person" : "Third person");
+  chipRow($("optLook"), [0.5, 0.75, 1, 1.5, 2], settings.lookSens, v => { settings.lookSens = v; store.set("lookSens", v); }, v => ({ 0.5: "Slow", 0.75: "Gentle", 1: "Normal", 1.5: "Quick", 2: "Fast" })[v]);
+  chipRow($("optLock"), [true, false], settings.lockMouse, v => { settings.lockMouse = v; store.set("lockMouse", v); }, v => v ? "On (Esc releases it)" : "Off (drag to look)");
   chipRow($("optReplay"), [true, false], settings.autoReplay, v => { settings.autoReplay = v; store.set("autoReplay", v); }, v => v ? "On" : "Off");
   buildCommSettings();
 }
@@ -4209,7 +4219,7 @@ function finishRaceDNF(r) {
   drawPositionGraph(r);
   $("resPhotoBtn").hidden = true; $("resReplay").hidden = true; $("resFall").hidden = false; $("resHl").hidden = !r.recFull.n;
   const isCar = !!(r.cfg.career && !r.cfg.career.exhibition);       // feature-race quick play carries race meta but is not a career race
-  $("resNext").hidden = true; $("resAgain").hidden = isCar; $("resCareer").hidden = !isCar;
+  $("resNext").hidden = true; $("resAgain").hidden = isCar; $("resCareer").hidden = !isCar; $("resCareer").textContent = "Return to the Farm";
   if (typeof CAREER !== "undefined") { if (isCar) CAREER.onResult(r, 0); else CAREER.hidePanel(); }
   setTimeout(() => { if (race === r && r.state === "done" && ui.state === "racing") show("results"); }, 400 + (typeof COMM !== "undefined" ? COMM.holdMs() : 0));
 }
@@ -4274,7 +4284,7 @@ function finishRace(r) {
   $("resNext").hidden = true;
   const isCar = !!(r.cfg.career && !r.cfg.career.exhibition);
   $("resAgain").hidden = isCar;
-  $("resCareer").hidden = !isCar;
+  $("resCareer").hidden = !isCar; $("resCareer").textContent = "Return to the Farm";
   if (typeof CAREER !== "undefined") { if (isCar) CAREER.onResult(r, place); else CAREER.hidePanel(); }
   // let the commentator finish the winner call before the replay / results take over
   setTimeout(() => {
@@ -4325,8 +4335,8 @@ function quickCfg() {
 }
 /* Buttons */
 $("btnQuick").onclick = () => { $("setupTitle").textContent = "Quick Race"; buildSetup(); show("setup"); };
-$("btnCareer").onclick = () => CAREER.open();
-$("resCareer").onclick = () => { clearRaceMeshes(); race = null; CAREER.open(); };
+$("btnCareer").onclick = () => CAREER.begin();
+$("resCareer").onclick = () => { clearRaceMeshes(); race = null; CAREER.returnHome(); };
 // horse choice lives inside Quick Race now
 function buildSetupHorse() {
   const r = ROSTER[settings.playerHorse], el = $("setupHorse"); if (!el) return;
@@ -4463,10 +4473,12 @@ function frame(now) {
   let dt = Math.min(0.1, rawDt); lastT = now;
   frameN++;
   PERF.sim = 0;
-  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm");
+  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm" || !!(typeof FARM !== "undefined" && FARM.showcase));
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
   // the farm: its own scene and camera; nothing of the race world is updated or drawn (and the farm is not touched during a race)
   if (ui.state === "farm" && typeof FARM !== "undefined" && FARM.active) { FARM.frame(dt); perfFrame(rawDt, performance.now() - tF0); return; }
+  // the main menu (and the screens that sit on it) is drawn over the property, with the Quick Race horse on show
+  if (typeof FARM !== "undefined" && FARM.showcase && !race && (ui.state === "menu" || ui.state === "select" || ui.state === "setup" || ui.state === "settings" || ui.state === "how")) { FARM.frame(dt); perfFrame(rawDt, performance.now() - tF0); return; }
   // Career screens: the 3D racing stable is drawn instead of the racecourse
   if (typeof STABLE3D !== "undefined" && STABLE3D.active && !race && ui.state.startsWith("c_")) { STABLE3D.frame(dt); return; }
   // race-day presentation (parade ring / winner presentation): its own camera, the race itself is paused
@@ -4548,6 +4560,10 @@ else boot();
 <script src="farm-build.js"></script>
 <script src="farm-trees.js"></script>
 <script src="farm-ground.js"></script>
+<script src="farm-people.js"></script>
+<script src="farm-house.js"></script>
+<script src="farm-ui.js"></script>
+<script src="farm-trip.js"></script>
 <script src="farm.js"></script>
 <script src="career-core.js"></script>
 <script src="career.js"></script>

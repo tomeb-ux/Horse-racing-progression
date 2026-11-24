@@ -1,0 +1,142 @@
+'use strict';
+/* =====================================================================
+   FINAL FURLONG — THE FARMHOUSE SCREENS (Phase 5)
+   Two panels, both drawn over the farm (in the farm's own HUD layer) and closed with Esc or their button:
+     • RACE CALENDAR — opened at the board in the farmhouse. A month grid with the race days marked, the upcoming races, the selected
+       race's conditions, and your horses with who is qualified and why. "Book" books that horse for that race (CAREER.book); a booked race
+       is run by loading the horse at the float. Only the current championship round (and optional races that fall before it) can be booked.
+     • WARDROBE — opened at the mirror. Outfit (stable wear / riding gear / race day), skin, hair, face, build and clothing colours; every change
+       is saved to the career (CAREER.setPlayer) and shown on the character at once.
+   Pure UI: the data comes from, and goes back to, the career (career.js); nothing here touches the race.
+   ===================================================================== */
+const FARMUI = (() => {
+  let css = false, F = null, st = null;
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  function style() {
+    if (css) return; css = true; const el = document.createElement("style"); el.id = "farmUiCss";
+    el.textContent = `
+    .fu{max-width:1120px;margin:0 auto;color:#f2efe6;font-family:var(--font-b,system-ui)}
+    .fu h2{font:800 24px var(--font-d,system-ui);letter-spacing:.07em;text-transform:uppercase;margin:0}
+    .fu .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+    .fu .sub{font-size:12.5px;color:#b9c4b9}
+    .fu .grid{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:14px}
+    @media(max-width:860px){.fu .grid{grid-template-columns:minmax(0,1fr)}}
+    .fu .card{background:rgba(14,22,18,.94);border:1px solid #2a3a30;border-radius:14px;padding:14px 16px}
+    .fu .btn{pointer-events:auto;cursor:pointer;font:700 13px var(--font-d,system-ui);letter-spacing:.06em;text-transform:uppercase;padding:10px 15px;border-radius:10px;border:1px solid rgba(232,195,90,.55);background:rgba(18,28,22,.95);color:#f2efe6}
+    .fu .btn:hover:not(:disabled){border-color:#e8c35a;background:rgba(32,46,36,.97)}
+    .fu .btn.pri{background:linear-gradient(90deg,#e8c35a,#d9a93a);color:#1a1405;border-color:#f0d27c}
+    .fu .btn:disabled{opacity:.45;cursor:default}
+    .fu .nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .fu .nav b{font:800 16px var(--font-d,system-ui);letter-spacing:.06em;text-transform:uppercase}
+    .fu .mg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+    .fu .mg .dw{font-size:11px;color:#8fa08f;padding:2px 0}
+    .fu .day{aspect-ratio:1;display:grid;place-items:center;border-radius:9px;font-size:14px;position:relative;color:#d9e0d6;border:1px solid transparent;background:rgba(255,255,255,.03)}
+    .fu .day.past{color:#6f7d70}
+    .fu .day.race{cursor:pointer;background:rgba(232,195,90,.18);border-color:rgba(232,195,90,.5);color:#fff}
+    .fu .day.race.opt{background:rgba(160,190,150,.14);border-color:rgba(160,190,150,.45)}
+    .fu .day.race.locked{opacity:.55}
+    .fu .day.on{outline:2px solid #fff;outline-offset:1px}
+    .fu .day.today::after{content:"";position:absolute;inset:2px;border:2px dashed #5fe08a;border-radius:8px}
+    .fu .day.booked::before{content:"";position:absolute;inset:-1px;border:3px solid #e0483a;border-radius:10px}
+    .fu .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:#a9b4a9;margin-top:10px}
+    .fu .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+    .fu .rl{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:240px;overflow:auto}
+    .fu .ri{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid transparent;cursor:pointer;font-size:13px}
+    .fu .ri.on{border-color:#e8c35a;background:rgba(232,195,90,.12)}
+    .fu .ri small{display:block;color:#9fae9f;font-size:11.5px}
+    .fu .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.1);color:#d9e0d6}
+    .fu .tag.g{background:rgba(232,195,90,.25);color:#f0d27c}.fu .tag.r{background:rgba(224,72,58,.28);color:#ffb3aa}.fu .tag.ok{background:rgba(95,224,138,.2);color:#9af0b5}
+    .fu .kv{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;margin:6px 0}
+    .fu .hz{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:8px}
+    .fu .hc{border:1px solid #2a3a30;border-radius:11px;padding:9px 11px;background:rgba(255,255,255,.04);cursor:pointer;font-size:12.5px}
+    .fu .hc.on{border-color:#e8c35a;background:rgba(232,195,90,.12)}
+    .fu .hc.no{opacity:.6;cursor:default}
+    .fu .hc b{font:700 15px var(--font-d,system-ui)}
+    .fu .rq{font-size:11.5px;color:#9fae9f;margin-top:3px}.fu .rq.no{color:#ff9d92}.fu .rq.ok{color:#9af0b5}
+    .fu .bk{border:1px solid #e0483a;background:rgba(224,72,58,.12);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .fw{display:flex;flex-direction:column;gap:12px;max-width:380px;margin-left:0}
+    .fw .row{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.fw .lab{font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9;margin-bottom:5px}
+    .fw .chip{pointer-events:auto;cursor:pointer;padding:7px 11px;border-radius:9px;border:1px solid #33463a;background:rgba(255,255,255,.05);font-size:12.5px;color:#f2efe6}
+    .fw .chip.on{border-color:#e8c35a;background:rgba(232,195,90,.18)}
+    .fw .sw{pointer-events:auto;cursor:pointer;width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.25)}
+    .fw .sw.on{border-color:#fff;box-shadow:0 0 0 2px #e8c35a}`;
+    document.head.appendChild(el);
+  }
+  const root = () => F.panelEl;
+  function frame(inner, narrow) { root().innerHTML = `<div class="fu">${inner}</div>`; root().style.background = narrow ? "linear-gradient(90deg,rgba(5,9,7,.82),rgba(5,9,7,.05) 62%)" : "rgba(5,9,7,.62)"; }
+  const q = sel => root().querySelector(sel), qa = sel => [...root().querySelectorAll(sel)];
+
+  // ================================================================ the race calendar
+  function openCalendar(ctx) {
+    style(); F = ctx; const cd0 = CAREER.calendarData(0), bk = CAREER.booking();
+    st = { off: 0, eid: bk ? bk.eid : ((cd0.list.find(x => x.open) || cd0.list[0] || {}).eid || null), hid: bk ? bk.hid : null, msg: "", kind: "cal" };
+    drawCalendar();
+  }
+  function drawCalendar() {
+    const cd = CAREER.calendarData(st.off), bk = CAREER.booking(), sel = cd.list.find(x => x.eid === st.eid) || null;
+    if (!sel && cd.list.length) { st.eid = (cd.list.find(x => x.open) || cd.list[0]).eid; return drawCalendar(); }
+    const horses = sel ? CAREER.horsesFor(sel.eid) : [];
+    if (sel && (!st.hid || !horses.some(h => h.id === st.hid && h.ok))) { const f = horses.find(h => h.ok); st.hid = f ? f.id : null; }
+    const dows = ["S", "M", "T", "W", "T", "F", "S"];
+    let cells = dows.map(d => `<div class="dw">${d}</div>`).join("");
+    for (let i = 0; i < cd.firstDow; i++) cells += `<div></div>`;
+    for (let d = 1; d <= cd.daysInMonth; d++) {
+      const c = cd.cells[d], day = cd.first + d - 1, cls = ["day"]; if (day < CAREER.data.day) cls.push("past"); if (c) { cls.push("race"); if (c.kind !== "round") cls.push("opt"); if (!c.open) cls.push("locked"); } if (d === cd.today) cls.push("today"); if (d === cd.booked) cls.push("booked"); if (c && c.eid === st.eid) cls.push("on");
+      cells += `<div class="${cls.join(" ")}" ${c ? `data-eid="${c.eid}" title="${esc(c.name)}"` : ""}>${d}</div>`;
+    }
+    const list = cd.list.map(x => `<div class="ri${x.eid === st.eid ? " on" : ""}" data-eid="${x.eid}"><div><b>${esc(x.name)}</b><small>${esc(x.dateShort)} · ${esc(x.venue)} · ${x.dist.toLocaleString("en-AU")} m</small></div><div style="text-align:right">${x.kind === "round" ? `<span class="tag g">Championship</span>` : `<span class="tag">Optional</span>`}${x.open ? "" : `<small>${esc(x.why)}</small>`}</div></div>`).join("") || `<div class="sub">No more races this season.</div>`;
+    const bkHtml = bk ? `<div class="bk"><div><b>Booked:</b> ${esc(bk.name)} — ${esc(bk.horse)} · ${esc(fmtDay(bk.day))}<div class="sub">Take ${esc(bk.horse)} to the horse float by the shed to leave for the races.</div></div><button class="btn" id="fuCancel">Cancel booking</button></div>` : "";
+    const hz = horses.map(h => `<div class="hc${h.ok ? "" : " no"}${h.id === st.hid ? " on" : ""}" data-hid="${h.id}"><div style="display:flex;justify-content:space-between"><b>${esc(h.name)}</b><span class="tag ${h.ok ? "ok" : "r"}">${h.ok ? "Qualified" : "Not qualified"}</span></div>
+        <div class="rq">${esc(h.style)} · rating ${h.rating} · fitness ${h.fit == null ? "—" : h.fit}${h.form ? " · form " + esc(h.form) : ""}</div>${h.reqs.map(r => `<div class="rq ${r.ok ? "ok" : "no"}">${r.ok ? "✓" : "✗"} ${esc(r.label)}: ${esc(r.detail)}</div>`).join("")}</div>`).join("") || `<div class="sub">You have no horses yet — create one from the Career menu (Esc).</div>`;
+    const canBook = sel && sel.open && st.hid && !(bk && bk.eid === sel.eid && bk.hid === st.hid);
+    const hname = (horses.find(h => h.id === st.hid) || {}).name || "";
+    const detail = sel ? `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div class="sub">${sel.kind === "round" ? "Championship round" + (sel.round >= 0 ? " " + (sel.round + 1) : "") : "Optional race — experience and records only"} · ${esc(sel.grade)}</div><h2 style="font-size:21px;margin-top:2px">${sel.crown ? "★ " : ""}${esc(sel.name)}</h2></div>${sel.open ? `<span class="tag ok">Open for booking</span>` : `<span class="tag">${esc(sel.why)}</span>`}</div>
+        <div class="kv"><span><b>${esc(sel.date)}</b></span>${sel.tod ? `<span>${esc(sel.tod)}</span>` : ""}<span><b>${esc(sel.venue)}</b></span><span>${sel.dist.toLocaleString("en-AU")} m</span>${sel.weather ? `<span>${esc(sel.weather)}</span>` : ""}<span>${esc(goingLabel(sel.going))} going forecast</span>${sel.prize ? `<span>Prize <b>${esc(sel.prize)}</b></span>` : ""}</div>
+        <div class="lab" style="font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9;margin-top:8px">Choose your runner</div><div class="hz">${hz}</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><button class="btn pri" id="fuBook" ${canBook ? "" : "disabled"}>${canBook ? "Book " + esc(hname) : sel.open ? (st.hid ? "Already booked" : "No qualified horse") : "Not open yet"}</button><span class="sub" id="fuMsg">${esc(st.msg)}</span></div></div>` : `<div class="card"><div class="sub">Nothing on the calendar.</div></div>`;
+    frame(`<div class="top"><div><h2>Race Calendar</h2><div class="sub">Today is ${esc(cd.todayLabel)} · ${esc(CAREER.data.stable)}</div></div><button class="btn" id="fuClose">Close (Esc)</button></div>${bkHtml}
+      <div class="grid"><div class="card"><div class="nav"><button class="btn" id="fuPrev">‹</button><b>${esc(cd.monthLabel)}</b><button class="btn" id="fuNext">›</button></div><div class="mg">${cells}</div>
+        <div class="legend"><span><i style="background:#e8c35a"></i>Championship round</span><span><i style="background:#9fbe96"></i>Optional race</span><span><i style="background:#e0483a"></i>Booked</span><span><i style="border:2px dashed #5fe08a;background:none"></i>Today</span></div>
+        <div class="rl">${list}</div></div>${detail}</div>`);
+    q("#fuClose").onclick = () => F.closePanel(); q("#fuPrev").onclick = () => { st.off--; drawCalendar(); }; q("#fuNext").onclick = () => { st.off++; drawCalendar(); };
+    qa("[data-eid]").forEach(e => e.onclick = () => { st.eid = e.getAttribute("data-eid"); st.msg = ""; drawCalendar(); });
+    qa(".hc[data-hid]").forEach(e => e.onclick = () => { const h = horses.find(x => x.id === e.getAttribute("data-hid")); if (h && h.ok) { st.hid = h.id; st.msg = ""; drawCalendar(); } });
+    const b = q("#fuBook"); if (b) b.onclick = () => { const r = CAREER.book(sel.eid, st.hid); if (!r.ok) { st.msg = r.error; return drawCalendar(); } F.refreshBoard(); F.objective(); st.msg = ""; drawCalendar(); try { toast(esc(hname) + " is booked for the " + esc(sel.name), "good", 2.4); } catch (e) {} };
+    const c = q("#fuCancel"); if (c) c.onclick = () => { CAREER.cancelBooking(); F.refreshBoard(); F.objective(); st.msg = ""; drawCalendar(); };
+  }
+  const goingLabel = g => (typeof GOING !== "undefined" && GOING[g] ? GOING[g].label : g);
+  const fmtDay = d => { try { return CORE.fmtDate(d); } catch (e) { return ""; } };
+
+  // ================================================================ the wardrobe
+  const SHIRT = ["#2e5e8a", "#8a2f26", "#2f6b4a", "#c9a45c", "#5a3e7a", "#d9d4c5", "#1c1c1c", "#b5532f"], TROUSERS = ["#3a3a40", "#4a4a52", "#23382b", "#6b5238", "#2e3e5a", "#e8e4d8"], BOOTS = ["#4a2e1a", "#2a1c10", "#1d1d1d", "#6b4423"];
+  function openWardrobe(ctx) {
+    style(); F = ctx; st = { kind: "wardrobe" }; drawWardrobe();
+  }
+  function drawWardrobe() {
+    const a = CAREER.data.player, k = FARMPEOPLE;
+    const sw = (list, cur, attr) => list.map(c => `<div class="sw${c.toLowerCase() === String(cur).toLowerCase() ? " on" : ""}" style="background:${c}" data-${attr}="${c}"></div>`).join("");
+    const chips = (list, cur, attr) => list.map((l, i) => `<div class="chip${i === cur ? " on" : ""}" data-${attr}="${i}">${esc(l)}</div>`).join("");
+    frame(`<div class="fw"><div class="top" style="margin-bottom:0"><div><h2>Wardrobe</h2><div class="sub">Changes save as you make them.</div></div><button class="btn" id="fuClose">Done (Esc)</button></div>
+      <div class="card"><div class="lab">Outfit</div><div class="row">${k.OUTFITS.map(o => `<div class="chip${a.outfit === o[0] ? " on" : ""}" data-outfit="${o[0]}">${esc(o[1])}</div>`).join("")}</div>
+        <div class="sub" style="margin-top:6px">Stable wear for the property, riding gear for the track, race day for the parade ring.</div></div>
+      <div class="card"><div class="lab">Skin</div><div class="row">${sw(k.SKINS, a.look.skin, "skin")}</div>
+        <div class="lab" style="margin-top:10px">Hair</div><div class="row">${chips(k.HAIR_STYLES, a.look.hair, "hair")}</div><div class="row" style="margin-top:8px">${sw(k.HAIRS, a.look.hairCol, "haircol")}</div>
+        <div class="lab" style="margin-top:10px">Face</div><div class="row">${chips(k.FACES, a.look.head, "head")}</div>
+        <div class="lab" style="margin-top:10px">Build</div><div class="row">${["Slight", "Lean", "Medium", "Solid", "Broad"].map((l, i) => `<div class="chip${Math.abs(k.BUILDS[i] - a.look.build) < 0.01 ? " on" : ""}" data-build="${k.BUILDS[i]}">${l}</div>`).join("")}</div></div>
+      <div class="card"><div class="lab">${a.outfit === "raceday" ? "Jacket (your silks)" : "Shirt"}</div><div class="row">${sw(SHIRT, a.colours.shirt, "shirt")}</div>
+        <div class="lab" style="margin-top:10px">Trousers</div><div class="row">${sw(TROUSERS, a.colours.trousers, "trousers")}</div><div class="lab" style="margin-top:10px">Boots</div><div class="row">${sw(BOOTS, a.colours.boots, "boots")}</div></div></div>`, true);
+    q("#fuClose").onclick = () => F.closePanel();
+    const set = patch => { CAREER.setPlayer(patch); F.refreshFigure(); drawWardrobe(); };
+    qa("[data-outfit]").forEach(e => e.onclick = () => set({ outfit: e.getAttribute("data-outfit") }));
+    qa("[data-skin]").forEach(e => e.onclick = () => set({ look: { skin: e.getAttribute("data-skin") } }));
+    qa("[data-haircol]").forEach(e => e.onclick = () => set({ look: { hairCol: e.getAttribute("data-haircol") } }));
+    qa("[data-hair]").forEach(e => e.onclick = () => set({ look: { hair: +e.getAttribute("data-hair") } }));
+    qa("[data-head]").forEach(e => e.onclick = () => set({ look: { head: +e.getAttribute("data-head") } }));
+    qa("[data-build]").forEach(e => e.onclick = () => set({ look: { build: +e.getAttribute("data-build") } }));
+    qa("[data-shirt]").forEach(e => e.onclick = () => set({ colours: { shirt: e.getAttribute("data-shirt") } }));
+    qa("[data-trousers]").forEach(e => e.onclick = () => set({ colours: { trousers: e.getAttribute("data-trousers") } }));
+    qa("[data-boots]").forEach(e => e.onclick = () => set({ colours: { boots: e.getAttribute("data-boots") } }));
+  }
+  function onClose() { st = null; if (root()) root().style.background = ""; }
+  return { openCalendar, openWardrobe, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
+})();
