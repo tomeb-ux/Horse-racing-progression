@@ -1,8 +1,7 @@
 'use strict';
 /* =====================================================================
    FINAL FURLONG — PEOPLE: the player's character (rebuilt in Phase 6)
-   A believable stable owner, ~1.8 m tall, built from smooth lofted shapes (egg-shaped head with jaw, brow, nose, lips, eyes and ears; tapered
-   torso, arms, hands, legs and boots; hair in six styles) instead of the Phase 5 cylinders. Everything that belongs to one joint is merged into ONE
+   A simple, smooth stable owner, ~1.8 m tall, built from tapered rounded shapes (an egg-shaped head with two eye dots and a small nose, a plain torso, smooth limbs and boots, six hair styles) — deliberately basic, like the owner's reference picture. Everything that belongs to one joint is merged into ONE
    vertex-coloured mesh, so a whole figure is 13 draw calls and one material (the Phase 5 figure was ~30 meshes and ~10 materials).
    Outfits: STABLE (akubra, work shirt with rolled sleeves, jeans, boots), TRAINING (riding helmet, polo, breeches, tall boots, gloves) and RACE DAY
    (jacket in your colour, white breeches, tall boots, helmet with a silk cover). Appearance (saved in C.player): look {head, hair, hairCol, skin, build},
@@ -88,132 +87,70 @@ const FARMPEOPLE = (() => {
   }
 
   // ---------------------------------------------------------------- dressing: rebuild the joint meshes from the appearance and outfit
-  // Everything is a smooth organic shape: lofted rings for limbs / torso / skull, ellipsoids for joints, features, hair locks and fabric folds;
-  // per-vertex colour carries skin tones, shading and fine hair-strand variation.
+  // Deliberately BASIC and smooth (the look the owner chose): tapered rounded limbs, a plain torso, a simple egg-shaped head with two eye dots and a small nose, a simple cap of hair,
+  // and the hat or helmet — no joint balls, fingers, seams or fine facial detail. One vertex-coloured mesh per joint.
   function apply(o, app) {
     const A = o.A; if (app) { A.look = Object.assign(A.look, app.look || {}); A.colours = Object.assign(A.colours, app.colours || {}); if (app.outfit) A.outfit = app.outfit; }
     for (const k in o.meshes) { const m = o.meshes[k]; if (m.parent) m.parent.remove(m); } for (const g of o.dressedGeos || []) g.dispose(); o.dressedGeos = []; o.meshes = {}; o.dressed.length = 0;
     const P = o.parts, L = A.look, C = A.colours, out = A.outfit, bld = 1 + (+L.build || 0) * 0.14, skin = L.skin, hair = L.hairCol;
     o.body.scale.set(bld, 1, bld * 0.96);
-    const lipC = mixHex(skin, "#a8484f", 0.55), cheekC = mixHex(skin, "#c8736c", 0.1), shadeSkin = shade(skin, -0.14), warm = mixHex(skin, "#d58a78", 0.22), browC = shade(hair, -0.25), dark = "#1b1713", white = "#f6f3ec", lid = shade(skin, -0.06);
-    const hairL = new THREE.Color(hair).getHSL({}).l, irisC = hairL > 0.42 ? "#5a86a6" : hairL > 0.22 ? "#6b5238" : "#3b281a";
+    const dark = "#1b1713", lipC = mixHex(skin, "#a8484f", 0.5);
     const shirtHex = out === "training" ? "#f2efe6" : C.shirt, trouHex = out === "stable" ? C.trousers : out === "training" ? "#d9c9a2" : "#f4f2ea", bootHex = out === "stable" ? C.boots : "#1d1a18";
     const J = {};
-    const put = (j, g, hex, x, y, z, sx, sy, sz, rx, ry, rz, v, f) => { (J[j] || (J[j] = [])).push({ g, hex, m: xf(x, y, z, sx, sy, sz, rx, ry, rz), v: v || 0, f: f || 30 }); };
-    const putL = (j, g, hex, v, f) => { (J[j] || (J[j] = [])).push({ g, hex, v: v || 0, f: f || 30 }); };
-    const ball = (j, hex, x, y, z, rx, ry, rz, v) => put(j, sphere(), hex, x, y, z, rx, ry == null ? rx : ry, rz == null ? rx : rz, 0, 0, 0, v);
-    const band = (j, hex, y0, y1, rx, rz, ox, oz, seg) => putL(j, loft([[y0, rx, rz, ox || 0, oz || 0], [y1, rx, rz, ox || 0, oz || 0]], seg || 16, false, false), hex);
+    const put = (j, g, hex, x, y, z, sx, sy, sz, rx, ry, rz) => { (J[j] || (J[j] = [])).push({ g, hex, m: xf(x, y, z, sx, sy, sz, rx, ry, rz) }); };
+    const putL = (j, g, hex) => { (J[j] || (J[j] = [])).push({ g, hex }); };
     const tall = out !== "stable", jacket = out === "raceday";
-    const trouV = out === "stable" ? 0.035 : 0.02;
-    // ---- legs
+    // ---- legs, boots
     for (const sd of ["L", "R"]) {
-      const sg = sd === "L" ? -1 : 1;
-      putL("thigh" + sd, loft([[0.05, 0.094, 0.1, 0, 0], [-0.04, 0.094, 0.1, 0, 0.004], [-0.16, 0.083, 0.088, 0, 0.006], [-0.3, 0.07, 0.074, 0, 0.004], [-0.44, 0.058, 0.062, 0, 0]], 16), trouHex, trouV, 22);
-      ball("thigh" + sd, trouHex, 0, 0, 0, 0.088, 0.088, 0.094);
-      if (out === "stable") { put("thigh" + sd, box1(), shade(trouHex, -0.2), sg * 0.082, -0.14, 0.0, 0.004, 0.3, 0.012); }   // jeans: side seam
-      ball("shin" + sd, tall ? bootHex : trouHex, 0, 0, 0, 0.05, 0.05, 0.052);
-      putL("shin" + sd, tall ? loft([[0.02, 0.064, 0.068, 0, 0], [-0.06, 0.066, 0.07, 0, -0.004], [-0.17, 0.064, 0.072, 0, -0.008], [-0.3, 0.052, 0.056, 0, 0], [-0.4, 0.048, 0.052, 0, 0]], 16) : loft([[0.02, 0.058, 0.062, 0, 0], [-0.1, 0.06, 0.066, 0, -0.008], [-0.26, 0.05, 0.056, 0, 0], [-0.37, 0.056, 0.062, 0, 0.004]], 16), tall ? bootHex : trouHex, tall ? 0.015 : trouV, 22);
-      if (tall) { band("shin" + sd, shade(bootHex, 0.16), 0.0, 0.025, 0.069, 0.073, 0, 0); }   // boot cuff
-      // foot: boot with an arched instep, heel, sole and toe cap
-      putL("foot" + sd, loft([[0.04, 0.048, 0.052, 0, 0], [0.0, 0.05, 0.056, 0, 0.002], [-0.04, 0.05, 0.058, 0, 0.0]], 12), bootHex, 0.02);
-      ball("foot" + sd, bootHex, 0, -0.045, 0.08, 0.052, 0.036, 0.125, 0.02); ball("foot" + sd, shade(bootHex, 0.12), 0, -0.032, 0.17, 0.042, 0.027, 0.05);
-      put("foot" + sd, box1(), "#1c1a16", 0, -0.068, 0.05, 0.098, 0.016, 0.255); put("foot" + sd, box1(), "#222018", 0, -0.058, -0.045, 0.082, 0.032, 0.05);
-      if (!tall) put("foot" + sd, sphere(), trouHex, 0, 0.0, 0.0, 0.062, 0.03, 0.066);                                    // jean hem breaking over the boot
+      putL("thigh" + sd, loft([[0.05, 0.088, 0.094, 0, 0], [-0.1, 0.086, 0.09, 0, 0.004], [-0.28, 0.07, 0.074, 0, 0.004], [-0.44, 0.056, 0.06, 0, 0]], 14), trouHex);
+      putL("shin" + sd, loft([[0.02, 0.058, 0.062, 0, 0], [-0.12, 0.058, 0.064, 0, -0.006], [-0.3, 0.048, 0.052, 0, 0], [-0.4, 0.046, 0.05, 0, 0]], 14), tall ? bootHex : trouHex);
+      putL("foot" + sd, loft([[0.04, 0.046, 0.05, 0, 0], [-0.06, 0.05, 0.056, 0, 0]], 12), bootHex);
+      put("foot" + sd, sphere(), bootHex, 0, -0.045, 0.08, 0.05, 0.034, 0.12); put("foot" + sd, box1(), "#1c1a16", 0, -0.068, 0.05, 0.095, 0.014, 0.25);
     }
-    // ---- pelvis, belt, buckle
-    putL("pelvis", loft([[-0.13, 0.175, 0.118, 0, 0], [-0.06, 0.18, 0.124, 0, -0.004], [0.02, 0.168, 0.114, 0, 0], [0.08, 0.152, 0.104, 0, 0]], 18, false, false), trouHex, trouV, 22);
-    ball("pelvis", trouHex, 0, -0.1, -0.012, 0.172, 0.075, 0.12);
-    if (out !== "training") { band("pelvis", out === "stable" ? "#3a2a1a" : "#222", 0.045, 0.085, 0.157, 0.107, 0, 0, 18); put("pelvis", box1(), "#cdb97f", 0, 0.065, 0.108, 0.04, 0.028, 0.012); }
-    // ---- torso: ribcage, waist, shoulder slope; neck; collar; shirt details
-    const TR = [[-0.03, 0.146, 0.098], [0.07, 0.15, 0.101], [0.19, 0.165, 0.11], [0.31, 0.186, 0.118], [0.4, 0.192, 0.11], [0.46, 0.17, 0.098]];
-    const torsoR = y => { for (let i = 0; i < TR.length - 1; i++) if (y <= TR[i + 1][0]) { const t = (y - TR[i][0]) / (TR[i + 1][0] - TR[i][0]); return [TR[i][1] + (TR[i + 1][1] - TR[i][1]) * t, TR[i][2] + (TR[i + 1][2] - TR[i][2]) * t]; } return [TR[TR.length - 1][1], TR[TR.length - 1][2]]; };
-    const ts = jacket ? 0.012 : 0, shirtC = jacket ? C.shirt : shirtHex, tv = out === "stable" ? 0.03 : 0.018;
-    putL("torso", loft([[-0.03, 0.146 + ts, 0.098 + ts, 0, 0], [0.07, 0.15 + ts, 0.101 + ts, 0, 0.002], [0.19, 0.165 + ts, 0.11 + ts, 0, 0.006], [0.31, 0.186 + ts, 0.118 + ts, 0, 0.006], [0.4, 0.192 + ts, 0.11 + ts, 0, 0.0], [0.46, 0.17 + ts, 0.098 + ts, 0, -0.006], [0.5, 0.118, 0.082, 0, -0.008], [0.54, 0.072, 0.066, 0, -0.006], [0.57, 0.056, 0.056, 0, -0.004]], 20, false, false), shirtC, tv, 20);
-    putL("torso", loft([[0.54, 0.05, 0.052, 0, 0.004], [0.62, 0.046, 0.05, 0, 0.012], [0.68, 0.044, 0.048, 0, 0.012]], 14, false, true), skin);                                    // neck
-    ball("torso", shade(skin, -0.05), 0, 0.565, 0.036, 0.016, 0.02, 0.016);                                                                                                      // adam's apple
-    put("torso", sphere(), shirtC, 0, 0.47, -0.004, 0.2 + ts, 0.05, 0.105, 0, 0, 0, tv);                                                                                      // trapezius slope
-    if (jacket) {
-      putL("torso", loft([[-0.17, 0.188, 0.14, 0, 0], [-0.05, 0.19, 0.14, 0, 0], [0.04, 0.168, 0.12, 0, 0]], 18, false, true), C.shirt, 0.02);                                         // jacket skirt
-      for (const [y0, y1] of [[0.06, 0.12], [0.2, 0.26], [0.33, 0.39]]) { const a = torsoR((y0 + y1) / 2); band("torso", "#f2efe6", y0, y1, a[0] + ts + 0.004, a[1] + ts + 0.004, 0, 0.004, 20); }   // silk hoops
-      put("torso", box1(), shade(C.shirt, -0.28), 0, 0.28, 0.123, 0.012, 0.36, 0.008);                                                                                         // front seam
-      put("torso", sphere(), "#f2efe6", -0.045, 0.545, 0.06, 0.05, 0.012, 0.035, 0.5, 0.2, 0.5); put("torso", sphere(), "#f2efe6", 0.045, 0.545, 0.06, 0.05, 0.012, 0.035, 0.5, -0.2, -0.5);   // white collar points
-    } else {
-      put("torso", box1(), shade(shirtC, -0.25), 0, 0.3, 0.113, 0.016, 0.46, 0.008);                                                                                          // button placket
-      for (let k = 0; k < 4; k++) ball("torso", shade(shirtC, 0.3), 0, 0.17 + k * 0.1, 0.118, 0.007, 0.007, 0.004);
-      const col = out === "training" ? "#c23a3a" : shade(shirtC, 0.08);
-      put("torso", sphere(), col, -0.04, 0.565, 0.05, 0.05, 0.014, 0.034, 0.55, 0.25, 0.45); put("torso", sphere(), col, 0.04, 0.565, 0.05, 0.05, 0.014, 0.034, 0.55, -0.25, -0.45);     // collar points
-      band("torso", col, 0.53, 0.575, 0.056, 0.058, 0, -0.004, 16);
-      if (out === "stable") { put("torso", box1(), shade(shirtC, -0.12), -0.075, 0.33, 0.115, 0.068, 0.07, 0.008); put("torso", box1(), shade(shirtC, -0.2), -0.075, 0.362, 0.117, 0.07, 0.01, 0.006); }
-    }
-    // ---- arms: sleeves, forearms, hands with fingers
+    // ---- pelvis and torso: plain smooth shapes
+    putL("pelvis", loft([[-0.12, 0.17, 0.115, 0, 0], [-0.03, 0.172, 0.118, 0, 0], [0.08, 0.15, 0.104, 0, 0]], 16, false, false), trouHex);
+    put("pelvis", sphere(), trouHex, 0, -0.1, 0, 0.165, 0.07, 0.115);
+    const jt = jacket ? 0.01 : 0;
+    putL("torso", loft([[-0.03, 0.146 + jt, 0.098 + jt, 0, 0], [0.1, 0.15 + jt, 0.102 + jt, 0, 0.002], [0.28, 0.176 + jt, 0.114 + jt, 0, 0.004], [0.4, 0.19 + jt, 0.108 + jt, 0, -0.002], [0.47, 0.165 + jt, 0.095 + jt, 0, -0.006], [0.52, 0.11, 0.08, 0, -0.008], [0.56, 0.062, 0.058, 0, -0.004]], 18, false, false), jacket ? C.shirt : shirtHex);
+    putL("torso", loft([[0.54, 0.05, 0.052, 0, 0.004], [0.62, 0.046, 0.05, 0, 0.012], [0.68, 0.044, 0.048, 0, 0.012]], 12, false, true), skin);                 // neck
+    put("torso", sphere(), jacket ? C.shirt : shirtHex, 0, 0.47, -0.004, 0.19 + jt, 0.05, 0.1);                                                              // shoulder line
+    if (jacket) putL("torso", loft([[-0.14, 0.2, 0.146, 0, 0], [-0.02, 0.192, 0.138, 0, 0], [0.08, 0.172, 0.122, 0, 0]], 16, false, true), C.shirt);          // jacket skirt
+    // ---- arms and hands (smooth tapered sleeves)
     for (const sd of ["L", "R"]) {
-      const sg = sd === "L" ? -1 : 1, sleeve = jacket ? C.shirt : shirtHex, long = out !== "training";
-      ball("uarm" + sd, sleeve, 0, 0.0, 0, 0.05, 0.05, 0.05, tv); put("torso", sphere(), sleeve, sg * 0.205, 0.452, -0.002, 0.066, 0.052, 0.066, 0, 0, 0, tv);   // shoulder cap on the torso                                                                                                         // shoulder (deltoid)
-      if (long) putL("uarm" + sd, loft([[0.05, 0.058, 0.058, 0, 0], [-0.05, 0.057, 0.058, 0, 0], [-0.16, 0.05, 0.052, 0, 0], [-0.29, 0.044, 0.046, 0, 0]], 14), sleeve, tv, 24);
-      else { putL("uarm" + sd, loft([[0.05, 0.058, 0.058, 0, 0], [-0.05, 0.057, 0.058, 0, 0], [-0.13, 0.052, 0.054, 0, 0]], 14), sleeve, tv); putL("uarm" + sd, loft([[-0.12, 0.051, 0.053, 0, 0], [-0.29, 0.043, 0.045, 0, 0]], 14), skin, 0.02); band("uarm" + sd, shade(sleeve, -0.1), -0.125, -0.115, 0.053, 0.055, 0, 0, 14); }
-      if (jacket) band("uarm" + sd, "#f2efe6", -0.1, -0.15, 0.052, 0.054, 0, 0, 14);
-      ball("farm" + sd, out === "stable" ? shirtHex : jacket ? sleeve : skin, 0, 0, 0, 0.038, 0.038, 0.04);                                                                         // elbow
-      putL("farm" + sd, loft([[0.0, 0.043, 0.045, 0, 0], [-0.07, 0.042, 0.046, 0, 0.002], [-0.17, 0.034, 0.038, 0, 0], [-0.265, 0.029, 0.033, 0, 0]], 14), jacket ? sleeve : skin, jacket ? 0.015 : 0.02, 40);
-      if (out === "stable") { putL("farm" + sd, loft([[0.012, 0.049, 0.05, 0, 0], [-0.07, 0.047, 0.05, 0, 0.001]], 14, false, false), shirtHex, tv); band("farm" + sd, shade(shirtHex, -0.12), -0.07, -0.082, 0.05, 0.052, 0, 0.001, 14); }   // sleeve rolled to the forearm
-      if (jacket) putL("farm" + sd, loft([[-0.04, 0.043, 0.047, 0, 0.002], [-0.2, 0.034, 0.038, 0, 0]], 14, false, false), sleeve);
-      const hc = out === "stable" ? skin : out === "training" ? "#2c2c2c" : "#f2efe6", palm = out === "stable" ? warm : hc;
-      if (out !== "stable") band("farm" + sd, shade(hc, 0.06), -0.225, -0.27, 0.034, 0.038, 0, 0, 12);                                                                              // glove / cuff
-      ball("farm" + sd, palm, 0, -0.3, 0.004, 0.034, 0.027, 0.02);                                                                                                               // palm
-      for (let k = 0; k < 4; k++) put("farm" + sd, sphere(), hc, sg * (-0.017 + k * 0.0115), -0.352 + (k === 1 || k === 2 ? -0.006 : 0), 0.006, 0.0075, 0.03, 0.0085, 0.15, 0, 0);     // fingers
-      put("farm" + sd, sphere(), hc, sg * -0.033, -0.318, 0.014, 0.0095, 0.026, 0.0095, 0.35, 0, sg * 0.5);                                                                        // thumb
+      const sleeve = jacket ? C.shirt : shirtHex, long = out !== "training", hand = out === "training" ? "#2c2c2c" : jacket ? "#f2efe6" : skin;
+      putL("uarm" + sd, loft([[0.05, 0.056, 0.056, 0, 0], [-0.1, 0.052, 0.054, 0, 0], [-0.29, 0.043, 0.045, 0, 0]], 12), sleeve);
+      putL("farm" + sd, loft([[0.0, 0.043, 0.045, 0, 0], [-0.12, 0.04, 0.043, 0, 0.002], [-0.27, 0.03, 0.034, 0, 0]], 12), long ? sleeve : skin);
+      put("farm" + sd, sphere(), hand, 0, -0.31, 0.004, 0.034, 0.05, 0.026);
     }
-    // ---- head: skull with brow ridge, cheekbones, jaw and chin; ears; eyes with lids and lashes; nose; lips
+    // ---- head: a simple egg with eyes and a nose
     const hv = (L.head | 0) % 5, jaw = [1.0, 0.9, 1.14, 0.84, 1.08][hv], len = [1.0, 1.06, 0.97, 1.1, 0.98][hv], wd = [1.0, 0.95, 1.05, 0.91, 1.08][hv];
     const R = (y, rx, rz, oz) => [y * len, rx * wd, rz, 0, oz || 0];
-    putL("head", loft([R(0.0, 0.026, 0.04, 0.05), R(0.02, 0.05 * jaw, 0.06, 0.044), R(0.05, 0.068 * (0.9 + 0.1 * jaw), 0.081, 0.03), R(0.09, 0.077, 0.092, 0.012), R(0.13, 0.08, 0.099, 0.0), R(0.17, 0.079, 0.1, -0.003), R(0.205, 0.07, 0.092, -0.006), R(0.232, 0.05, 0.068, -0.01), R(0.245, 0.024, 0.036, -0.012)], 20), skin, 0.015, 60);
-    ball("head", skin, 0, 0.006 * len, 0.074, 0.03 * jaw, 0.022, 0.026);                                                                                                         // chin
-    for (const sx of [-1, 1]) {
-      ball("head", cheekC, sx * 0.045 * wd, 0.085 * len, 0.074, 0.02, 0.016, 0.012);                                                                                              // cheeks
-      put("head", sphere(), skin, sx * 0.078 * wd, 0.125 * len, -0.004, 0.0085, 0.027, 0.019); put("head", sphere(), shadeSkin, sx * 0.08 * wd, 0.122 * len, -0.0, 0.004, 0.017, 0.011);   // ears
-      ball("head", shade(skin, -0.07), sx * 0.033 * wd, 0.141 * len, 0.0825, 0.0185, 0.0115, 0.01);                                                                                // eye socket shading
-      put("head", sphere(), white, sx * 0.033 * wd, 0.141 * len, 0.087, 0.0145, 0.0105, 0.0095); put("head", sphere(), irisC, sx * 0.033 * wd, 0.141 * len, 0.0945, 0.0072, 0.0072, 0.004); put("head", sphere(), dark, sx * 0.033 * wd, 0.141 * len, 0.0975, 0.0035, 0.0035, 0.002);   // eye
-      put("head", sphere(), lid, sx * 0.033 * wd, 0.148 * len, 0.0895, 0.0158, 0.0045, 0.0105, 0.3, 0, 0);                                                                       // upper lid
-      put("head", sphere(), shade(dark, 0.05), sx * 0.033 * wd, 0.1505 * len, 0.0925, 0.0165, 0.0022, 0.005);                                                                      // lashes
-      put("head", sphere(), browC, sx * 0.034 * wd, 0.1625 * len, 0.0895, 0.021, 0.0042, 0.006, 0.3, 0, sx * -0.1, 0.1);                                                          // brows
-      put("head", sphere(), lipC, sx * 0.0115, 0.056 * len, 0.0985, 0.011, 0.0055, 0.008, 0, 0, sx * -0.12);                                                                     // upper lip (two lobes)
-      ball("head", shade(skin, -0.1), sx * 0.0125, 0.082 * len, 0.098, 0.0075, 0.0055, 0.006);                                                                                    // alae of the nose
-      ball("head", "#3a2420", sx * 0.007, 0.0755 * len, 0.1, 0.0035, 0.0028, 0.003);                                                                                              // nostrils
-    }
-    ball("head", skin, 0, 0.118 * len, 0.092, 0.0105, 0.034, 0.013, 0.0); put("head", sphere(), skin, 0, 0.118 * len, 0.0905, 0.0105, 0.034, 0.013, 0.3, 0, 0);               // nose bridge
-    ball("head", warm, 0, 0.081 * len, 0.1055, 0.0135, 0.0115, 0.0135);                                                                                                         // tip
-    put("head", sphere(), lipC, 0, 0.041 * len, 0.097, 0.0215, 0.0085, 0.0105, -0.1, 0, 0); put("head", sphere(), shade(lipC, -0.25), 0, 0.0505 * len, 0.0985, 0.021, 0.0016, 0.0045);   // lower lip, mouth line
-    // ---- hair: a cap that follows the skull plus layered locks (colours vary slightly lock to lock)
-    const hs = L.hair | 0, hv2 = (j, g, x, y, z, sx, sy, sz, rx, ry, rz, t) => put(j, g, shade(hair, (t == null ? 0 : t)), x, y, z, sx, sy, sz, rx, ry, rz, 0.1, 140);
-    const helmet = out !== "stable";
+    putL("head", loft([R(0.0, 0.03, 0.042, 0.05), R(0.025, 0.058 * jaw, 0.07, 0.04), R(0.07, 0.078 * (0.92 + 0.08 * jaw), 0.088, 0.02), R(0.13, 0.082, 0.098, 0.0), R(0.18, 0.08, 0.1, -0.003), R(0.22, 0.062, 0.084, -0.006), R(0.245, 0.03, 0.04, -0.01)], 18), skin);
+    for (const sx of [-1, 1]) { put("head", sphere(), "#fbf8f1", sx * 0.034 * wd, 0.142 * len, 0.088, 0.0125, 0.0095, 0.008); put("head", sphere(), dark, sx * 0.034 * wd, 0.142 * len, 0.095, 0.0065, 0.0065, 0.004); put("head", sphere(), skin, sx * 0.079 * wd, 0.125 * len, -0.004, 0.008, 0.024, 0.018); }
+    put("head", sphere(), mixHex(skin, "#000", 0.06), 0, 0.099 * len, 0.1, 0.014, 0.03, 0.017, 0.3, 0, 0);                                                    // nose
+    put("head", sphere(), lipC, 0, 0.045 * len, 0.098, 0.022, 0.0075, 0.01);                                                                                  // mouth
+    // ---- hair: a simple cap that follows the skull (hidden under a helmet), plus one simple extra per style
+    const hs = L.hair | 0, helmet = out !== "stable";
     if (hs !== 5) {
-      const cap = loft([[0.1 * len, 0.0815 * wd, 0.0985, 0, 0], [0.13 * len, 0.0825 * wd, 0.1025, 0, 0.0], [0.17 * len, 0.082 * wd, 0.1035, 0, -0.003], [0.205 * len, 0.0735 * wd, 0.0955, 0, -0.006], [0.232 * len, 0.054 * wd, 0.0715, 0, -0.01], [0.248 * len, 0.026 * wd, 0.04, 0, -0.012]], 20, true, false);
-      if (!helmet) putL("head", cap, hair, 0.1, 140);
-      for (const sx of [-1, 1]) hv2("head", sphere(), sx * 0.077 * wd, 0.118 * len, 0.012, 0.011, 0.034, 0.03, 0, 0, 0, -0.1);                                                  // sideburns
-      const lock = (x, y, z, sx, sy, sz, rx, ry, rz, t) => { if (!helmet || y < 0.12) hv2("head", sphere(), x, y * len, z, sx, sy, sz, rx, ry, rz, t); };
-      if (hs === 0) { for (let k = 0; k < 7; k++) { const a = -0.9 + k * 0.3; lock(Math.sin(a) * 0.07 * wd, 0.19, 0.075 + Math.cos(a) * 0.014, 0.024, 0.02, 0.02, -0.2, 0, 0, (k % 3) * 0.08 - 0.06); } lock(0, 0.1, -0.09, 0.07 * wd, 0.05, 0.02, 0, 0, 0, -0.08); }
-      if (hs === 1) { for (let k = 0; k < 6; k++) lock(-0.055 + k * 0.025, 0.2 - k * 0.003, 0.07, 0.034, 0.016, 0.03, -0.3, 0, 0.5, (k % 2) * 0.08); lock(0.03, 0.235, 0.0, 0.07 * wd, 0.02, 0.09, 0, 0, -0.2, 0.06); lock(0, 0.09, -0.085, 0.074 * wd, 0.075, 0.02, 0, 0, 0, -0.08); put("head", box1(), shade(skin, -0.1), -0.026, 0.225 * len, 0.058, 0.002, 0.004, 0.07, 0, 0, 0.0); }
-      if (hs === 2) { lock(0, 0.17, -0.098, 0.034, 0.05, 0.03, 0, 0, 0, 0.02); put("head", loft([[0.0, 0.032, 0.032], [-0.08, 0.04, 0.038], [-0.18, 0.034, 0.03], [-0.27, 0.014, 0.012]], 10, true, true), shade(hair, 0.0), 0, 0.15 * len, -0.118, 1, 1, 1, 0.5, 0, 0, 0.1, 140); band("head", "#c23a3a", 0.0, 0.016, 0.03, 0.03, 0, -0.114, 8); for (let k = 0; k < 5; k++) lock(-0.04 + k * 0.02, 0.2, 0.07, 0.03, 0.016, 0.028, -0.2, 0, 0, (k % 2) * 0.07); }
-      if (hs === 3) { for (const sx of [-1, 1]) { hv2("head", sphere(), sx * 0.083 * wd, 0.06 * len, 0.0, 0.016, 0.1, 0.04, 0, 0, sx * 0.06, -0.04); hv2("head", sphere(), sx * 0.085 * wd, -0.02 * len, 0.008, 0.012, 0.06, 0.03, 0, 0, sx * 0.1, 0.05); }
-        hv2("head", sphere(), 0, 0.07 * len, -0.082, 0.075 * wd, 0.15, 0.03, 0, 0, 0, -0.08); hv2("head", sphere(), 0, -0.05 * len, -0.07, 0.07 * wd, 0.07, 0.03, 0, 0, 0, 0.0); for (let k = 0; k < 6; k++) lock(-0.055 + k * 0.022, 0.2, 0.073, 0.03, 0.016, 0.026, -0.25, 0, 0.3, (k % 2) * 0.08); }
-      if (hs === 4) { for (let i = 0; i < 46; i++) { const a = i * 2.399, ring = (i % 3) * 0.02, y = 0.115 + 0.13 * ((i * 37 % 29) / 29); lock(Math.cos(a) * (0.066 + ring) * wd, y + 0.045, Math.sin(a) * (0.085 + ring) * 0.95, 0.027, 0.027, 0.027, 0, 0, 0, ((i * 7) % 5) * 0.04 - 0.08); } }
+      if (!helmet) putL("head", loft([[0.108 * len, 0.082 * wd, 0.099, 0, 0], [0.15 * len, 0.0835 * wd, 0.104, 0, -0.001], [0.2 * len, 0.0735 * wd, 0.0955, 0, -0.006], [0.232 * len, 0.054 * wd, 0.072, 0, -0.01], [0.248 * len, 0.026 * wd, 0.04, 0, -0.012]], 18, true, false), hair);
+      const blob = (x, y, z, sx, sy, sz) => put("head", sphere(), hair, x, y * len, z, sx, sy, sz);
+      if (hs === 1 && !helmet) blob(0.02, 0.2, 0.07, 0.07, 0.025, 0.05);
+      if (hs === 2) { put("head", loft([[0.0, 0.032, 0.032], [-0.1, 0.038, 0.036], [-0.2, 0.028, 0.026], [-0.27, 0.01, 0.01]], 8, true, true), hair, 0, 0.15 * len, -0.115, 1, 1, 1, 0.45, 0, 0); }
+      if (hs === 3) { blob(0, 0.07, -0.082, 0.078 * wd, 0.15, 0.03); for (const sx of [-1, 1]) blob(sx * 0.083 * wd, 0.06, 0.0, 0.016, 0.1, 0.04); }
+      if (hs === 4 && !helmet) for (let i = 0; i < 14; i++) { const a = i * 2.399; blob(Math.cos(a) * 0.068 * wd, 0.19 + 0.05 * ((i * 7) % 5) / 5, Math.sin(a) * 0.08, 0.034, 0.034, 0.034); }
     }
-    // ---- headwear (shaped, not a flat disc)
-    if (out === "stable") {                                                                                                                                                    // akubra: sloping brim with a rolled edge, a pinched crown, a leather band
+    // ---- headwear: the akubra, or the helmet with a dark band (as in the owner's picture)
+    if (out === "stable") {
       const bc = "#7b5a39";
-      putL("head", loft([[0.198 * len, 0.098 * wd, 0.108, 0, 0], [0.205 * len, 0.15, 0.162, 0, 0.012], [0.195 * len, 0.205, 0.215, 0, 0.016], [0.188 * len, 0.236, 0.245, 0, 0.018], [0.194 * len, 0.239, 0.248, 0, 0.018]], 24, true, true), bc, 0.04, 60);
-      putL("head", loft([[0.2 * len, 0.093 * wd, 0.103, 0, 0], [0.235 * len, 0.094 * wd, 0.104, 0, 0], [0.275 * len, 0.09 * wd, 0.1, 0, 0], [0.3 * len, 0.082 * wd, 0.09, 0, 0], [0.31 * len, 0.06 * wd, 0.07, 0, 0], [0.305 * len, 0.03 * wd, 0.04, 0, 0]], 20, true, false), bc, 0.04, 60);
-      putL("head", loft([[0.2 * len, 0.0945 * wd, 0.1045, 0, 0], [0.222 * len, 0.0945 * wd, 0.1045, 0, 0]], 20, false, false), "#2a2018"); put("head", box1(), "#2a2018", 0.0, 0.211 * len, 0.106, 0.03, 0.022, 0.006);
-      hv2("head", sphere(), 0, 0.2 * len, -0.02, 0.09 * wd, 0.02, 0.1, 0, 0, 0, -0.5);                                                                                               // shadow under the brim
-    } else if (out === "training") {
-      putL("head", loft([[0.16 * len, 0.087 * wd, 0.106, 0, -0.002], [0.19 * len, 0.087 * wd, 0.108, 0, -0.003], [0.225 * len, 0.078 * wd, 0.1, 0, -0.006], [0.255 * len, 0.053 * wd, 0.075, 0, -0.01], [0.27 * len, 0.025 * wd, 0.04, 0, -0.012]], 20, true, true), "#1d2a44", 0.02);
-      put("head", sphere(), "#1d2a44", 0, 0.17 * len, 0.1, 0.075 * wd, 0.007, 0.052, 0.12, 0, 0); put("head", box1(), "#c23a3a", 0, 0.172 * len, -0.0, 0.004, 0.003, 0.2);                                                // peak, band
-      put("head", box1(), "#101418", 0.088 * wd, 0.135 * len, 0.0, 0.004, 0.065, 0.012, 0, 0, 0); put("head", box1(), "#101418", -0.088 * wd, 0.135 * len, 0.0, 0.004, 0.065, 0.012);        // chin strap
+      putL("head", loft([[0.198 * len, 0.098 * wd, 0.108, 0, 0], [0.205 * len, 0.16, 0.17, 0, 0.012], [0.192 * len, 0.215, 0.225, 0, 0.016], [0.188 * len, 0.219, 0.23, 0, 0.016]], 22, true, true), bc);
+      putL("head", loft([[0.2 * len, 0.093 * wd, 0.103, 0, 0], [0.26 * len, 0.094 * wd, 0.104, 0, 0], [0.3 * len, 0.085 * wd, 0.094, 0, 0], [0.31 * len, 0.06 * wd, 0.07, 0, 0]], 18, true, false), bc);
+      putL("head", loft([[0.2 * len, 0.0945 * wd, 0.1045, 0, 0], [0.222 * len, 0.0945 * wd, 0.1045, 0, 0]], 18, false, false), "#2a2018");
     } else {
-      putL("head", loft([[0.16 * len, 0.087 * wd, 0.106, 0, -0.002], [0.19 * len, 0.088 * wd, 0.109, 0, -0.003], [0.225 * len, 0.079 * wd, 0.101, 0, -0.006], [0.258 * len, 0.055 * wd, 0.077, 0, -0.01], [0.275 * len, 0.025 * wd, 0.04, 0, -0.012]], 20, true, true), C.shirt, 0.02);
-      put("head", sphere(), "#14181c", 0, 0.17 * len, 0.103, 0.077 * wd, 0.007, 0.052, 0.12, 0, 0); put("head", sphere(), "#f2efe6", 0, 0.276 * len, -0.012, 0.016, 0.014, 0.016); band("head", "#f2efe6", 0.19 * len, 0.205 * len, 0.0895 * wd, 0.111, 0, -0.003, 20);
-      put("head", box1(), "#101418", 0.088 * wd, 0.135 * len, 0.0, 0.004, 0.065, 0.012); put("head", box1(), "#101418", -0.088 * wd, 0.135 * len, 0.0, 0.004, 0.065, 0.012);
+      const hc = jacket ? C.shirt : "#1d2a44";
+      putL("head", loft([[0.16 * len, 0.087 * wd, 0.106, 0, -0.002], [0.19 * len, 0.088 * wd, 0.109, 0, -0.003], [0.225 * len, 0.079 * wd, 0.101, 0, -0.006], [0.258 * len, 0.055 * wd, 0.077, 0, -0.01], [0.275 * len, 0.025 * wd, 0.04, 0, -0.012]], 18, true, true), hc);
+      putL("head", loft([[0.185 * len, 0.0895 * wd, 0.111, 0, -0.003], [0.198 * len, 0.0895 * wd, 0.111, 0, -0.003]], 18, false, false), "#101418");   // dark band
+      put("head", sphere(), "#101418", 0, 0.172 * len, 0.103, 0.077 * wd, 0.007, 0.052, 0.12, 0, 0);                                                           // peak
     }
-    // ---- merge each joint into one mesh
     const attach = { pelvis: P.pelvis, torso: P.torsoG, head: P.headG, uarmL: P.armL.sh, uarmR: P.armR.sh, farmL: P.armL.el, farmR: P.armR.el, thighL: P.legL.hip, thighR: P.legR.hip, shinL: P.legL.knee, shinR: P.legR.knee, footL: P.legL.ankle, footR: P.legR.ankle };
     for (const k in attach) {
       const list = J[k]; if (!list || !list.length) continue; const geo = mergeGeos(list); o.dressedGeos.push(geo);

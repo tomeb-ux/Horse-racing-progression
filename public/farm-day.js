@@ -16,12 +16,15 @@ const FARMDAY = (() => {
   const FL = () => FARMWORLD.L.float;
   const ramp = () => { const f = FL(); return { x: f.x - 7.4, z: f.z + 0.0, foot: f.x - 4.9 }; };
   const cabDoor = () => { const f = FL(); return { x: f.x + 7.4, z: f.z + 1.95 }; };
-  const booking = () => { try { return typeof CAREER !== "undefined" && CAREER.data && CAREER.data.horses ? CAREER.booking() : null; } catch (e) { return null; } };
+  // the booking is read from the career save at most every 0.15 s of farm time (CAREER.booking() builds the horse's race definition each call — too much to do every frame)
+  let bkC = null, bkAge = 99;
+  const booking = () => { if (bkAge > 0.15) { try { bkC = typeof CAREER !== "undefined" && CAREER.data && CAREER.data.horses ? CAREER.booking() : null; } catch (e) { bkC = null; } bkAge = 0; } return bkC; };
+  const invalidate = () => { bkAge = 99; };
   const status = hid => { try { return CAREER.care.status(hid); } catch (e) { return null; } };
   const stallOf = hid => { const g = F.horses.find(h => h.userData.hid === hid); return g ? g.userData.stallI : -1; };
 
   function init(ctx) { F = ctx; }
-  function enter() { reset(true); D.departed = false; D.key = keyOf(booking()); }
+  function enter() { invalidate(); reset(true); D.departed = false; D.key = keyOf(booking()); }
   function leave() { reset(true); }
   const keyOf = b => b ? b.eid + ":" + b.hid : "";
 
@@ -68,7 +71,7 @@ const FARMDAY = (() => {
     return out;
   }
   function interact(p) {
-    const b = booking(); if (!b) return false;
+    invalidate(); const b = booking(); if (!b) return false;
     if (p.id === "ramp") {
       const led = FARMCARE.ledMesh(); if (!led) return false;
       if (FARMCARE.ledHid() !== b.hid) { F.toast("That's not " + b.horse + " — only the horse booked for the " + b.name + " can go in the float", "warn", 3); return true; }
@@ -118,13 +121,13 @@ const FARMDAY = (() => {
   function boardFrame(dt) {
     const C = D.cine, d = cabDoor(), f = FL(); C.t += dt; const u = clamp01(C.t / 1.1), P = F.P;
     P.x = C.x0 + (d.x - C.x0) * ease(clamp01(u * 2)); P.z = C.z0 + (d.z - 0.5 - C.z0) * ease(clamp01(u * 2)) - (u > 0.5 ? (u - 0.5) * 1.6 : 0); P.face += (0 - P.face) * Math.min(1, dt * 6);
-    FARMPEOPLE.pose(F.fig, dt, u < 0.55 ? 1.5 : 0.8, 0); if (u > 0.78) F.fig.root.visible = false;
+    FARMPEOPLE.pose(F.fig, dt, u < 0.55 ? 1.5 : 0.8, 0); if (u > 0.78) F.hideFig(true);
     F.cineCam.set([d.x + 3.2, 2.0, d.z + 5.0], [d.x - 0.5, 1.3, d.z - 1.0], 56, 4);
     if (C.t >= 1.35) { D.cine = null; F.cineCam.clear(); beginDrive(); }
   }
   function beginDrive() {
     const b = booking(); if (!b) { reset(); return; }
-    D.inCab = true; D.driving = true; F.setBusy(true);
+    D.inCab = true; D.driving = true; F.setBusy(true); F.hideFig(true);
     FARMDRIVE.start(F, { onExit: onExit, onCancel: () => { D.driving = false; D.inCab = false; } });
     F.refreshObjective();
   }
@@ -138,15 +141,15 @@ const FARMDAY = (() => {
 
   // ---------------------------------------------------------------- the quick departure (the owner's shortcut): put everything back and use the cutscene
   function quickLeave() {
-    const b = booking(); if (!b || D.departed || D.driving || D.cine) return false;
+    invalidate(); const b = booking(); if (!b || D.departed || D.driving || D.cine) return false;
     reset(true); F.quickTrip(b); return true;
   }
 
   // ---------------------------------------------------------------- reset: everything back to the start of the sequence, horse in its box
   function reset(silent) {
-    if (!F) return;
+    if (!F) return; invalidate();
     if (D.driving) { try { FARMDRIVE.stop(true); } catch (e) {} }
-    D.driving = false; D.inCab = false; D.cine = null; F.cineCam.clear(); FARMPEOPLE.act(F.fig, null); if (F.fig) F.fig.root.visible = true;
+    D.driving = false; D.inCab = false; D.cine = null; F.cineCam.clear(); FARMPEOPLE.act(F.fig, null); F.hideFig(false); if (F.fig) F.fig.root.visible = true;
     const rig = F.world && F.world.structures.rig; if (rig) { rig.position.set(FL().x, 0, FL().z); rig.rotation.set(0, 0, 0); if (rig.userData.ramp) rig.userData.ramp.rotation.z = 0.296; }
     if (D.loadedMesh) { D.loadedMesh.visible = true; const L = FARMCARE.untake(D.loadedMesh); }
     D.loaded = false; D.loadedMesh = null; FARMCARE.release(); F.setBusy(false);
@@ -154,13 +157,13 @@ const FARMDAY = (() => {
   }
   // called when the booking may have changed (calendar closed, a care action done, a second passed)
   function sync() {
-    if (!F) return; const k = keyOf(booking());
+    if (!F) return; invalidate(); const k = keyOf(booking());
     if (k !== D.key) { const had = D.key; D.key = k; if (had && (FARMCARE.led || D.loaded || D.cine || D.driving)) { reset(true); F.toast("Booking changed — the horse is back in its box", "info", 2.6); } D.departed = false; F.refreshObjective(); }
   }
-  function changed() { if (F) F.refreshObjective(); }
+  function changed() { invalidate(); if (F) F.refreshObjective(); }
   function frame(dt) {
-    if (!F) return;
+    if (!F) return; bkAge += dt;
     if (D.cine) { if (D.cine.kind === "load") loadFrame(dt); else boardFrame(dt); }
   }
-  return { init, enter, leave, stage, objective, target, points, interact, frame, sync, changed, reset, quickLeave, get state() { return D; }, ramp, cabDoor, get active() { return !!D.cine; }, get driving() { return D.driving; }, get loaded() { return D.loaded; } };
+  return { changedQuiet: invalidate, init, enter, leave, stage, objective, target, points, interact, frame, sync, changed, reset, quickLeave, get state() { return D; }, ramp, cabDoor, get active() { return !!D.cine; }, get driving() { return D.driving; }, get loaded() { return D.loaded; } };
 })();

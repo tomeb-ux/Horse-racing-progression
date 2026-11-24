@@ -17,7 +17,8 @@ const FARMDRIVE = (() => {
   function start(ctx, o) {
     stop(true); F = ctx; const rig = F.world.structures.rig, f = FL();
     rig.position.set(f.x, 0, f.z); rig.rotation.set(0, 0, 0); rig.rotation.order = "YZX"; if (rig.userData.ramp) rig.userData.ramp.rotation.z = -Math.PI / 2;
-    S = { rig, x: f.x, z: f.z, ang: 0, v: 0, steer: 0, pitch: 0, roll: 0, camAng: 0, camD: 15, camOn: false, t: 0, over: false, o: o || {}, hit: 0, ax: 0, stuck: 0, maxV: 0, dist: 0, camPos: new THREE.Vector3(), camLook: new THREE.Vector3() };
+    const own = F.world.colliders.filter(c => Math.abs(c.z0 - (f.z - 1.4)) < 0.01 && Math.abs(c.z1 - (f.z + 1.4)) < 0.01 || Math.abs(c.z0 - (f.z - 1.1)) < 0.01 && Math.abs(c.z1 - (f.z + 1.1)) < 0.01 && c.x0 > f.x);
+    S = { skip: new Set(own), rig, x: f.x, z: f.z, ang: 0, v: 0, steer: 0, pitch: 0, roll: 0, camAng: 0, camD: 15, camOn: false, t: 0, over: false, o: o || {}, hit: 0, ax: 0, stuck: 0, maxV: 0, dist: 0, camPos: new THREE.Vector3(), camLook: new THREE.Vector3() };
     F.fig.root.visible = false; makeHud(); F.hud.querySelector("#farmInfo").style.visibility = ""; F.setPrompt(""); F.sunFollow(f.x, f.z);
     F.setBusy(true);
   }
@@ -36,7 +37,7 @@ const FARMDRIVE = (() => {
     const f = fwd(st.ang); let px = 0, pz = 0, n = 0;
     for (const [lx, r] of CIRC) {
       const q = { x: st.x + f[0] * lx, z: st.z + f[1] * lx }, x0 = q.x, z0 = q.z;
-      F.resolve(q, r, { noBounds: true });
+      F.resolve(q, r, { noBounds: true, skip: st.skip });
       // the boundary fence: solid except across the gate opening
       const g = L().gate, lim = L().fence.x - r - 0.3, zl = L().fence.z - r - 0.4;
       if (q.z > zl) q.z = zl; if (q.z < -zl) q.z = -zl; if (q.x < -lim) q.x = -lim;

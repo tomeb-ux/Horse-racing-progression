@@ -85,7 +85,7 @@ const FARMUI = (() => {
       cells += `<div class="${cls.join(" ")}" ${c ? `data-eid="${c.eid}" title="${esc(c.name)}"` : ""}>${d}</div>`;
     }
     const list = cd.list.map(x => `<div class="ri${x.eid === st.eid ? " on" : ""}" data-eid="${x.eid}"><div><b>${esc(x.name)}</b><small>${esc(x.dateShort)} · ${esc(x.venue)} · ${x.dist.toLocaleString("en-AU")} m</small></div><div style="text-align:right">${x.kind === "round" ? `<span class="tag g">Championship</span>` : `<span class="tag">Optional</span>`}${x.open ? "" : `<small>${esc(x.why)}</small>`}</div></div>`).join("") || `<div class="sub">No more races this season.</div>`;
-    const bkHtml = bk ? `<div class="bk"><div><b>Booked:</b> ${esc(bk.name)} — ${esc(bk.horse)} · ${esc(fmtDay(bk.day))}<div class="sub">Take ${esc(bk.horse)} to the horse float by the shed to leave for the races.</div></div><button class="btn" id="fuCancel">Cancel booking</button></div>` : "";
+    const bkHtml = bk ? `<div class="bk"><div><b>Booked:</b> ${esc(bk.name)} — ${esc(bk.horse)} · ${esc(fmtDay(bk.day))}<div class="sub">Head out to ${esc(bk.horse)}'s box — the objective panel and the glowing line on the ground guide you through preparing, loading and driving to the races.</div></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="fuGo">Skip the routine · go now</button><button class="btn" id="fuCancel">Cancel booking</button></span></div>` : "";
     const hz = horses.map(h => `<div class="hc${h.ok ? "" : " no"}${h.id === st.hid ? " on" : ""}" data-hid="${h.id}"><div style="display:flex;justify-content:space-between"><b>${esc(h.name)}</b><span class="tag ${h.ok ? "ok" : "r"}">${h.ok ? "Qualified" : "Not qualified"}</span></div>
         <div class="rq">${esc(h.style)} · rating ${h.rating} · fitness ${h.fit == null ? "—" : h.fit}${h.form ? " · form " + esc(h.form) : ""}</div>${h.reqs.map(r => `<div class="rq ${r.ok ? "ok" : "no"}">${r.ok ? "✓" : "✗"} ${esc(r.label)}: ${esc(r.detail)}</div>`).join("")}</div>`).join("") || `<div class="sub">You have no horses yet — create one from the Career menu (Esc).</div>`;
     const canBook = sel && sel.open && st.hid && !(bk && bk.eid === sel.eid && bk.hid === st.hid);
@@ -102,6 +102,7 @@ const FARMUI = (() => {
     qa("[data-eid]").forEach(e => e.onclick = () => { st.eid = e.getAttribute("data-eid"); st.msg = ""; drawCalendar(); });
     qa(".hc[data-hid]").forEach(e => e.onclick = () => { const h = horses.find(x => x.id === e.getAttribute("data-hid")); if (h && h.ok) { st.hid = h.id; st.msg = ""; drawCalendar(); } });
     const b = q("#fuBook"); if (b) b.onclick = () => { const r = CAREER.book(sel.eid, st.hid); if (!r.ok) { st.msg = r.error; return drawCalendar(); } F.refreshBoard(); F.objective(); st.msg = ""; drawCalendar(); try { toast(esc(hname) + " is booked for the " + esc(sel.name), "good", 2.4); } catch (e) {} };
+    const go = q("#fuGo"); if (go) go.onclick = () => { F.closePanel(); F.quickGo(); };
     const c = q("#fuCancel"); if (c) c.onclick = () => { CAREER.cancelBooking(); F.refreshBoard(); F.objective(); st.msg = ""; drawCalendar(); };
   }
   const goingLabel = g => (typeof GOING !== "undefined" && GOING[g] ? GOING[g].label : g);

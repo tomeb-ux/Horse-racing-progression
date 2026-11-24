@@ -134,7 +134,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   s = await I(p); ok(/Enter the farmhouse/.test(s.prompt), `at the front steps the prompt is "${s.prompt}"`);
   await p.keyboard.press('e'); await frames(p, 4); await p.evaluate(() => FARM._test.skipFade()); await frames(p, 4);
   s = await p.evaluate(() => { const i = FARM.info(), w = FARM._test.house(); return { i, ids: FARM._test.points.map(x => x.id).sort().join(), b: w.bounds, col: w.colliders.length }; });
-  ok(s.i.place === 'in' && s.ids === 'board,cabinet,door,ledger,mirror' && s.col >= 8, `E goes inside (fade through black): a walkable room with a calendar board, ledger, trophy cabinet, mirror and door (${s.col} solid pieces)`);
+  ok(s.i.place === 'in' && s.ids === 'board,cabinet,door,ledger,mirror,rest' && s.col >= 8, `E goes inside (fade through black): a walkable room with a calendar board, ledger, trophy cabinet, mirror and door (${s.col} solid pieces)`);
   const wall = await p.evaluate(() => [FARM._test.settle(-20, 0), FARM._test.settle(0, 20), FARM._test.settle(20, 0), FARM._test.settle(0, -20)]);
   const bd = (await p.evaluate(() => FARM._test.house().bounds));
   ok(wall[0].x >= bd.x0 - 1e-6 && wall[1].z <= bd.z1 + 1e-6 && wall[2].x <= bd.x1 + 1e-6 && wall[3].z >= bd.z0 - 1e-6, 'the walls hold: you cannot walk out of the room');
@@ -169,7 +169,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   const sel = await p.evaluate(() => { document.querySelectorAll('#farmPanel .hc')[1].click(); document.getElementById('fuBook').click(); const b = CAREER.booking(); return b && { name: b.name, horse: b.horse, kind: b.kind, round: b.round, day: b.day, stored: JSON.parse(localStorage.getItem('ff_career')).booking && JSON.parse(localStorage.getItem('ff_career')).booking.hid }; });
   ok(sel && sel.name === 'Maiden Plate' && sel.horse === 'Copper Coast' && sel.kind === 'round' && sel.round === 0 && sel.stored === 'h1', `choosing a horse and pressing Book books ${sel && sel.horse} for the ${sel && sel.name} (saved with the career)`);
   s = await p.evaluate(() => ({ txt: document.getElementById('farmPanel').textContent, obj: FARM.info().objective }));
-  ok(/Booked:/.test(s.txt) && /Cancel booking/.test(s.txt) && /Copper Coast/.test(s.obj) && /float/i.test(s.obj), 'the screen shows the booking (with Cancel) and the objective now tells you to take the horse to the float');
+  ok(/Booked:/.test(s.txt) && /Cancel booking/.test(s.txt) && /Copper Coast/.test(s.obj) && /box 2/i.test(s.obj), 'the screen shows the booking (with Cancel) and the objective now tells you to go to the horse\'s box (Phase 6 guided race day)');
   const bad = await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'optional' && e.ref === 'o_wfa'), rd2 = C.cal.events.find(e => e.kind === 'round' && e.round === 1); return { opt: CAREER.book(ev.id, 'h0'), r2: CAREER.book(rd2.id, 'h0'), none: CAREER.book('nope', 'h0'), still: CAREER.booking().horse }; });
   ok(!bad.opt.ok && !bad.r2.ok && !bad.none.ok && bad.still === 'Copper Coast', `a race that is not open (round 2, or an optional race after the next round) cannot be booked, and the booking is untouched ("${bad.r2.error}")`);
   await p.evaluate(() => { document.getElementById('fuCancel').click(); }); ok(await p.evaluate(() => CAREER.booking() === null && !JSON.parse(localStorage.getItem('ff_career')).booking), 'Cancel booking clears it');
@@ -204,7 +204,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   s = await I(p); ok(/book a race/i.test(s.prompt), `with nothing booked the float says so: "${s.prompt}"`);
   await p.keyboard.press('e'); await frames(p, 3); ok(!(await I(p)).trip && (await I(p)).active, 'E with nothing booked does nothing but remind you');
   await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'round' && e.round === 0); CAREER.book(ev.id, 'h2'); }); await frames(p, 4);
-  s = await I(p); ok(/Load Silver Billabong and leave for Maiden Plate/.test(s.prompt), `with a race booked: "${s.prompt}"`);
+  s = await I(p); ok(/Quick departure for Maiden Plate/.test(s.prompt), `with a race booked: "${s.prompt}"`);
   await p.keyboard.press('e'); await frames(p, 3);
   s = await p.evaluate(() => ({ i: FARM.info(), ph: FARMTRIP.phase, boxHidden: FARM._test.horses.filter(g => !g.visible).length, hs: FARM._test.ctx.scene.children.length }));
   ok(s.i.trip && s.ph === 'fadeIn' && s.boxHidden === 1, 'E at the float starts the loading sequence (the horse leaves its box)');

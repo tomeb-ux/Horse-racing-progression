@@ -27,7 +27,7 @@ const FARM = (() => {
   let resume = null, place = "out", person = 3, paused = false, panel = null, trans = null, trip = null, wantLock = false, ownUnlock = false;
   const fk = {};                                                     // the farm's own key map — never shared with the riding controls
   let listeners = [], dragging = null, near = null, t = 0, shadowOn = false, camReady = false;
-  let busy = false, guide = null, guideKey = "", guideT = 0, guideFrom = null, hideFigure = false, departT = 0, departB = null, lastStage = "", syncT = 0, turnRate = 0, lastFace = 0;
+  let busy = false, guide = null, guideKey = "", guideT = 0, guideFrom = null, hideFigure = false, departT = 0, departB = null, lastStage = "", syncT = 0, stageT = 0, turnRate = 0, lastFace = 0;
   const CINE = { on: false, init: false, tp: new THREE.Vector3(), tl: new THREE.Vector3(), cp: new THREE.Vector3(), cl: new THREE.Vector3(), fov: 56, k: 6 };
   const WALK = { x: 110, z: 80 }, PR = 0.45;                         // walkable half-extents, the walker's radius
   const EYE = 1.62, FOV = { 1: 72, 3: 58 }, clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -139,7 +139,7 @@ const FARM = (() => {
     e.stopImmediatePropagation(); if (k === " " || k in MOVE || k === "tab" || k === "escape") e.preventDefault();   // nothing reaches the riding controls
     if (k === "escape") { if (!e.repeat) escape(); return; }
     if (trip) { if (!e.repeat && (k === " " || k === "enter" || k === "e")) FARMTRIP.skip(); return; }
-    if (FARMDRIVE.on) { fk[k] = true; return; }                                  // driving: the keys go to the vehicle
+    if (FARMDRIVE.on) { fk[k] = true; if (k === "r" && !e.repeat) FARMDRIVE.reset(); return; }                                  // driving: the keys go to the vehicle
     if (FARMTRAIN.on || FARMTRAIN.menuOpen) { if (!e.repeat) FARMTRAIN.key(k, true, e); return; }   // a drill or its menu
     if (FARMCARE.menuOpen) { if (!e.repeat) FARMCARE.key(k); return; }
     if (blocked()) return;
@@ -195,7 +195,7 @@ const FARM = (() => {
     endTrip: () => { trip = null; if (hud) hud.querySelector("#farmInfo").style.visibility = ""; }, setPlace: v => { place = v; }, objective: () => objective(), heightAt: (x, z) => world.heightAt(x, z),
     keys: fk, resolve: (q, r, o) => resolve(q, r, o), toast: (m, k, d) => { try { toast(m, k, d); } catch (e) {} }, setBusy: v => { busy = !!v; if (v) { for (const k in fk) if (!(FARMDRIVE.on)) fk[k] = false; prompt.hidden = true; near = null; } }, faceCam: yaw => { CAM.yaw = yaw; camReady = false; },
     cineCam: { set(pos, look, fov, k) { CINE.tp.set(pos[0], pos[1], pos[2]); CINE.tl.set(look[0], look[1], look[2]); CINE.fov = fov || 56; CINE.k = k || 6; CINE.on = true; if (!CINE.init) { CINE.init = true; CINE.cp.copy(fcam.position); const d = new THREE.Vector3(); fcam.getWorldDirection(d); CINE.cl.copy(fcam.position).addScaledVector(d, 10); } }, clear() { CINE.on = false; CINE.init = false; camReady = false; } },
-    blockedAt: (x, y, z) => blockedAt(x, y, z), refreshObjective: () => { objective(); }, hideFig: v => { hideFigure = !!v; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
+    blockedAt: (x, y, z) => blockedAt(x, y, z), quickGo: () => { if (place === "in") exitHouse(() => FARMDAY.quickLeave()); else FARMDAY.quickLeave(); }, refreshObjective: () => { try { FARMDAY.changedQuiet(); } catch (e) {} objective(); }, hideFig: v => { hideFigure = !!v; if (v && fig) fig.root.visible = false; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
   };
   function openPanel(name) {
     if (panel || trip) return; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
@@ -206,7 +206,7 @@ const FARM = (() => {
   function refreshBoard() { if (iworld) { try { iworld.refresh(CAREER.boardInfo(), (CAREER.data && CAREER.data.trophies || []).length); } catch (e) {} } }
   function refreshFigure() { if (fig) fig.apply(appearance()); }
   function objective() {
-    if (!objEl) return; let txt = "", sub = "";
+    if (!objEl) return; let txt = "", sub = ""; try { FARMDAY.changedQuiet(); } catch (e) {}
     try {
       if (hasCareer()) {
         const b = CAREER.booking();
@@ -291,11 +291,11 @@ const FARM = (() => {
     });
     return true;
   }
-  function exitHouse() {
+  function exitHouse(then) {
     startTrans(0.5, () => {
       place = "out"; fscene.add(fig.root); const o = world.points.find(p => p.id === "office"); P.x = o.x + 0.4; P.z = o.z; P.y = world.heightAt(P.x, P.z); P.face = Math.PI / 2; CAM.yaw = Math.PI / 2; CAM.pitch = person === 1 ? 0 : -0.2; camReady = false;
       title.textContent = builtName.toUpperCase(); prompt.hidden = true; near = null; sunFollow(P.x, P.z);
-    });
+    }, then);
     return true;
   }
   function leaveToCareer() { SCENES.enter("career"); }
@@ -306,6 +306,7 @@ const FARM = (() => {
     const w = cur(), inside = place === "in";
     for (let pass = 0; pass < 2; pass++) {
       for (const c of w.colliders) {
+        if (o && o.skip && o.skip.has(c)) continue;
         if (q.x < c.x0 - R || q.x > c.x1 + R || q.z < c.z0 - R || q.z > c.z1 + R) continue;
         const cx = Math.max(c.x0, Math.min(q.x, c.x1)), cz = Math.max(c.z0, Math.min(q.z, c.z1)), dx = q.x - cx, dz = q.z - cz, d = Math.hypot(dx, dz);
         if (d < R) { if (d > 1e-4) { q.x = cx + dx / d * R; q.z = cz + dz / d * R; } else { const l = q.x - c.x0, r = c.x1 - q.x, u = q.z - c.z0, dn = c.z1 - q.z, m = Math.min(l, r, u, dn); if (m === l) q.x = c.x0 - R; else if (m === r) q.x = c.x1 + R; else if (m === u) q.z = c.z0 - R; else q.z = c.z1 + R; } }
@@ -401,7 +402,8 @@ const FARM = (() => {
       world.update(dt, fcam); animateNearHorses(dt); renderer.render(fscene, fcam); if (departT > 0) { departT -= dt; if (departT <= 0) runDepart(); } return;
     }
     if (FARMTRAIN.on) { if (!paused) FARMTRAIN.frame(dt); world.update(dt, fcam); animateNearHorses(dt); renderer.render(fscene, fcam); return; }
-    syncT -= dt; if (syncT <= 0) { syncT = 0.5; FARMDAY.sync(); const stg = FARMDAY.stage(); if (stg !== lastStage) { lastStage = stg; objective(); } }
+    syncT -= dt; stageT -= dt; if (syncT <= 0) { syncT = 0.5; FARMDAY.sync(); }
+    if (stageT <= 0) { stageT = 0.1; const stg = FARMDAY.stage(); if (stg !== lastStage) { lastStage = stg; objective(); } }
     const frozen = blocked();
     if (!frozen) {
       if (fk.arrowleft) CAM.yaw -= 1.8 * dt; if (fk.arrowright) CAM.yaw += 1.8 * dt;
