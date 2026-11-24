@@ -3,3 +3,6 @@ dist/
 *.log
 public/voices/
 server/cache/
+
+# downloadable GitHub-upload package (a build output, regenerated per release)
+final-furlong-github.zip
