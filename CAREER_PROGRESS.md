@@ -20,6 +20,7 @@ Implementation plan (approved): `CAREER_PLAN.md`.
   (detail where the player looks, cheap further out) — not by making everything visually simplistic. **At the end of Phase 4 provide
   screenshots from several angles — especially the main stable courtyard, the farmhouse, the paddocks and the training area — so the owner
   can review the visual quality before Phase 5.**
+- **Testing is risk-based from Phase 4 on** (owner's instruction) — see "Testing policy" below. Tests are never weakened or deleted.
 - Development runs one approved phase at a time. After each phase: tests, a git commit, a playable build (artifact +
   GitHub zip) and an update of this file.
 - Prize money for optional races stays at nothing (as before); championship rounds pay places 1–5. Real purse and
@@ -44,6 +45,32 @@ Implementation plan (approved): `CAREER_PLAN.md`.
 | 12 — Time of day and weather | Not started |
 | 13 — Transport transitions | Not started |
 | 14 — Balance and full testing | Not started |
+
+## Testing policy for the remaining phases (owner's instruction, given during Phase 3) — risk-based, nothing weakened or deleted
+
+All existing tests stay in the repo and unchanged. What changes is **which of them run after a given change**. Every phase report must list
+**what was executed (with counts) and what was deferred, and why**.
+
+**Tier 1 — always run for any change (fast, ≈ 1–5 min):**
+`node tests/career-core.js` (3 s) · `PORT=8095 node tests/scenes-browser.js` (scene transitions, input isolation, 10-trip leak check; ≈ 6 min) ·
+the phase's own tests (e.g. `tests/farm-browser.js` from Phase 4) · a **short racing smoke test**: `steering-browser.js` (15 s) + `start-browser.js` (25 s) +
+`replay-lunge-browser.js` (8 s) · `node tools/build-single.js && node tests/single-browser.js` (the single file still boots).
+
+**Tier 2 — farm-only visual / interaction changes** (only `farm.js`, farm HUD, farm assets, the farm branch of the frame loop, Office/Career screens):
+Tier 1 + **performance measurement** (draw calls, triangles, frame time from the F8 overlay on the farm; `tools/smooth.js` before/after when the frame loop,
+`gfx.js` or `venues.js` is touched) + `tests/career-browser.js` (≈ 3.5 min) when `career.js` or save data was touched.
+The long-duration racing suite is **deferred** — say so in the report.
+
+**Tier 3 — FULL regression** (every Node test in `CAREER_PLAN.md` §4 + every browser test incl. `longrace-browser.js` ≈ 18 min and `career_difficulty.js` ≈ 5–7 min):
+run when a change touches **race physics, simulation timing, starting mechanics, horse attributes that affect racing (`toDef`, attributes, fitness/age/growth effects when
+they are switched on in Phase 9), race results / rewards (`onResult`, `finishRace`, `season.js`), difficulty (`raceField`), commentary, `sim.js`, the race part of
+the frame loop, `gfx.js` / `venues.js` shared systems**, **before a major release** (the end of Phase 9 — when fitness/age/growth start to affect racing —
+and Phase 14), **and whenever an earlier failure suggests a regression risk**.
+Phase 2 and Phase 3 each ran the full suite (this file's test reports).
+
+**Rules:** a browser test that fails is rerun once on its own before it counts as a real failure — report both results. Timing-sensitive tests
+(`start-browser`, `steering-browser`) are not run while a CPU-heavy job is running. Multiplayer tests stay "not run — multiplayer disabled by design".
+Never claim a test passed without running it.
 
 ## Phase 2 — what was implemented
 

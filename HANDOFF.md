@@ -51,6 +51,8 @@ The server sends cross-origin-isolation headers on HTML (multi-threaded neural v
 - Save: `localStorage.ff_career` **v4** = every v3 field (`seed, stable, horses[], active, trophies[], wins, history[], season{n,div,seed,cur,closed,rounds[],others{}}, world[3][stables], rivals{}, h2h{}, optN, rivalSeq`) plus `day, cash, ledger[≤300], ledgerSeq, txn{key→day}, fin{season→{in,out,by}}, fac{7 facilities 0–3}, staff{trainer,groom,vet}, player{look,outfit,colours}, market{seed,listings,refreshDay}, hof[], rep, entries[], notices[], farm{}, cal{season,div,events[]}, migrated{from,at}`; each horse also gets `foaled, age, growth{type,peak,from,rate}, fitness, composure, lastRaceDay, trainDay, trainedToday, plan, acquired{how,price,day}, retired, value`. Backups kept in localStorage: `ff_career_v<N>_backup` (exact pre-migration text), `ff_career_pre_import_backup` (before an import), `ff_career_backup_<ts>` (unreadable save). **Cash may only change through `CORE.apply` with a unique key.**
 
 ## Tests (run in the project folder)
+**Which tests to run is risk-based — read "Testing policy for the remaining phases" in `CAREER_PROGRESS.md` first** (Tier 1 always: career-core, scenes-browser, the phase's own test, a short racing smoke = steering + start + replay-lunge, single-file boot; Tier 2 farm-only: + performance measurement; Tier 3 FULL suite only when race physics / timing / starting / horse attributes / race results / shared systems change, before major releases, or after a failure). Always report executed vs deferred.
+Full list (all kept):
 ```
 node tools/build-single.js
 FF_TEST_HOOKS=1 PORT=8095 node server/index.js      # for browser + multiplayer tests
