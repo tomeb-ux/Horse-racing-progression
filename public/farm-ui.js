@@ -161,6 +161,41 @@ const FARMUI = (() => {
     if (stay) stay.onclick = () => F.closePanel();
     if (lv) lv.onclick = () => { const r = CAREER.travel.commit(); if (!r.ok) { st.msg = r.reason === "save" ? "<b>Your career couldn't be saved</b> — browser storage is full or blocked, so the horse stays home rather than risk losing the result. Download a copy from the Office → Save &amp; backups, then try again." : "That booking is gone."; return drawDeparture(); } const go = st.go; F.closePanel(); if (go) go(); };
   }
+
+  // ================================================================ the farm map (M)
+  // A top-down plan of the property drawn from the same layout and colliders the world is built from: paddocks, the exercise oval, the courtyard and boxes, the farmhouse, sheds,
+  // the float and the gate, the fences, the horses in their boxes, where you stand and where the booked horse is.
+  function openMap(ctx) {
+    style(); F = ctx; st = { kind: "map" };
+    frame(`<div class="top"><div><h2>Farm map</h2><div class="sub">${esc(CAREER.data ? CAREER.data.stable : "")} · you are the gold arrow · M or Esc to close</div></div><button class="btn" id="fuClose">Close (Esc)</button></div>
+      <div class="card" style="padding:10px"><canvas id="fuMap" width="1000" height="560" style="width:100%;display:block;border-radius:10px"></canvas></div>
+      <div class="sub" style="margin-top:6px;display:flex;gap:16px;flex-wrap:wrap"><span><i style="display:inline-block;width:10px;height:10px;background:#c9a45c;border-radius:50%"></i> you</span><span><i style="display:inline-block;width:10px;height:10px;background:#e8c35a;transform:rotate(45deg)"></i> the booked horse's box</span><span><i style="display:inline-block;width:10px;height:10px;background:#8a5a32"></i> buildings</span><span><i style="display:inline-block;width:10px;height:10px;background:#c9b48a"></i> exercise oval</span></div>`);
+    q("#fuClose").onclick = () => F.closePanel(); drawMap();
+  }
+  function drawMap() {
+    const cv = q("#fuMap"); if (!cv) return; const g = cv.getContext("2d"), L = FARMWORLD.L, w = F.world, W = cv.width, H = cv.height;
+    const x0 = -104, x1 = 152, z0 = -80, z1 = 90, sc = Math.min(W / (x1 - x0), H / (z1 - z0)), ox = (W - (x1 - x0) * sc) / 2, oz = (H - (z1 - z0) * sc) / 2, X = x => ox + (x - x0) * sc, Z = z => oz + (z - z0) * sc;
+    g.fillStyle = "#587a45"; g.fillRect(0, 0, W, H); g.fillStyle = "#4c6c3b"; for (let i = 0; i < 40; i++) { g.fillRect((i * 97) % W, (i * 53) % H, 70, 3); }
+    const rect = (a, b, c, d, fill, line) => { g.fillStyle = fill; g.fillRect(X(a), Z(b), (c - a) * sc, (d - b) * sc); if (line) { g.strokeStyle = line; g.lineWidth = 1.2; g.strokeRect(X(a), Z(b), (c - a) * sc, (d - b) * sc); } };
+    const label = (t, x, z, col, size) => { g.font = "600 " + (size || 13) + "px system-ui,sans-serif"; g.textAlign = "center"; g.fillStyle = "rgba(0,0,0,.55)"; g.fillText(t, X(x) + 1, Z(z) + 1); g.fillStyle = col || "#f2efe6"; g.fillText(t, X(x), Z(z)); };
+    for (const p of L.paddocks) { rect(p.x0, p.z0, p.x1, p.z1, "#6c9654", "#d8d1b3"); label(p.name, (p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2, "#e8f0d8"); }
+    rect(L.court.x0, L.court.z0, L.court.x1, L.court.z1, "#b8aa88", "#d8d1b3"); label("Courtyard", (L.court.x0 + L.court.x1) / 2, L.court.z1 - 2, "#3a3222", 12);
+    // the exercise oval: a stadium of two straights and two bends
+    { const T = L.track, half = 60, ring = (r, fill) => { g.beginPath(); g.moveTo(X(- half), Z(T.cz - r)); g.lineTo(X(half), Z(T.cz - r)); g.arc(X(half), Z(T.cz), r * sc, -Math.PI / 2, Math.PI / 2); g.lineTo(X(- half), Z(T.cz + r)); g.arc(X(- half), Z(T.cz), r * sc, Math.PI / 2, Math.PI * 1.5); g.closePath(); g.fillStyle = fill; g.fill(); };
+      ring(T.r1, "#c9b48a"); ring(T.r0, "#6c9654"); g.lineWidth = 1.5; g.strokeStyle = "#f2efe6"; label("Exercise oval", 0, T.cz + 1, "#e8f0d8"); }
+    g.strokeStyle = "rgba(240,236,220,.7)"; g.lineWidth = 1.1; g.beginPath(); for (const s of w.segs) { g.moveTo(X(s.x0), Z(s.z0)); g.lineTo(X(s.x1), Z(s.z1)); } g.stroke();
+    for (const c of w.colliders) { g.fillStyle = "#8a5a32"; g.fillRect(X(c.x0), Z(c.z0), Math.max(1.5, (c.x1 - c.x0) * sc), Math.max(1.5, (c.z1 - c.z0) * sc)); }
+    label("Stables", (L.stable.x0 + L.stable.x1) / 2, L.stable.zBack - 2, "#f2efe6"); label("Farmhouse", (L.house.x0 + L.house.x1) / 2, L.house.z0 - 2); label("Feed shed", (L.feed.x0 + L.feed.x1) / 2, L.feed.z0 - 2); label("Vet", (L.vet.x0 + L.vet.x1) / 2, L.vet.z0 - 2);
+    label("Float & ute", L.float.x, L.float.z + 7, "#f6e6b0"); label("Farm gate", L.gate.x, L.gate.z - 4, "#f6e6b0"); label("Wash bay", -12.4, -17.2, "#d7ecf5", 11);
+    try { for (const p of FARMTRAIN.POINTS) label(p.where === "gate" ? "Starting-gate unit" : "Oval entrance", p.x, p.z - 3, "#f6e6b0", 11); } catch (e) {}
+    // the horses in their boxes (the booked one marked)
+    let bk = null; try { bk = CAREER.booking(); } catch (e) {}
+    for (const gm of F.horses) { const i = gm.userData.stallI; if (i == null) continue; const s = w.stalls[i], x = X(s.x), z = Z(s.z + 4.2), booked = bk && bk.hid === gm.userData.hid;
+      g.beginPath(); g.arc(x, z, booked ? 5.5 : 4, 0, Math.PI * 2); g.fillStyle = booked ? "#e8c35a" : "#f2efe6"; g.fill(); g.strokeStyle = "#3a2a18"; g.lineWidth = 1; g.stroke(); }
+    // you
+    const P = F.P, px = X(P.x), pz = Z(P.z), f = P.face || 0; g.save(); g.translate(px, pz); g.rotate(-f + Math.PI / 2 * 0 + Math.PI); g.beginPath(); g.moveTo(0, -9); g.lineTo(6, 7); g.lineTo(0, 3); g.lineTo(-6, 7); g.closePath(); g.fillStyle = "#e8c35a"; g.fill(); g.strokeStyle = "#1a1408"; g.lineWidth = 1.5; g.stroke(); g.restore();
+    g.fillStyle = "#f2efe6"; g.font = "600 11px system-ui"; g.textAlign = "left"; g.fillRect(14, H - 22, 20 * sc, 3); g.fillText("20 m", 14 + 20 * sc + 6, H - 17);
+  }
   function onClose() { st = null; if (root()) root().style.background = ""; }
-  return { openCalendar, openWardrobe, openDeparture, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
+  return { openCalendar, openWardrobe, openDeparture, openMap, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
 })();

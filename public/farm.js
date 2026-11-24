@@ -66,7 +66,7 @@ const FARM = (() => {
         <b id="farmTitle" style="font-family:var(--font-d,system-ui);font-size:15px;letter-spacing:.05em"></b>
         <div id="farmWx" style="color:#aebdb1;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase"></div>
         <div id="farmObj" style="color:#e8c35a;font-weight:600;margin-top:2px"></div>
-        <div id="farmHint" style="color:#c8d2c8;margin-top:2px">W A S D walk · Shift run · mouse look · V first / third person · E interact · Esc pause</div></div>
+        <div id="farmHint" style="color:#c8d2c8;margin-top:2px">W A S D walk · Shift run · mouse look · V first / third person · E interact · M map · Esc pause</div></div>
       <div id="farmCross" hidden style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 0 1px rgba(0,0,0,.45)"></div>
       <div id="farmPrompt" hidden style="position:absolute;left:50%;bottom:13%;transform:translateX(-50%);background:rgba(9,14,11,.86);border:1px solid rgba(232,195,90,.7);border-radius:12px;padding:12px 20px;font:700 18px var(--font-d,system-ui);color:#f2efe6;letter-spacing:.04em;text-align:center;max-width:90vw"></div>
       <div id="farmSkip" hidden style="position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));background:rgba(9,14,11,.75);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px 14px;font:600 13px var(--font-b,system-ui);color:#f2efe6">Space — skip</div>
@@ -131,7 +131,7 @@ const FARM = (() => {
   }
 
   // ---------------------------------------------------------------- input (the farm's own; attached on enter, removed on leave)
-  const MOVE = { w: 1, a: 1, s: 1, d: 1, shift: 1, arrowleft: 1, arrowright: 1, arrowup: 1, arrowdown: 1, e: 1, v: 1, k: 1, r: 1 };
+  const MOVE = { w: 1, a: 1, s: 1, d: 1, shift: 1, arrowleft: 1, arrowright: 1, arrowup: 1, arrowdown: 1, e: 1, v: 1, k: 1, r: 1, m: 1 };
   const blocked = () => paused || !!panel || !!trans || !!trip || busy || FARMDRIVE.on || FARMTRAIN.on;
   function onKeyDown(e) {
     if (!active) return;
@@ -144,6 +144,7 @@ const FARM = (() => {
     if (FARMDRIVE.on) { fk[k] = true; if (k === "r" && !e.repeat) FARMDRIVE.reset(); return; }                                  // driving: the keys go to the vehicle
     if (FARMTRAIN.on || FARMTRAIN.menuOpen) { if (!e.repeat) FARMTRAIN.key(k, true, e); return; }   // a drill or its menu
     if (FARMCARE.menuOpen) { if (!e.repeat) FARMCARE.key(k); return; }
+    if (k === "m" && !e.repeat) { if (panel === "map") closePanel(); else if (!blocked()) openPanel("map"); return; }
     if (blocked()) return;
     if (k === "k" && !e.repeat) { skipPrep(); return; }
     if (k === "e" && !e.repeat && fk.e !== true) { fk.e = true; interact(); return; }
@@ -203,7 +204,7 @@ const FARM = (() => {
   function openPanel(name, arg) {
     if (panel || trip) return; openArg = arg || null; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
     hud.querySelector("#farmInfo").style.visibility = "hidden";
-    if (name === "calendar") FARMUI.openCalendar(ctx); else if (name === "wardrobe") FARMUI.openWardrobe(ctx); else if (name === "depart") FARMUI.openDeparture(ctx, openArg.sum, openArg.go);
+    if (name === "calendar") FARMUI.openCalendar(ctx); else if (name === "wardrobe") FARMUI.openWardrobe(ctx); else if (name === "depart") FARMUI.openDeparture(ctx, openArg.sum, openArg.go); else if (name === "map") FARMUI.openMap(ctx);
   }
   function closePanel() { if (!panel) return; panel = null; hud.querySelector("#farmInfo").style.visibility = ""; panelEl.hidden = true; panelEl.innerHTML = ""; if (typeof FARMUI !== "undefined" && FARMUI.onClose) FARMUI.onClose(); refreshBoard(); objective(); if (cross) cross.hidden = person !== 1; }
   function refreshBoard() { if (iworld) { try { iworld.refresh(CAREER.boardInfo(), (CAREER.data && CAREER.data.trophies || []).length); } catch (e) {} } }

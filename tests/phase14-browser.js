@@ -38,6 +38,13 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
   ok(s.skip || (!s.ok && s.same), 'a prize race whose next meeting is after the next championship round is refused and nothing moves');
   ok(await ev(() => CORE.audit(CAREER.data).length === 0), 'the ledger audits clean');
 
+  console.log('\n— the farm map');
+  await ev(() => { CAREER.hidePanel(); SCENES.enter('farm', { instant: true }); }); await frames(4); await ev(() => { renderer.render = () => {}; }); await step(0.05, 6); await ev(() => { FARM._test.setPos(-6, -14); }); await step(0.05, 3);
+  await key('m', 3); s = await ev(() => ({ panel: FARM.info().panel, canvas: !!document.getElementById('fuMap'), txt: document.getElementById('farmPanel').innerText }));
+  ok(s.panel === 'map' && s.canvas && /Farm map/i.test(s.txt), 'M opens the farm map');
+  s = await ev(() => { const c = document.getElementById('fuMap'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, seen = new Set(); for (let i = 0; i < d.length; i += 4 * 977) seen.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]); return seen.size; }); ok(s > 8, 'the map is drawn (' + s + ' distinct colours: paddocks, oval, buildings, fences, labels, you)');
+  await key('m', 3); ok(await ev(() => FARM.info().panel === null), 'M closes it again'); await key('m', 3); await key('Escape', 3); ok(await ev(() => FARM.info().panel === null), 'Esc closes it too');
+  ok(await ev(() => { FARMDRIVE.on = FARMDRIVE.on; return true; }), 'the map is a normal panel: walking is blocked while it is open');
   console.log('\n— retirement through the real screens is covered in phase10-browser; the Hall of Fame persists');
   s = await ev(() => { const C = CAREER.data; C.hof = C.hof || []; return { n: C.hof.length, stored: JSON.parse(localStorage.getItem('ff_career')).hof.length }; }); ok(s.n === s.stored, 'the Hall of Fame is part of the stored career (' + s.n + ' entries)');
   ok(errs.length === 0, 'no page errors: ' + errs.slice(0, 3).join(' | '));
