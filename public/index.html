@@ -3076,6 +3076,7 @@ function pressFeedback(r) {
 }
 const startUI = { kicks: [] };
 addEventListener("keydown", e => {
+  if (typeof SCENES !== "undefined" && SCENES.input === "farm") return;      // the farm owns the keyboard (farm.js); the riding controls below never see farm keys
   const k = e.key.toLowerCase();
   if (k === " " || (ui.state === "racing" && "eqr".includes(k) && k.length === 1)) e.preventDefault();
   if (ui.state === "replay" && (k.startsWith("arrow") || k === "home")) e.preventDefault();
@@ -3509,6 +3510,7 @@ function show(state) {
   if (state !== "racing" && typeof COMM !== "undefined") COMM.silence();
   if (!String(state).startsWith("c_") && typeof STABLE3D !== "undefined" && STABLE3D.active) STABLE3D.leave();
   ui.state = state;
+  if (typeof SCENES !== "undefined") SCENES.sync(state);          // scene + input context follow the UI state; held keys are released on a scene change
   document.body.classList.toggle("live3d", state === "racing" || state === "replay" || state === "parade" || state === "celebrate");
   for (const k in screens) screens[k].hidden = (k !== state);
   hud.classList.toggle("on", state === "racing" || state === "pause");
@@ -4355,6 +4357,11 @@ $("resFall").onclick = () => startHighlights(true);
 $("resPhotoBtn").onclick = () => startReplay("photo", false);
 $("rpSkip").onclick = () => HL.on ? endHighlights() : endReplay();
 function quitToMenu() { RP.on = false; race = null; clearRaceMeshes(); setMenuHorse(settings.playerHorse); show("menu"); }
+// what SCENES (scenes.js) needs from this file: leave the race world completely, and release held keys on a scene change
+const SCENE_SERVICES = {
+  leaveRace() { try { if (typeof PRESENT !== "undefined" && PRESENT.mode) PRESENT.finish(); } catch (e) {} RP.on = false; HL.on = false; race = null; clearRaceMeshes(); },
+  clearKeys() { for (const k in keys) keys[k] = false; spaceReleased(); },
+};
 function clearRaceMeshes() {
   horseMeshes.forEach(m => { world.remove(m); disposeHorse(m); }); horseMeshes.length = 0;
   disposeGroup(gateGroup); disposeGroup(markerGroup); clearToasts();
@@ -4456,8 +4463,10 @@ function frame(now) {
   let dt = Math.min(0.1, rawDt); lastT = now;
   frameN++;
   PERF.sim = 0;
-  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode));
+  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm");
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
+  // the farm: its own scene and camera; nothing of the race world is updated or drawn (and the farm is not touched during a race)
+  if (ui.state === "farm" && typeof FARM !== "undefined" && FARM.active) { FARM.frame(dt); perfFrame(rawDt, performance.now() - tF0); return; }
   // Career screens: the 3D racing stable is drawn instead of the racecourse
   if (typeof STABLE3D !== "undefined" && STABLE3D.active && !race && ui.state.startsWith("c_")) { STABLE3D.frame(dt); return; }
   // race-day presentation (parade ring / winner presentation): its own camera, the race itself is paused
@@ -4534,6 +4543,8 @@ else boot();
 <script src="venues.js"></script>
 <script src="presentation.js"></script>
 <script src="stable3d.js"></script>
+<script src="scenes.js"></script>
+<script src="farm.js"></script>
 <script src="career-core.js"></script>
 <script src="career.js"></script>
 

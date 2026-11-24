@@ -432,6 +432,7 @@ const CAREER = (() => {
     row.appendChild(navBtn("Stable", () => openStable()));
     row.appendChild(navBtn(h ? "Create Horse" : "Create Your Horse", () => openCreate(), h ? "" : "primary"));
     row.appendChild(navBtn("Office", () => openOffice()));
+    if (typeof SCENES !== "undefined" && typeof FARM !== "undefined") row.appendChild(navBtn("Farm (preview)", () => SCENES.enter("farm")));
     row.appendChild(navBtn("Rivals", () => openRivals()));
     row.appendChild(navBtn("Trophy Room", () => openTrophies()));
     row.appendChild(navBtn("Championship History", () => openHistory()));
@@ -1279,6 +1280,20 @@ const CAREER = (() => {
   // ---------- 3D backdrop for the championship screens ----------
   function previewHorse() { try { if (race) return; stage("stalls"); } catch (e) {} }
 
+  // ---------- the farm scene (farm.js): what it shows, and the way out to a race ----------
+  function farmStalls() {
+    if (!C) load();
+    const L = C.horses.slice(0, 5).map(h => ({ def: toDef(h), name: h.name, sub: rating(h) + " · age " + h.age }));
+    L.slots = slots(); return L;
+  }
+  // "travel to race": the usual event screen for the next championship round (choose the horse there)
+  function travelToNextRace() {
+    if (!C) load(); race = null; hidePanel();
+    if (!activeHorse()) { openHub(); toast("Create your first horse to begin racing", "info", 2.4); return; }
+    const s = S(); if (SEASON.done(s)) return openHub();
+    openEvent(s.cur, false);
+  }
+
   // ---------- entry ----------
   function open() { load(); race = null; hidePanel(); openHub(); }
   // multiplayer: your career horses (real ratings), and the online record (no experience, points or prize money)
@@ -1290,6 +1305,6 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline,
+  return { open, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace,
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();
