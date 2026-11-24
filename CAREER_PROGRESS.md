@@ -94,7 +94,26 @@ Racing, physics, `sim.js`, graphics kit, venues, commentary, AI and the save for
 
 ## Test report — Phase 6 (risk-based: farm/UI/career-core change — NO race physics, sim, results or difficulty change)
 
-Results are in the table below (filled from the actual runs). **Deferred, with reason:** the long racing suite (`field`, `chaos`, `avoid`, `pileup`, `pushfall`, `riding-control`, `randwick`, `flemington`, `season_balance`, `progression`, `career_difficulty`, commentary, `longrace-browser`, `auto-quality-browser`, `eleven-*`, `presentation-browser`, `tools/smooth.js`) — `sim.js`, the race loop, `gfx.js`, `venues.js`, results/rewards logic, difficulty and horse attributes were not changed (drills use `sim.js` read-only). `tests/mp-*.js`: **not run — multiplayer disabled by design.**
+Results (from the actual runs on the final code):
+
+| Test | Result |
+|---|---|
+| `node tests/phase6-core.js` (new: care, drills, Rest a day rules, fuzz) | **PASS 43 / 0** |
+| `node tests/career-core.js` | PASS 128 / 0 |
+| `tests/phase6-browser.js` (new; character/animation, horse interactions, guidance, the whole booking → stall → prepare → lead → float → load → ute → drive → gate → race → return chain, wrong horse refused, no departure without a booking, startBooked exactly once, shortcut, invalid states, drills, Rest a day, leaks, budget) | **PASS 104 / 0** (final run; ~12 earlier runs while building failed on test-setup or real bugs that were fixed — e.g. the rig's own colliders blocking it, R key edge, figure left visible in the cab) |
+| `tests/farm-flow-browser.js` | run 1: **69 / 4 failed** (the float prompt wording and the house's new "rest" point changed on purpose; plus a stale 0.15 s booking cache in the quick-departure path — a real bug, fixed); **rerun alone: 73 / 73** |
+| `tests/farm-browser.js` | PASS 34 / 34 (draw-call budget ≤ 250 held; the stall doors add one instanced mesh) |
+| `tests/scenes-browser.js` | PASS 38 / 38 |
+| `tests/career-browser.js` | PASS 114 / 114 |
+| Racing smoke: `steering-browser` | PASS 70 / 70 |
+| `start-browser` | PASS 8 / 8 |
+| `replay-lunge-browser` | PASS 9 / 9 |
+| `node tools/build-single.js` + `tests/single-browser.js` | built 8,758 KB; PASS 8 / 8 |
+| `tests/mp-*.js` | **not run — multiplayer disabled by design** |
+
+**Performance (measured):** the character is 13 draw calls / ~4,200 triangles (Phase 5: ~30 meshes); the stall doors are one instanced mesh; the guidance line adds 3 draw calls only while guiding; the farm stayed within its ≤ 250 draw-call / ≤ 500k triangle budget in `farm-browser`; per-frame cost of the new systems is small (booking read cached 0.15 s, A* only when the objective changes or you stray 3 m, ribbon alpha loop over ≤ 700 samples). Memory: three full prepare → lead → load → reset cycles leak no geometries/textures/objects (checked in `phase6-browser`). No race code was touched, so `tools/smooth.js` was not run.
+
+ **Deferred, with reason:** the long racing suite (`field`, `chaos`, `avoid`, `pileup`, `pushfall`, `riding-control`, `randwick`, `flemington`, `season_balance`, `progression`, `career_difficulty`, commentary, `longrace-browser`, `auto-quality-browser`, `eleven-*`, `presentation-browser`, `tools/smooth.js`) — `sim.js`, the race loop, `gfx.js`, `venues.js`, results/rewards logic, difficulty and horse attributes were not changed (drills use `sim.js` read-only). `tests/mp-*.js`: **not run — multiplayer disabled by design.**
 
 ## Testing policy for the remaining phases (owner's instruction, given during Phase 3) — risk-based, nothing weakened or deleted
 
@@ -387,6 +406,14 @@ Policy applied: **Tier 2 — farm-only change** (new farm files, `career.js` gai
 **Failures along the way, all fixed and re-run:** farm budget measured 263 then 251 draw calls (the float rig was split into its own group; rebuilt in one batch cell and with fewer materials → 249); scenes test expected exactly 7 farm listeners (now 9 by design). The final runs above are after those fixes.
 
 **Deferred (not run, with reason):** the full racing regression suite (`field`, `chaos`, `avoid`, `pileup`, `pushfall`, `riding`, `randwick`, `flemington`, `season_balance`, `progression`, `longrace-browser`, `auto-quality-browser`, voice/eleven tests) — race physics, timing, starting, horse attributes and results logic were **not changed**, and the racing smoke tests above passed. `tests/mp-*.js` — not run, multiplayer disabled by design.
+
+## Known issues / limits after Phase 6
+- The horse in the drive is hidden once loaded (the float is closed); the float and ute drive as ONE rigid body (no articulated trailer).
+- Training drills map the sim's progress onto the farm oval; the sim's own bends are not the farm's bends (the horse leans level). Scores are scaled against the sim's own measures and an ideal run of the same horse; drill balance (rewards 0.15–0.5 points) will be revisited in Phase 9.
+- Care changes composure/fitness/readiness only; none of it affects racing until Phase 9 wires condition into `toDef`.
+- Quality feed costs $250 through the ledger (a Phase 7 rebalance may revisit it). Optional races still pay nothing.
+- Paddocks are still empty and horses do not graze (not part of Phase 6).
+- Leaving a race mid-way after entering still advances the date (unchanged from Phase 2).
 
 ## Known issues / limits after Phase 5
 - **The drive-off is a cutscene**, not interactive (by design for this phase): you do not lead the horse out of its box yourself yet, and the race venue is not shown arriving. Phases 6 and 13 deepen it.
