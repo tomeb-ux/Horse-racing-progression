@@ -352,8 +352,8 @@ const FARMBUILD = (() => {
     stable(); house(); feedShed(); vetBay(); floatAndUte(); track(); paddocks(); courtyard(); boundary();
     const meshes = B.flush(scene, true, true);
     const rigGroup = new THREE.Group(); rigGroup.position.set(L.float.x, 0, L.float.z); scene.add(rigGroup);
-    const rigIn = new THREE.Group(); rigIn.position.set(-24, 0, -24); rigGroup.add(rigIn); for (const m of rigB.flush(rigIn, true, true)) meshes.push(m);
-    { const rg = new THREE.BoxGeometry(2.12, 0.07, 2.0); rg.translate(-1.06, 0, 0); const rm = new THREE.Mesh(rg, M.timber); rm.castShadow = true; rm.receiveShadow = true;
+    const rigIn = new THREE.Group(); rigIn.position.set(-24, 0, -24); rigGroup.add(rigIn); for (const m of rigB.flush(rigIn, true, true)) { if (m.material === M.glass) m.castShadow = false; meshes.push(m); }       // (window glass casts no shadow: one less shadow draw call)
+    { const rg = new THREE.BoxGeometry(2.12, 0.07, 2.0); rg.translate(-1.06, 0, 0); const rm = new THREE.Mesh(rg, M.timber); rm.castShadow = false; rm.receiveShadow = true;
       const hinge = new THREE.Group(); hinge.position.set(24 - 2.8, 0.72, 24); hinge.rotation.z = 0.296; hinge.add(rm); rigIn.add(hinge); rigGroup.userData.ramp = hinge; owned.geo.push(rg); }
     return { colliders: col, segs: seg, points: pts, stalls, meshes, owned, stadium, rig: rigGroup };
   }
