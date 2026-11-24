@@ -69,7 +69,21 @@ const CAREER = (() => {
 
   // ---------- data model ----------
   let C = null;                                              // the loaded career
-  function fresh() { return { v: 3, seed: (Math.random() * 2 ** 31) >>> 0, stable: "Southern Cross Stable", horses: [], active: 0, trophies: [], wins: 0, history: [], season: null, created: Date.now() }; }
+  function fresh() { return CORE.fresh(); }
+  // Bring a parsed save up to date: validate every horse, run the championship migration (v1/v2 → v3), then the career data
+  // architecture (v4: calendar, cash ledger, facilities, staff, horse age/fitness…). Nothing is removed; attributes, potential,
+  // appearance, records and trophies are untouched. `from` is the schema version found in storage.
+  function prepare(d, from) {
+    d.horses = Array.isArray(d.horses) ? d.horses.map(sanHorse).filter(Boolean) : [];
+    d.trophies = Array.isArray(d.trophies) ? d.trophies.filter(t => t && typeof t === "object") : [];
+    d.wins = Math.max(0, d.wins | 0);
+    d.active = clampN(d.active | 0, 0, Math.max(0, d.horses.length - 1));
+    d.stable = cleanName(d.stable, "Southern Cross Stable");
+    SEASON.migrate(d);                                       // v1/v2 saves: horses, trophies, records kept; championship + rivals added
+    CORE.migrate(d, { from });                               // v3 → v4 (idempotent)
+    return d;
+  }
+  let lastBackup = null;                                     // result of the most recent pre-migration backup (tests / Office)
   function load() {
     let raw = null;
     try { raw = localStorage.getItem("ff_career"); } catch (e) {}
@@ -78,18 +92,23 @@ const CAREER = (() => {
       try { localStorage.setItem("ff_career_backup_" + Date.now(), raw); } catch (e) {}
       toast && setTimeout(() => toast("Your previous career save couldn't be read — a backup copy was kept", "warn", 4), 500);
     }
+    let from = CORE.V;
     if (!d || typeof d !== "object") d = fresh();
-    else if ((d.v | 0) < 3) { try { localStorage.setItem("ff_career_v" + (d.v | 0) + "_backup", raw); } catch (e) {} }   // pre-migration copy
-    d.horses = Array.isArray(d.horses) ? d.horses.map(sanHorse).filter(Boolean) : [];
-    d.trophies = Array.isArray(d.trophies) ? d.trophies.filter(t => t && typeof t === "object") : [];
-    d.wins = Math.max(0, d.wins | 0);
-    d.active = clampN(d.active | 0, 0, Math.max(0, d.horses.length - 1));
-    d.stable = cleanName(d.stable, "Southern Cross Stable");
-    SEASON.migrate(d);                                       // v1/v2 saves: horses, trophies, records kept; championship + rivals added
-    d.v = 3;
+    else {
+      from = d.v | 0;
+      if (from !== CORE.V) {                                   // an older save is about to be upgraded (or a newer one opened by an older build): keep a copy of the exact stored text, read back to prove it was written
+        lastBackup = CORE.backup(localStorage, raw, "v" + from);
+        if (!lastBackup.ok) toast && setTimeout(() => toast("Couldn't make a backup copy of your older save — use Office → Export to keep one", "warn", 5), 600);
+      }
+    }
+    prepare(d, from);
     C = d; save(); return d;
   }
-  function save() { try { store.set("career", C); } catch (e) {} }
+  let saveWarned = false;
+  function save() {
+    try { localStorage.setItem("ff_career", JSON.stringify(C)); return true; }
+    catch (e) { if (!saveWarned) { saveWarned = true; try { toast("Your career couldn't be saved — browser storage is full or blocked. Use Office → Export to keep a copy.", "warn", 6); } catch (e2) {} } return false; }
+  }
   // career horse names: chosen from the list the commentator has recordings for (an older horse keeps its own name)
   const PLAYER_NAMES = (typeof SEASON !== "undefined" && SEASON.PLAYER_NAMES) || [];
   function nameChoices() { const cur = draft && draft.name; return cur && !PLAYER_NAMES.includes(cur) ? [cur].concat(PLAYER_NAMES) : PLAYER_NAMES; }
@@ -123,6 +142,7 @@ const CAREER = (() => {
       offRaces: Math.max(0, h.offRaces | 0), offWins: Math.max(0, h.offWins | 0), champPts: Math.max(0, h.champPts | 0), majors: Math.max(0, h.majors | 0),
       prize: Math.max(0, +h.prize || 0), trained: Math.max(0, h.trained | 0),
       history: Array.isArray(h.history) ? h.history.filter(e => e && typeof e === "object").slice(-40) : [],
+      ...CORE.keepHorse(h),                                  // v4 fields (age, fitness, growth…) are kept when present; migration fills the rest
       // online races (multiplayer): a record only — no experience, training points or championship points
       online: (() => { const o = h.online && typeof h.online === "object" ? h.online : {};
         return { runs: Math.max(0, o.runs | 0), wins: Math.max(0, o.wins | 0), places: Math.max(0, o.places | 0),
@@ -328,6 +348,16 @@ const CAREER = (() => {
   }
   const camBar = (extra) => `<button data-cam="full">Full body</button><button data-cam="head">Head</button><button data-cam="legs">Legs</button>${extra || ""}<button data-cam="rear">Rear</button><button data-cam="out">−</button><button data-cam="in">+</button><button data-cam="full" title="Reset camera">⟲ Reset</button>`;
   const posTxt = n => ordinal(n);
+  // the date / time of day / forecast of a championship round, as small facts for the event screens
+  function evBits(idx) {
+    const e = CORE.roundEvent(C, idx); if (!e) return "";
+    return `<span>Scheduled <b>${CORE.fmtDate(e.day)}</b></span><span><b>${CORE.TOD_LABEL[e.tod] || ""}</b></span><span>Forecast <b>${CORE.WX_LABEL[e.forecast.weather] || ""}</b></span>`;
+  }
+  function optBits(id) {
+    const e = CORE.nextMeeting(C, id); if (!e) return "";
+    return `<span>Next meeting <b>${CORE.fmtDate(e.day, { short: true })}</b></span><span><b>${CORE.TOD_LABEL[e.tod] || ""}</b></span>`;
+  }
+  const money = n => (n < 0 ? "−$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-AU");
   function resLabel(e) { return !e ? "—" : e.place > 0 ? ordinal(e.place) : "DNF"; }
   // ---------- the 3D stable stage ----------
   function stage(mode, opts) {
@@ -349,7 +379,7 @@ const CAREER = (() => {
 
   // ---------- HUB / DASHBOARD ----------
   function openHub() {
-    style();
+    style(); CORE.syncCalendar(C);
     const el = screen("hub"), h = activeHorse(), s = S(), D = div(), list = SEASON.standings(C), me = list.find(r => r.you);
     const over = SEASON.done(s);
     const nextIdx = s.cur, nm = over ? null : SEASON.roundDef(s, nextIdx), rd = over ? null : s.rounds[nextIdx];
@@ -364,12 +394,14 @@ const CAREER = (() => {
           <div class="car-row" style="margin-top:10px"><button class="btn primary" id="hubFinish">View Final Standings</button></div></div>`
       : `<div class="car-panel car-next"><div class="car-sub">Next event · Round ${nextIdx + 1} of ${s.rounds.length}${nm.major ? " · ★ Feature race" : ""}</div>
           <h3>${esc(nm.name)}</h3>
-          <div class="car-kv"><span><b>${esc(nm.venue)}</b></span><span><b>${fmtDist(nm.dist)}</b> ${distLbl(nm.dist)}</span><span><b>${going(rd.going)}</b> going</span><span>${esc(nm.grade)}</span><span>Prize <b>${nm.prize}</b></span><span>Field <b>${nm.field}</b></span><span>Stable standing <b>${posTxt(me.rank)}</b></span></div>
+          <div class="car-kv"><span><b>${esc(nm.venue)}</b></span><span><b>${fmtDist(nm.dist)}</b> ${distLbl(nm.dist)}</span><span><b>${going(rd.going)}</b> going</span><span>${esc(nm.grade)}</span><span>Prize <b>${nm.prize}</b></span><span>Field <b>${nm.field}</b></span>${evBits(nextIdx)}<span>Stable standing <b>${posTxt(me.rank)}</b></span></div>
           <div class="car-row" style="margin-top:12px"><button class="btn primary" id="hubEnter">Select Horse &amp; Enter</button><button class="btn" id="hubView">View Event</button><button class="btn" id="hubSkip">Skip Round</button></div></div>`;
     page(el, `
       <div class="car-panel car-row" style="justify-content:space-between;align-items:flex-end">
         <div><div class="car-sub">Career Mode</div><h2 id="hubStable" title="Click to rename your stable" style="cursor:pointer">${esc(C.stable)} <span style="font-size:14px;color:var(--fg-dim)">✎</span></h2></div>
         <div class="car-row" style="gap:18px">
+          <div><div class="car-sub">Date</div><div class="car-big" id="hubDate" style="font-size:16px">${CORE.fmtDate(C.day)}</div></div>
+          <div><div class="car-sub">Cash</div><div class="car-big" id="hubCash" style="font-size:16px;color:var(--good)">${money(C.cash)}</div></div>
           <div><div class="car-sub">Season</div><div class="car-big">${s.n}</div></div>
           <div><div class="car-sub">Championship</div><div class="car-big" style="font-size:16px">${D.name}</div></div>
           <div><div class="car-sub">Round</div><div class="car-big">${Math.min(s.cur + 1, s.rounds.length)}<span style="font-size:13px;color:var(--fg-dim)">/${s.rounds.length}</span></div></div>
@@ -399,6 +431,7 @@ const CAREER = (() => {
     }
     row.appendChild(navBtn("Stable", () => openStable()));
     row.appendChild(navBtn(h ? "Create Horse" : "Create Your Horse", () => openCreate(), h ? "" : "primary"));
+    row.appendChild(navBtn("Office", () => openOffice()));
     row.appendChild(navBtn("Rivals", () => openRivals()));
     row.appendChild(navBtn("Trophy Room", () => openTrophies()));
     row.appendChild(navBtn("Championship History", () => openHistory()));
@@ -458,7 +491,7 @@ const CAREER = (() => {
       <div class="car-panel car-next">
         <div class="car-sub">${optional ? "Optional race · experience & records only — no championship points" : `Season ${s.n} · ${div().name} · Round ${idx + 1} of ${s.rounds.length}`}</div>
         <h3>${meta.crown ? "★ " : ""}${esc(meta.name)}</h3>
-        <div class="car-kv"><span><b>${esc(meta.venue)}</b></span><span><b>${fmtDist(meta.dist)}</b> ${distLbl(meta.dist)}</span><span><b>${going(g)}</b> going</span><span>${esc(meta.grade)}</span><span>Field <b>${meta.field}</b></span>${meta.prize ? `<span>Prize <b>${meta.prize}</b></span>` : ""}${optional ? "" : `<span>Stable standing <b>${posTxt(me.rank)}</b> · ${me.pts} pts</span>`}</div>
+        <div class="car-kv"><span><b>${esc(meta.venue)}</b></span><span><b>${fmtDist(meta.dist)}</b> ${distLbl(meta.dist)}</span><span><b>${going(g)}</b> going</span><span>${esc(meta.grade)}</span><span>Field <b>${meta.field}</b></span>${optional ? optBits(meta.id) : evBits(idx)}${meta.prize ? `<span>Prize <b>${meta.prize}</b></span>` : ""}${optional ? "" : `<span>Stable standing <b>${posTxt(me.rank)}</b> · ${me.pts} pts</span>`}</div>
         ${meta.note ? `<div style="font-size:12.5px;margin-top:6px;color:var(--accent)">${esc(meta.note)}</div>` : ""}
         <div class="car-sub" style="margin-top:10px">Entry requirements</div>${reqHtml}
         ${optional ? "" : `<div style="font-size:12px;color:var(--fg-dim);margin-top:6px">One horse represents ${esc(C.stable)} in this round. Points: 1st 15 · 2nd 12 · 3rd 10 · 4th 8 · 5th 6 · 6th 5 · 7th 4 · 8th 3 · 9th 2 · 10th 1. Chaos Mode is never used in championship racing.</div>`}
@@ -514,9 +547,93 @@ const CAREER = (() => {
   function doSkip(idx) {
     const s = S(); if (idx !== s.cur) return openHub();
     const meta = SEASON.roundDef(s, idx);
-    const r = SEASON.skipRound(C); save();
+    const r = SEASON.skipRound(C); if (r) CORE.enterRound(C, idx); save();
     if (r) { const w = r.res.find(e => e.place === 1); toast("Round skipped · " + meta.name + " won by " + (w ? w.name : "—"), "info", 2.4); }
     openHub();
+  }
+
+  // ---------- OFFICE: cash and ledger, the dated calendar, horse condition, save export / import ----------
+  // import: validate the file, upgrade it exactly as a stored save is upgraded, check its money record — and only then (after a
+  // verified backup of the current career) replace the stored save. Nothing is touched if any step fails.
+  function importPrepare(text) {
+    const p = CORE.parseImport(text); if (!p.ok) return p;
+    let d; try { d = prepare(JSON.parse(JSON.stringify(p.career)), p.from); } catch (e) { return { ok: false, error: "That save couldn't be upgraded safely: " + e.message }; }
+    const bad = CORE.audit(d); if (bad.length) return { ok: false, error: "The save's money record is inconsistent (" + bad[0] + ")." };
+    return { ok: true, career: d, from: p.from, summary: { stable: d.stable, horses: d.horses.length, names: d.horses.map(h => h.name), season: d.season && d.season.n, cash: d.cash, day: d.day } };
+  }
+  function importText(text) {
+    const r = importPrepare(text); if (!r.ok) return r;
+    let raw = null; try { raw = localStorage.getItem("ff_career"); } catch (e) {}
+    if (raw) { const b = CORE.backup(localStorage, raw, "pre_import"); if (!b.ok) return { ok: false, error: "Couldn't back up your current career first, so nothing was changed." }; r.backup = b.key; }
+    const out = JSON.stringify(r.career);
+    try { localStorage.setItem("ff_career", out); } catch (e) { return { ok: false, error: "Browser storage refused the imported save; your current career is unchanged." }; }
+    pending = null; load();
+    return r;
+  }
+  const exportText = () => CORE.exportSave(C);
+  const DEV_LABEL = { early: "Early developer", avg: "Average developer", late: "Late developer" };
+  function openOffice() {
+    style(); CORE.syncCalendar(C);
+    const el = screen("office"), s = S();
+    const sn = CORE.seasonOfDay(C.day), fin = C.fin[sn] || { in: 0, out: 0, by: {} };
+    const ledger = C.ledger.slice(-25).reverse();
+    const ups = CORE.upcoming(C, 14);
+    const evRow = e => { const m = BY_ID[e.ref] || {};
+      return `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td><b>${esc(m.name || e.ref)}</b>${e.kind === "round" ? ` <span class="car-tag car-won">Round ${e.round + 1}</span>` : ` <span class="car-tag">Optional</span>`}</td><td class="hide-s">${esc(e.venue)}</td><td>${fmtDist(m.dist || 0)}</td><td class="hide-s">${esc(m.grade || "")}</td><td class="hide-s">${m.prize || "—"}</td><td>${CORE.TOD_LABEL[e.tod] || ""}</td><td>${CORE.WX_LABEL[e.forecast.weather] || ""} · ${going(e.forecast.going)}</td></tr>`; };
+    const seasons = Object.keys(C.fin).map(Number).sort((a, b) => b - a).slice(0, 4);
+    const bk = CORE.listBackups(localStorage);
+    page(el, `<h2>Stable Office</h2>
+      <div class="car-sub">${esc(C.stable)} · ${CORE.fmtDate(C.day)} · ${CORE.seasonLabel(sn)} season</div>
+      <div class="car-panel car-row" style="justify-content:space-between;align-items:flex-end">
+        <div><div class="car-sub">Cash</div><div class="car-big" id="ofCash" style="font-size:30px;color:var(--good)">${money(C.cash)}</div></div>
+        <div class="car-kv"><span>This season: income <b>${money(fin.in)}</b></span><span>spending <b>${money(fin.out)}</b></span><span>net <b>${money(fin.in - fin.out)}</b></span></div>
+      </div>
+      <div class="car-panel"><div class="car-sub">Ledger — most recent first</div>
+        ${ledger.length ? `<table class="car-tbl"><tr><th>Date</th><th>Item</th><th style="text-align:right">Amount</th><th style="text-align:right" class="hide-s">Balance</th></tr>
+        ${ledger.map(e => `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td>${esc(e.note || e.kind)}</td><td style="text-align:right;color:${e.amount < 0 ? "var(--bad)" : "var(--good)"}">${e.amount < 0 ? "−" : "+"}${money(Math.abs(e.amount))}</td><td style="text-align:right" class="hide-s">${money(e.bal)}</td></tr>`).join("")}</table>`
+        : `<div style="font-size:13px;color:var(--fg-dim)">No transactions yet.</div>`}
+        ${seasons.length ? `<div class="car-sub" style="margin-top:10px">Season summaries</div><table class="car-tbl"><tr><th>Season</th><th style="text-align:right">Income</th><th style="text-align:right">Spending</th><th style="text-align:right">Net</th></tr>
+        ${seasons.map(n => { const f = C.fin[n]; return `<tr><td>${CORE.seasonLabel(n)}</td><td style="text-align:right">${money(f.in)}</td><td style="text-align:right">${money(f.out)}</td><td style="text-align:right">${money(f.in - f.out)}</td></tr>`; }).join("")}</table>` : ""}
+        <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Prize money for places 1–5 in a championship round is paid once into the stable's cash. Nothing can be bought yet — spending arrives in a later update.</div></div>
+      <div class="car-panel"><div class="car-sub">Calendar — upcoming</div>
+        <table class="car-tbl"><tr><th>Date</th><th>Race</th><th class="hide-s">Venue</th><th>Distance</th><th class="hide-s">Grade</th><th class="hide-s">Prize</th><th>Time</th><th>Forecast</th></tr>${ups.map(evRow).join("") || `<tr><td colspan="8">No events left this season.</td></tr>`}</table>
+        <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Championship rounds are run in order on their dates; optional races can be entered at any time and take a day of calendar time. Time of day and weather are fixed for each event now and shown on the race itself in a later update.</div></div>
+      ${C.horses.length ? `<div class="car-panel"><div class="car-sub">Horse condition</div>
+        <table class="car-tbl"><tr><th>Horse</th><th>Age</th><th class="hide-s">Stage</th><th>Fitness</th><th>Development</th><th class="hide-s">Last raced</th></tr>
+        ${C.horses.map(h => `<tr><td><b>${esc(h.name)}</b></td><td>${h.age}</td><td class="hide-s">${CORE.ageStage(h.age)}</td><td>${h.fitness}</td><td>${DEV_LABEL[h.growth.type] || ""}</td><td class="hide-s">${h.lastRaceDay != null ? CORE.fmtDate(h.lastRaceDay, { short: true }) : "—"}</td></tr>`).join("")}</table>
+        <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Horses age on 1 August. Age, fitness and development are recorded from now on but do not change how a horse races yet — your horses' ratings are exactly as before.</div></div>` : ""}
+      <div class="car-panel"><div class="car-sub">Save &amp; backups</div>
+        <div style="font-size:12.5px;color:var(--fg-dim);margin:2px 0 8px">Your career is saved in this browser. Export a copy to keep it safe or move it to another device. Importing never overwrites your current career without making a backup first.</div>
+        <div class="car-row"><button class="btn" id="ofExport">Download career file</button><button class="btn" id="ofCopy">Copy to clipboard</button><button class="btn" id="ofFileBtn">Import from file…</button><input type="file" id="ofFile" accept=".json,application/json" hidden></div>
+        <textarea id="ofPaste" class="car-in" rows="3" placeholder="…or paste an exported career here" style="width:100%;margin-top:8px;font-size:12px"></textarea>
+        <div class="car-row" style="margin-top:6px"><button class="btn" id="ofPasteGo">Check pasted career</button></div>
+        <div id="ofMsg" style="margin-top:8px;font-size:13px"></div>
+        ${bk.length ? `<div class="car-sub" style="margin-top:10px">Backup copies kept in this browser</div><div style="font-size:12px;color:var(--fg-dim)">${bk.map(b => `${esc(b.key.replace("ff_career_", ""))} (${Math.round(b.bytes / 1024)} KB)`).join(" · ")}</div>` : ""}
+      </div>
+      <div class="car-row"><button class="btn" id="ofBack">Back</button></div>`);
+    const q = id => el.querySelector(id), msg = (t, bad) => { q("#ofMsg").innerHTML = t; q("#ofMsg").style.color = bad ? "var(--bad)" : "var(--fg)"; };
+    q("#ofBack").onclick = () => openHub();
+    q("#ofExport").onclick = () => {
+      try { const text = exportText(), a = document.createElement("a"), d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+        a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = "final-furlong-career-" + stamp + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+        msg("Career file downloaded (" + Math.round(text.length / 1024) + " KB). If nothing downloaded, use “Copy to clipboard” instead."); } catch (e) { msg("Couldn't create the file: " + esc(e.message), true); } };
+    q("#ofCopy").onclick = () => { const text = exportText();
+      const fallback = () => { const ta = q("#ofPaste"); ta.value = text; ta.select(); try { document.execCommand("copy"); msg("Copied. (If it didn't copy, the text is in the box below — select it all and copy.)"); } catch (e) { msg("Select the text in the box below and copy it."); } };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => msg("Career copied to the clipboard (" + Math.round(text.length / 1024) + " KB)."), fallback); else fallback(); };
+    const confirmImport = text => {
+      const r = importPrepare(text); if (!r.ok) return msg("✗ " + esc(r.error), true);
+      const sm = r.summary;
+      msg(`<div><b>${esc(sm.stable)}</b> · ${sm.horses} horse${sm.horses === 1 ? "" : "s"}${sm.horses ? " (" + sm.names.map(esc).join(", ") + ")" : ""} · season ${sm.season} · ${money(sm.cash)} · ${CORE.fmtDate(sm.day)}${r.from < CORE.V ? ` · upgraded from v${r.from}` : ""}</div>
+        <div style="margin:6px 0">Replace your current career with this one? A backup of your current career is made first.</div>
+        <div class="car-row"><button class="btn primary" id="ofYes">Replace my career</button><button class="btn" id="ofNo">Cancel</button></div>`);
+      q("#ofNo").onclick = () => msg("Import cancelled — nothing was changed.");
+      q("#ofYes").onclick = () => { const res = importText(text); if (!res.ok) return msg("✗ " + esc(res.error), true); toast("Career imported" + (res.backup ? " — your previous career was backed up" : ""), "good", 2.4); openHub(); };
+    };
+    q("#ofPasteGo").onclick = () => confirmImport(q("#ofPaste").value);
+    q("#ofFileBtn").onclick = () => q("#ofFile").click();
+    q("#ofFile").onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; if (f.size > 6 * 1024 * 1024) return msg("✗ That file is too large to be a career save.", true); const rd = new FileReader(); rd.onload = () => confirmImport(String(rd.result || "")); rd.onerror = () => msg("✗ The file couldn't be read.", true); rd.readAsText(f); };
+    el.querySelectorAll("textarea,input").forEach(i => i.addEventListener("keydown", e => e.stopPropagation()));
+    show("c_office");
   }
 
   // ---------- RIVALS ----------
@@ -574,7 +691,7 @@ const CAREER = (() => {
       return `<div class="car-race${ok ? "" : " locked"}">
         <div><div class="car-row" style="gap:8px"><span class="gr">${esc(r.grade)}</span></div>
           <b style="font-family:var(--font-d);font-size:16px">${esc(r.name)}</b>
-          <div class="meta">${esc(r.venue)} · ${fmtDist(r.dist)} ${distLbl(r.dist)} · field of ${r.field}${r.note ? " · " + esc(r.note) : ""}</div></div>
+          <div class="meta">${esc(r.venue)} · ${fmtDist(r.dist)} ${distLbl(r.dist)} · field of ${r.field}${(() => { const e = CORE.nextMeeting(C, r.id); return e ? " · next meeting " + CORE.fmtDate(e.day, { short: true }) : ""; })()}${r.note ? " · " + esc(r.note) : ""}</div></div>
         <div><button class="btn${ok ? " primary" : ""} small car-btn" data-o="${r.id}">${ok ? "Select" : "Details"}</button></div></div>`;
     }).join("");
     page(el, `<h2>Optional Races</h2>
@@ -601,11 +718,11 @@ const CAREER = (() => {
       return `<div class="car-race${cur ? " cur" : ""}${past ? " past" : ""}">
         <div><div class="car-row" style="gap:8px"><span class="gr">R${i + 1} · ${esc(m.grade)}</span>${m.crown ? '<span class="car-tag car-won">★ Crown jewel</span>' : m.major ? '<span class="car-tag car-won">Feature</span>' : ""}</div>
           <b style="font-family:var(--font-d);font-size:16px">${esc(m.name)}</b>
-          <div class="meta">${esc(m.venue)} · ${fmtDist(m.dist)} ${distLbl(m.dist)} · ${going(rd.going)} · ${m.prize}</div></div>
+          <div class="meta">${(() => { const e = CORE.roundEvent(C, i); return e ? CORE.fmtDate(e.day) + " · " + (CORE.TOD_LABEL[e.tod] || "") + " · " : ""; })()}${esc(m.venue)} · ${fmtDist(m.dist)} ${distLbl(m.dist)} · ${going(rd.going)} · ${m.prize}</div></div>
         <div style="text-align:right">${status}</div></div>`;
     }).join("");
     page(el, `<h2>Season ${s.n} Calendar</h2>
-      <div class="car-sub">${D.name} · ${s.rounds.length} rounds · round ${Math.min(s.cur + 1, s.rounds.length)} next</div>
+      <div class="car-sub">${D.name} · ${CORE.seasonLabel(s.n)} season · ${s.rounds.length} rounds · round ${Math.min(s.cur + 1, s.rounds.length)} next · today is ${CORE.fmtDate(C.day)}</div>
       <div class="car-panel">${rows}</div>
       <div class="car-row"><button class="btn" id="calOpt">Optional Races</button><button class="btn" id="calBack">Back</button></div>`);
     el.querySelector("#calBack").onclick = () => openHub();
@@ -641,7 +758,7 @@ const CAREER = (() => {
       <div class="car-panel">${standingsTable(list, D.promote)}</div>
       <div class="car-row"><button class="btn primary" id="seGo">Finish Season &amp; Start Season ${s.n + 1}</button><button class="btn" id="seBack">Back</button></div>`);
     el.querySelector("#seGo").onclick = () => {
-      const r = SEASON.closeSeason(C); save();
+      const r = SEASON.closeSeason(C); if (r) CORE.startSeason(C); save();
       if (r && r.trophy) setTimeout(() => toast("Championship trophy added to the cabinet", "gold", 2.4), 300);
       openHub();
     };
@@ -1017,6 +1134,7 @@ const CAREER = (() => {
     const d = draftDef();
     const h = sanHorse({ name, say: draft.say, look: d.look, silk: d.silk, silk2: d.silk2, silkPat: d.silkPat, attrs: Object.assign({}, draft.attrs), pot: potOf(draft), potSet: true, born: S().n,
       xp: 0, trainPts: 0, lvl: 1, races: 0, wins: 0, places: 0, podiums: 0, history: [] });
+    CORE.fillHorse(h, C, { how: "created", age: 3, fitness: 100 });
     C.horses.push(h); C.active = C.horses.length - 1; save(); draft = null;
     toast(esc(h.name) + " moves into box " + C.horses.length + "!", "good", 2);
     openProfile(C.active);
@@ -1052,7 +1170,7 @@ const CAREER = (() => {
     const s = S(), h = C.horses[hi], meta = SEASON.roundDef(s, idx);
     if (!h || idx !== s.cur || SEASON.done(s) || s.rounds[idx].st !== "open") return openHub();
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
-    C.active = hi; save();
+    C.active = hi; CORE.enterRound(C, idx); save();           // the date becomes the round's scheduled day
     pending = { kind: "off", season: s.n, round: idx, hid: h.id };
     const opp = raceDayField(SEASON.runners(C, idx), meta, h, idx === s.rounds.length - 1);
     launch(competitiveCfg(meta, h, opp, s.rounds[idx].going, {
@@ -1118,7 +1236,14 @@ const CAREER = (() => {
     let lv = 0; while (h.xp >= xpForLevel(h.lvl)) { h.xp -= xpForLevel(h.lvl); h.lvl++; lv++; }
     if (!dnf) { if (place === 1) h.wins++; if (place <= 3) h.podiums++; if (place <= 4) h.places++; }
     if (P.kind === "off") { h.offRaces++; if (place === 1) h.offWins++; h.champPts += summary.pts; }
-    h.history.push({ raceId: meta.id, name: meta.name, place: dnf ? 0 : place, field, dnf, t: Date.now(), dist: meta.dist, tier: meta.tier || 0, off: P.kind === "off", season: P.kind === "off" ? P.season : null });
+    // prize money (places 1–5): credited once through the ledger. The key names this race instance + horse, so a replayed
+    // result, a reload or a second call can never pay it twice. The horse's own prize record only grows by what was credited.
+    let prize = 0;
+    if (!dnf && place >= 1 && place <= 5) {
+      const pr = CORE.awardPrize(C, P.kind === "off" ? `prize:s${P.season}:${meta.id}:${h.id}` : `prize:o${P.optN}:${meta.id}:${h.id}`, meta, place, h.name);
+      if (pr.ok) { prize = pr.amount; h.prize += prize; }
+    }
+    h.history.push({ raceId: meta.id, name: meta.name, place: dnf ? 0 : place, field, dnf, t: Date.now(), dist: meta.dist, tier: meta.tier || 0, off: P.kind === "off", season: P.kind === "off" ? P.season : null, day: C.day, prize });
     if (h.history.length > 40) h.history.shift();
     // 3. trophies + career wins (official feature wins only; optional races never award trophies)
     let trophy = false;
@@ -1126,17 +1251,18 @@ const CAREER = (() => {
       if (P.kind === "off" || (meta.tier || 0) >= 2) C.wins++;
       if (P.kind === "off" && meta.major && !C.trophies.some(t => t.raceId === meta.id && t.season === P.season)) { C.trophies.push({ raceId: meta.id, race: meta.name, horse: h.name, season: P.season, t: Date.now() }); trophy = true; h.majors++; }
     }
-    if (!dnf && place <= 3 && meta.prize) h.prize += Math.round((+String(meta.prize).replace(/[^0-9]/g, '') || 0) * [0.6, 0.2, 0.1][place - 1]);   // prize money: a record only
+    CORE.afterRace(C, h, meta, { going: r.cfg.going, dnf });         // post-race fitness + the date of the run (no effect on racing yet)
+    if (P.kind === "opt") CORE.afterOptional(C);                      // an optional race takes a day (never past the next open round)
     save();
     // feedback on the results screen
-    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy });
+    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy, prize });
     if (trophy) setTimeout(() => showMsg((meta.crown ? "★ " : "") + "YOU'VE WON THE " + meta.name.toUpperCase() + "!", 2.6), 900);
   }
   function renderPanel(o) {
     let el = document.getElementById("resCareerPanel");
     if (!el) { el = document.createElement("div"); el.id = "resCareerPanel"; el.className = "panel"; const row = document.getElementById("resAgain").parentElement; row.parentElement.insertBefore(el, row); }
     el.hidden = false;
-    const gain = `XP +${o.xp} · Training +${o.tp}${o.lv ? " · Level " + o.h.lvl : ""}`;
+    const gain = `XP +${o.xp} · Training +${o.tp}${o.lv ? " · Level " + o.h.lvl : ""}${o.prize ? ` · Prize ${money(o.prize)} · Cash ${money(C.cash)}` : ""}`;
     if (o.P.kind === "opt") { el.innerHTML = `<div class="cp-sub">${esc(o.meta.name)} · optional race</div><div class="cp-pts">${gain}</div><div class="cp-sub">No championship points — the season is unchanged.</div>`; return; }
     const s = o.summary, list = SEASON.standings(C), lead = list[0];
     const behind = s.behind ? `${s.behind} POINT${s.behind === 1 ? "" : "S"} BEHIND ${esc(lead.name).toUpperCase()}` : (list[1] ? `LEADING BY ${lead.pts - list[1].pts} POINT${lead.pts - list[1].pts === 1 ? "" : "S"}` : "LEADING");
@@ -1165,5 +1291,5 @@ const CAREER = (() => {
     save(); return true;
   }
   return { open, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline,
-    _test: { enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
+    _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

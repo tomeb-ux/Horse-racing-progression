@@ -42,6 +42,8 @@ const SPEECH_STUB = () => {
       { id: 'hOLD2', name: 'Second Wind', look: { type: 'grey', coat: '#b9b3aa', face: 'blaze', socks: [0, 0, 0, 0], maneCol: '#8c8984', tailCol: '#8c8984', build: 0.85 }, silk: '#d62828', silk2: '#f4f1ea', silkPat: 'hoops',
         attrs: { top: 60, acc: 55, end: 70, spr: 55, rec: 66, tem: 60, agi: 55, sta: 52 }, pot: { top: 80, acc: 70, end: 90, spr: 70, rec: 85, tem: 72, agi: 66, sta: 66 }, xp: 0, trainPts: 0, lvl: 1, races: 0, wins: 0, places: 0, podiums: 0, history: [] },
     ] };
+  V1.horses[0].prize = 250000;
+  const V1_TEXT = JSON.stringify(V1);
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
   await p.goto(BASE); await p.evaluate(v1 => localStorage.setItem('ff_career', JSON.stringify(v1)), V1);
   await p.reload(); await p.waitForFunction(() => typeof CAREER !== 'undefined' && typeof COMM !== 'undefined' && typeof SEASON !== 'undefined');
@@ -52,10 +54,41 @@ const SPEECH_STUB = () => {
   ok(!(await p.$('#btnChamp')), 'stand-alone Championship button removed (Career is the championship)');
   await p.click('#btnCareer'); await sleep(300);
   const mig = await p.evaluate(() => { const C = CAREER.data; return { v: C.v, n: C.horses.length, names: C.horses.map(h => h.name), tro: C.trophies.length, wins: C.wins, stable: C.stable, season: C.season && C.season.n, div: C.season && C.season.div, hist: C.horses[0].history.map(e => e.dist + '/' + e.tier), xp: C.horses[0].xp, lvl: C.horses[0].lvl, attrs: C.horses[0].attrs.top }; });
-  ok(mig.v === 3 && mig.n === 2 && mig.names.join() === 'Legacy Lad,Second Wind' && mig.tro === 1 && mig.wins === 7 && mig.stable === 'Old Timers Stable' && mig.lvl === 4 && mig.attrs === 70, `v1 save migrated to v3 with horses, trophies, wins and progression intact (${JSON.stringify(mig)})`);
+  ok(mig.v === 4 && mig.n === 2 && mig.names.join() === 'Legacy Lad,Second Wind' && mig.tro === 1 && mig.wins === 7 && mig.stable === 'Old Timers Stable' && mig.lvl === 4 && mig.attrs === 70, `v1 save migrated to v4 with horses, trophies, wins and progression intact (${JSON.stringify(mig)})`);
   ok(mig.season === 1 && mig.div === 0 && mig.hist.join() === '1200/1,1200/2', 'a championship season was added and old race history gained distance/grade facts');
   ok(await p.evaluate(() => ui.state === 'c_hub' && /NEXT EVENT|Next event/i.test(document.getElementById('car_hub').textContent) && /Maiden Plate/.test(document.getElementById('car_hub').textContent)), 'dashboard shows the next championship event (Maiden Plate)');
 
+
+  console.log('\n— Phase 2: save v4 migration, backup, date and cash (existing career plays on)');
+  const bk = await p.evaluate(() => ({ v1: localStorage.getItem('ff_career_v1_backup'), last: CAREER._test.lastBackup }));
+  ok(bk.v1 === V1_TEXT && bk.last && bk.last.ok && bk.last.key === 'ff_career_v1_backup', 'before migrating, the v1 save was backed up byte-for-byte (ff_career_v1_backup) and read back');
+  const m4 = await p.evaluate(() => { const C = CAREER.data; return { v: C.v, cash: C.cash, ledger: C.ledger.map(e => e.amount + ':' + e.kind), audit: CORE.audit(C), day: C.day, date: CORE.fmtDate(C.day), cal: C.cal.events.length, ages: C.horses.map(h => h.age + '/' + h.fitness + '/' + h.acquired.how),
+    stored: JSON.parse(localStorage.getItem('ff_career')).v, attrs: C.horses.map(h => JSON.stringify(h.attrs)).join(), pots: C.horses.map(h => JSON.stringify(h.pot)).join(), looks: C.horses.map(h => JSON.stringify(h.look)).join(), silks: C.horses.map(h => h.silk + h.silk2 + h.silkPat).join() }; });
+  ok(m4.v === 4 && m4.stored === 4 && m4.cash === 175000 && m4.ledger.join() === '150000:start,25000:start' && m4.audit.length === 0, `migrated money: $150,000 package + $25,000 credit (10% of the recorded $250,000), ledger audit clean (${m4.ledger})`);
+  ok(m4.ages.join() === '3/90/migrated,3/90/migrated' && m4.day === 0 && m4.cal === 34, `migrated horses have age 3 and fitness 90; the date is the season start (${m4.date}) and the programme has ${m4.cal} dated events`);
+  ok(m4.attrs === JSON.stringify(V1.horses[0].attrs) + ',' + JSON.stringify(V1.horses[1].attrs) && m4.pots === JSON.stringify(V1.horses[0].pot) + ',' + JSON.stringify(V1.horses[1].pot) && m4.silks === V1.horses.map(h => h.silk + h.silk2 + h.silkPat).join(), 'attributes, potential and silks of the old horses are exactly as saved');
+  ok(await p.evaluate(h => CAREER.data.horses.every((x, i) => JSON.stringify(x.look) === JSON.stringify(Object.assign({}, x.look, h[i].look)) && x.look.face === h[i].look.face && x.look.coat === h[i].look.coat), V1.horses), 'custom appearance (coat, face markings, socks) survives migration');
+  // a second load of the already-migrated save must not migrate, back up again or change anything
+  const n1 = await p.evaluate(() => Object.keys(localStorage).filter(k => /backup/.test(k)).length + ':' + localStorage.getItem('ff_career').length);
+  await p.reload(); await p.waitForFunction(() => typeof CAREER !== 'undefined'); await p.evaluate(() => { window.__rr = renderer.render.bind(renderer); renderer.render = () => {}; CAREER.open(); });
+  ok(await p.evaluate(n => Object.keys(localStorage).filter(k => /backup/.test(k)).length + ':' + localStorage.getItem('ff_career').length === n && CAREER._test.lastBackup === null, n1), 'reloading the migrated save changes nothing: no new backup, same stored size');
+  // the dashboard
+  await p.evaluate(() => CAREER.open()); await sleep(150);
+  const hub = await p.evaluate(() => ({ date: document.getElementById('hubDate').textContent, cash: document.getElementById('hubCash').textContent, txt: document.getElementById('car_hub').textContent, office: [...document.querySelectorAll('#hubBtns button')].some(b => b.textContent === 'Office') }));
+  ok(hub.date === 'Sat 1 Aug 2026' && hub.cash === '$175,000' && hub.office && /Scheduled\s*\w{3} \d+ \w{3} \d{4}/.test(hub.txt) && /Forecast/.test(hub.txt), `the career hub shows the date (${hub.date}), cash (${hub.cash}), an Office button and the next event's date / time / forecast`);
+  // the Office
+  await p.evaluate(() => CAREER._test.openOffice()); await sleep(150);
+  const of = await p.evaluate(() => { const t = document.getElementById('car_office').textContent; return { t, ok: ui.state === 'c_office', cash: document.getElementById('ofCash').textContent, rows: document.querySelectorAll('#car_office table')[0].rows.length, buttons: ['ofExport', 'ofCopy', 'ofFileBtn', 'ofPasteGo', 'ofBack'].every(id => document.getElementById(id)), backups: /v1_backup/.test(t) }; });
+  ok(of.ok && of.cash === '$175,000' && /Starting funds/.test(of.t) && /Credit for past success/.test(of.t) && /Calendar — upcoming/.test(of.t) && /Horse condition/.test(of.t) && of.buttons && of.backups, 'the Office shows cash, the ledger (starting funds + credit), the dated calendar, horse condition, save buttons and the backup copy');
+  ok(await p.evaluate(() => /Maiden Plate/.test(document.getElementById('car_office').textContent) && /Afternoon|Midday|morning|Late afternoon|Golden hour|Dusk/i.test(document.getElementById('car_office').textContent) && /Legacy Lad/.test(document.getElementById('car_office').textContent)), 'the Office calendar lists dated races with time of day and forecast, and the roster lists the old horses');
+  // multiplayer is hidden and disabled; its code is still there
+  const mp = await p.evaluate(() => ({ flag: FF_FEATURES.multiplayer, hidden: document.getElementById('btnMP').hidden, shown: !!document.getElementById('btnMP').offsetParent, mpObj: typeof MP !== 'undefined' && typeof MP.open === 'function' && typeof MP.leave === 'function' }));
+  ok(mp.flag === false && mp.hidden && !mp.shown && mp.mpObj, 'multiplayer is switched off: its menu button is hidden, while the MP client code is still loaded (kept for later)');
+  { const q = await ctx.newPage(); await q.addInitScript(() => { window.__ws = 0; const W = window.WebSocket; window.WebSocket = function (...a) { window.__ws++; return new W(...a); }; sessionStorage.setItem('ff_mp_session', JSON.stringify({ code: 'ABCDEF', token: 'tok', t: Date.now() })); });
+    await q.goto(BASE + '?join=ABCDEF'); await q.waitForFunction(() => typeof MP !== 'undefined'); await sleep(900);
+    const j = await q.evaluate(() => ({ state: ui.state, mpShown: !screens.mp.hidden, ws: window.__ws, inRoom: !!MP.inRoom, code: (document.getElementById('mpCode') || {}).value || '' }));
+    ok(j.state !== 'mp' && !j.mpShown && j.ws === 0 && !j.inRoom && j.code === '', `a ?join= link and a stored online session do nothing while multiplayer is off (state ${j.state}, ${j.ws} sockets)`); await q.close(); }
+  await p.evaluate(() => CAREER.open());
   ok(await p.evaluate(() => Object.keys(CAREER.data.rivals || {}).length === 93 && CAREER.data.world.length === 3), 'old save gains the persistent rival world (93 rivals in 31 stables)');
   // render one stable frame and sample the pixels of the 3D view (WebGL canvas read straight after drawing)
   const snap = () => p.evaluate(() => { renderer.render = window.__rr; STABLE3D.frame(0.016); const c = document.createElement('canvas'), W = 320, H = 200; c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(renderer.domElement, 0, 0, W, H); renderer.render = () => {}; return Array.from(g.getImageData(0, 0, W, H).data); });
@@ -157,7 +190,12 @@ const SPEECH_STUB = () => {
     return { n: rows.length, field: f.length, stars: document.querySelectorAll('#evForm td').length && [...document.querySelectorAll('#evForm tr')].filter(r => r.children[0] && r.children[0].textContent === '★').length, rating: +cells[2], real: (() => { const ah = CAREER.data.horses[CAREER.data.active], ff = SEASON.raceField(f, SEASON.roundDef(CAREER.data.season, CAREER.data.season.cur), ah, false); const d = ff.find(x => x._hid === id); return d ? Math.round(Object.values(d.attrs).reduce((a, b) => a + b, 0) / 8) : -1; })(), saved: rv ? SEASON.rRating(rv) : -1, you: !!document.querySelector('#evForm tr.me') }; });
   ok(fg.n === fg.field && fg.stars === 3 && fg.rating === fg.real && fg.rating >= fg.saved - 1 && fg.you, `form guide lists all ${fg.n} rival runners + your horse, marks 3 contenders, and shows the race-day ratings (${fg.rating}; saved record ${fg.saved}: primed, never weakened)`);
   const idx = await p.evaluate(() => CAREER.data.horses.findIndex(h => h.name === 'Black Caviar'));
+  // Phase 2: the player's result is forced to 1st (incidents off, so nobody falls) so the prize path is exercised deterministically
+  const cash0 = await p.evaluate(() => { window.__origOnResult = CAREER.onResult; window.__forced = 1; window.__inc0 = settings.incidents; settings.incidents = 'off';
+    CAREER.onResult = (r, place) => { if (window.__forced) { window.__forced = 0; const pl = r.finishOrder.find(x => x.isPlayer); r.finishOrder.splice(r.finishOrder.indexOf(pl), 1); r.finishOrder.unshift(pl); r.player.dnf = false; place = 1; } return window.__origOnResult(r, place); };
+    return CAREER.data.cash; });
   await p.click(`#car_event [data-go="${idx}"]`); await sleep(500);
+  ok(await p.evaluate(() => CAREER.data.day === CORE.roundEvent(CAREER.data, 0).day && CAREER.data.day > 0 && CORE.fmtDate(CAREER.data.day).startsWith('Sat')), 'entering round 1 moved the date to its scheduled Saturday');
   const cr = await p.evaluate(() => ({ chaos: race.chaos, cfgChaos: race.cfg.chaos, assist: race.cfg.assist, unl: race.cfg.unlimited, kickChip: !document.getElementById('kickChip').hidden && getComputedStyle(document.getElementById('kickChip')).display !== 'none', keys: document.getElementById('hudKeys').textContent, opp: race.horses.slice(1).map(h => h.def._stable).filter(Boolean).length, field: race.horses.length, name: race.player.def.name, settingsChaos: settings.chaos }));
   ok(cr.chaos === false && cr.cfgChaos === false && cr.settingsChaos === true, 'career race has chaos OFF in the race itself even though Quick Race still has it on');
   ok(!cr.kickChip && !/P kick/.test(cr.keys), 'no kick HUD chip and no kick key hint');
@@ -176,12 +214,20 @@ const SPEECH_STUB = () => {
   ok(after.pts === SEASON_POINTS(after.place), 'points match the published table');
   ok(/CHAMPIONSHIP POSITION: \w+ → \w+/.test(after.panel) && /POINT/.test(after.panel), 'results show the championship update: ' + after.panel.replace(/\s+/g, ' ').slice(0, 140));
   ok(after.order.slice(0, 10).join() === after.resNames.join(), 'official round result = the race\'s own finishing order');
+  const pz = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'), key = 'prize:s1:maiden:' + h.id, last = C.ledger[C.ledger.length - 1];
+    return { cash: C.cash, last, has: CORE.applied(C, key), n: C.ledger.filter(e => e.kind === 'prize').length, prize: h.prize, h: h.history[h.history.length - 1], fit: h.fitness, lrd: h.lastRaceDay, day: C.day, audit: CORE.audit(C), panel: (document.getElementById('resCareerPanel') || {}).textContent, place: C.season.rounds[0].res.find(e => e.sid === 'player').place, key }; });
+  ok(pz.place === 1 && pz.cash === cash0 + 24000 && pz.n === 1 && pz.last.amount === 24000 && pz.last.key === pz.key && pz.has && pz.audit.length === 0, `winning the $40,000 Maiden Plate credited $24,000 once through the ledger (cash ${cash0} → ${pz.cash}), key ${pz.key}`);
+  ok(pz.prize === 24000 && pz.h.prize === 24000 && pz.h.day === pz.day && pz.lrd === pz.day && pz.fit < 100 && /Prize \$24,000/.test(pz.panel), `the horse's prize record, race history (date) and post-race fitness (${pz.fit}) were updated, and the results panel shows the prize`);
+  const rp = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'), c0 = C.cash;
+    const a = CORE.awardPrize(C, 'prize:s1:maiden:' + h.id, SEASON.BY_ID.maiden, 1, h.name); window.__origOnResult(race, 1); CAREER.onResult(race, 1); return { dup: a.dup === true && !a.ok, same: C.cash === c0, prize: h.prize }; });
+  ok(rp.dup && rp.same && rp.prize === 24000, 'replaying the same race result (ledger key and the result hook) pays nothing more');
   // a replayed results flow / reload must not award it again
   await p.evaluate(() => CAREER.onResult(race, 1));
   ok(await p.evaluate(() => CAREER.data.season.cur === 1 && SEASON.standings(CAREER.data).find(r => r.you).pts) === after.pts, 'calling the result hook again awards nothing');
   await p.reload(); await p.waitForFunction(() => typeof CAREER !== 'undefined'); await p.evaluate(() => { renderer.render = () => {}; });
   await p.click('#btnCareer'); await sleep(200);
   ok(await p.evaluate(p0 => CAREER.data.season.cur === 1 && SEASON.standings(CAREER.data).find(r => r.you).pts === p0 && CAREER.data.season.rounds[0].st === 'done', after.pts), 'after a page reload the calendar and points are unchanged');
+  ok(await p.evaluate(c => { const C = CAREER.data; return C.cash === c + 24000 && C.ledger.filter(e => e.kind === 'prize').length === 1 && C.day === CORE.roundEvent(C, 0).day && CORE.audit(C).length === 0; }, cash0), 'after the reload the prize is still there exactly once, the date and ledger are intact');
 
   console.log('\n— skip a round');
   await p.click('#hubSkip'); await sleep(200);
@@ -189,11 +235,14 @@ const SPEECH_STUB = () => {
   await p.click('#skYes'); await sleep(200);
   const sk = await p.evaluate(() => { const C = CAREER.data, rd = C.season.rounds[1]; return { cur: C.season.cur, st: rd.st, me: rd.res.some(e => e.sid === 'player'), n: rd.res.length, pts: SEASON.standings(C).find(r => r.you).pts, ai: SEASON.standings(C).filter(r => !r.you).reduce((s, r) => s + r.pts, 0) }; });
   ok(sk.cur === 2 && sk.st === 'skip' && !sk.me && sk.n === 9 && sk.pts === after.pts, `skipped round: calendar advanced, 9 AI results recorded, no points for the stable (${JSON.stringify(sk)})`);
+  ok(await p.evaluate(() => CAREER.data.day === CORE.roundEvent(CAREER.data, 1).day), 'skipping round 2 moved the date to its scheduled day');
+  ok(await p.evaluate(c => CAREER.data.cash === c + 24000, cash0), 'skipping a round earns no prize money');
   ok(await p.evaluate(() => { const r = CAREER._test; r.enterOfficial(1, 0); return !race || race.cfg.career == null || CAREER.data.season.cur === 2; }), 'the skipped round cannot be entered afterwards');
   await p.evaluate(() => { if (race) quitToMenu(); CAREER.open(); });
 
   console.log('\n— optional races');
   const o0 = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'); return { cur: C.season.cur, pts: SEASON.standings(C).find(r => r.you).pts, xp: h.xp + h.lvl * 1000, tp: h.trainPts, races: h.races, tro: C.trophies.length }; });
+  const od0 = await p.evaluate(() => ({ day: CAREER.data.day, cash: CAREER.data.cash, nr: CORE.nextOpenRoundDay(CAREER.data) }));
   for (let k = 0; k < 2; k++) {
     await p.evaluate(i => CAREER._test.enterOptional('o_bm64', i), idx); await sleep(300);
     ok(await p.evaluate(() => race.chaos === false && race.cfg.career && race.cfg.career.official === false), 'optional race starts (chaos off)');
@@ -203,7 +252,32 @@ const SPEECH_STUB = () => {
   }
   const o1 = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'); return { cur: C.season.cur, pts: SEASON.standings(C).find(r => r.you).pts, xp: h.xp + h.lvl * 1000, tp: h.trainPts, races: h.races, tro: C.trophies.length, last: h.history[h.history.length - 1] }; });
   ok(o1.cur === o0.cur && o1.pts === o0.pts && o1.tro === o0.tro, 'optional races leave the calendar, points and trophies unchanged');
+  const od1 = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'); return { day: C.day, cash: C.cash, fit: h.fitness, lrd: h.lastRaceDay, audit: CORE.audit(C) }; });
+  ok(od1.cash === od0.cash && od1.day === Math.min(od0.day + 2, od0.nr) && od1.day <= od0.nr && od1.lrd >= od0.day && od1.fit < 100 && od1.audit.length === 0, `two optional races took a day each (never past the next open round), paid nothing as before, and cost fitness (${od1.fit})`);
   ok(o1.races === o0.races + 2 && o1.xp > o0.xp && o1.tp > o0.tp && o1.last.off === false, `optional races award experience and training points (+${o1.tp - o0.tp} pts) and are recorded as optional`);
+
+  console.log('\n— Phase 2: export, import and backups');
+  const ex = await p.evaluate(() => { const C = CAREER.data, text = CAREER._test.exportText(); return { text, cash: C.cash, stable: C.stable, names: C.horses.map(h => h.name).join(), day: C.day, size: text.length }; });
+  const env = JSON.parse(ex.text);
+  ok(env.app === 'final-furlong-career' && env.v === 4 && env.career.cash === ex.cash && env.career.horses.length === 3 && ex.size < 600 * 1024, `export produces one self-checking file (${(ex.size / 1024).toFixed(0)} KB) containing the whole career`);
+  // damage the live career, then bring it back through the Office's real paste-and-confirm flow
+  await p.evaluate(() => { const C = CAREER.data; C.stable = 'Damaged Stable'; C.cash = 5; C.horses.pop(); CAREER._test.save(); CAREER._test.openOffice(); });
+  await p.evaluate(t => { document.getElementById('ofPaste').value = t; document.getElementById('ofPasteGo').click(); }, ex.text);
+  ok(await p.evaluate(s => document.getElementById('ofMsg').textContent.includes(s) && !!document.getElementById('ofYes'), ex.stable), 'pasting an export shows what it contains and asks before replacing anything');
+  ok(await p.evaluate(() => { document.getElementById('ofNo').click(); return /nothing was changed/.test(document.getElementById('ofMsg').textContent) && CAREER.data.stable === 'Damaged Stable'; }), 'Cancel leaves the current career untouched');
+  await p.evaluate(() => document.getElementById('ofPasteGo').click()); await p.evaluate(() => document.getElementById('ofYes').click()); await sleep(200);
+  const im = await p.evaluate(() => { const C = CAREER.data, bk = Object.keys(localStorage).filter(k => /pre_import_backup/.test(k)); return { stable: C.stable, cash: C.cash, names: C.horses.map(h => h.name).join(), day: C.day, state: ui.state, bk: bk.length && JSON.parse(localStorage.getItem(bk[0])), stored: JSON.parse(localStorage.getItem('ff_career')) }; });
+  ok(im.stable === ex.stable && im.cash === ex.cash && im.names === ex.names && im.day === ex.day && im.state === 'c_hub' && im.stored.cash === ex.cash, 'confirming the import restores the career exactly (stable, cash, horses, date), saved and shown on the hub');
+  ok(im.bk && im.bk.stable === 'Damaged Stable' && im.bk.cash === 5, 'and the career it replaced was backed up first (ff_career_pre_import_backup)');
+  const bad = await p.evaluate(t => { const before = localStorage.getItem('ff_career'), E = JSON.parse(t), noSum = JSON.parse(t); delete noSum.sum; noSum.career.cash = 999999999;
+    const tries = { empty: '', cut: t.slice(0, 500), junk: 'hello', tampered: t.replace('"cash":', '"cash":1'), newer: JSON.stringify({ v: 9, horses: [] }), noHorses: JSON.stringify({ v: 4 }), badMoney: JSON.stringify(noSum) };
+    const res = {}; for (const k in tries) { const r = CAREER._test.importText(tries[k]); res[k] = r.ok ? 'ACCEPTED' : r.error.slice(0, 60); }
+    return { res, unchanged: localStorage.getItem('ff_career') === before, live: CAREER.data.stable }; }, ex.text);
+  ok(Object.values(bad.res).every(v => v !== 'ACCEPTED') && bad.unchanged && bad.live === ex.stable, 'empty, cut-off, junk, edited (checksum), newer-version, horse-less and money-inconsistent files are all refused and the stored career is untouched: ' + JSON.stringify(bad.res));
+  const ol = await p.evaluate(() => { const C = CAREER.data, v3 = JSON.parse(JSON.stringify(C)); v3.v = 3; ['day', 'cash', 'ledger', 'txn', 'ledgerSeq', 'fin', 'fac', 'staff', 'player', 'market', 'hof', 'rep', 'entries', 'notices', 'farm', 'cal', 'migrated'].forEach(k => delete v3[k]); v3.horses.forEach(h => ['foaled', 'age', 'growth', 'fitness', 'composure', 'lastRaceDay', 'trainDay', 'trainedToday', 'plan', 'acquired', 'retired', 'value'].forEach(k => delete h[k]));
+    const r = CAREER._test.importText(JSON.stringify(v3)); return { ok: r.ok, from: r.from, v: CAREER.data.v, names: CAREER.data.horses.map(h => h.name).join(), cash: CAREER.data.cash, bk: Object.keys(localStorage).filter(k => /pre_import_backup/.test(k)).length }; });
+  ok(ol.ok && ol.from === 3 && ol.v === 4 && ol.names === ex.names && ol.cash >= 150000, `importing an older (v3-format) file upgrades it to v4 on the way in and keeps all ${ex.names.split(',').length} horses (cash ${ol.cash})`);
+  await p.evaluate(t => CAREER._test.importText(t), ex.text);   // back to the pre-test state for the rest of the run
 
   console.log('\n— qualification');
   const q = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'); const e = SEASON.eligibility(h, SEASON.BY_ID.melbcup), ev = SEASON.eligibility(h, SEASON.BY_ID.everest);
@@ -224,11 +298,15 @@ const SPEECH_STUB = () => {
   console.log('\n— finish a season (rounds skipped quickly) → history + next season');
   await p.evaluate(() => { CAREER.open(); for (let i = 0; i < 20 && !SEASON.done(CAREER.data.season); i++) CAREER._test.doSkip(CAREER.data.season.cur); CAREER._test.openSeasonEnd(); });
   ok(await p.evaluate(() => ui.state === 'c_send' && /Finish Season/.test(document.getElementById('car_send').textContent)), 'season-complete screen with final standings');
+  const ag0 = await p.evaluate(() => CAREER.data.horses.map(h => h.age).join());
   await p.click('#seGo'); await sleep(200);
+  const ag1 = await p.evaluate(() => ({ ages: CAREER.data.horses.map(h => h.age).join(), day: CAREER.data.day, start: CORE.seasonStartDay(2), cal: CAREER.data.cal.season, hub: document.getElementById('hubDate') && document.getElementById('hubDate').textContent }));
+  ok(ag1.day === ag1.start && ag1.cal === 2 && ag1.ages === ag0.split(',').map(a => +a + 1).join() && ag1.hub === 'Sun 1 Aug 2027', `finishing the season moved the date to 1 August 2027, laid out season 2's programme and aged every horse one year (${ag0} → ${ag1.ages})`);
   const hs = await p.evaluate(() => { const C = CAREER.data; return { n: C.season.n, cur: C.season.cur, hist: C.history.length, h0: C.history[0] && { pos: C.history[0].playerPos, champ: C.history[0].champion.name, entered: C.history[0].entered, skipped: C.history[0].skipped, used: C.history[0].horsesUsed } }; });
   ok(hs.n === 2 && hs.cur === 0 && hs.hist === 1 && hs.h0.entered === 1 && hs.h0.skipped === 9 && hs.h0.used.join() === 'Black Caviar', 'season 1 archived permanently, season 2 started: ' + JSON.stringify(hs.h0));
   await p.evaluate(() => CAREER._test.openHistory()); await sleep(100);
   ok(await p.evaluate(c => document.getElementById('car_hist').textContent.includes(c), hs.h0.champ), 'history screen shows the recorded champion');
+  await p.evaluate(() => { settings.incidents = window.__inc0; });
 
   console.log('\n— live commentary in a real-time race');
   await p.evaluate(() => { settings.chaos = false; store.set('chaos', false); settings.dist = 1000; settings.opp = 7; window.__spoken.length = 0; window.__commLog.length = 0; show('menu'); });

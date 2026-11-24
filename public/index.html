@@ -637,8 +637,8 @@ body.touch #touchUI{display:flex;}
    bot jockeys · race controller · balance tests) · renderer & world ·
    horse models & gait · particles · cameras · audio · HUD · menus · loop.
    ===================================================================== */
-/* feature switches */
-const FF_FEATURES = { multiplayer: true };
+/* feature switches — multiplayer is hidden and disabled for the Career expansion; its code (mp.js, server/) is kept: set this back to true to restore it */
+const FF_FEATURES = { multiplayer: false };
 /* the simulation core lives in sim.js (shared with the multiplayer server) */
 
 
@@ -4534,6 +4534,7 @@ else boot();
 <script src="venues.js"></script>
 <script src="presentation.js"></script>
 <script src="stable3d.js"></script>
+<script src="career-core.js"></script>
 <script src="career.js"></script>
 
 </body></html>

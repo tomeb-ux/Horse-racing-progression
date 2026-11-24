@@ -5,6 +5,10 @@ A 3D horse-racing game for the browser (three.js). Single-player runs anywhere, 
 **Private online races** let 2–6 friends ride against each other, with AI runners filling the rest of the field. They need the small Node
 server in this project, because the server runs the race.
 
+> **Multiplayer is currently hidden and disabled** while Career Mode is expanded (`FF_FEATURES.multiplayer = false` in `public/index.html`):
+> no menu button, and `?join=` links and automatic rejoin do nothing. All its code (`public/mp.js`, `server/`, `tests/mp-*.js`) is kept
+> unchanged — set the flag back to `true` to restore it. The online sections below describe the feature as it will work once restored.
+
 ```
 public/            what the browser loads
   index.html       the game (menus, rendering, audio, HUD, replays, single-player)
@@ -16,7 +20,8 @@ public/            what the browser loads
   gfx.js           graphics kit: AUTO quality, LOD + chunked instancing, sky/IBL, turf, trees, rails, GPU crowd
   venues.js        real racecourse scenery (Royal Randwick) built from the track engine's geometry
   stable3d.js      the 3D racing stable: grooming bay, five boxes, trophy room, orbit camera
-  career.js        Career Mode screens (creator, stable, training, rivals, championship) and the bridge to the race engine
+  career-core.js   career data architecture (pure logic): save v4 + migration, calendar/dates, money ledger, prizes, horse age/fitness data, dated race programme, backups, export/import
+  career.js        Career Mode screens (creator, stable, training, rivals, championship, Office) and the bridge to the race engine
   mp.js            online client: lobby, connection, snapshot interpolation, input sending
   vendor/three.min.js   fallback copy of three.js r128 if the CDN is unreachable
 server/
@@ -160,7 +165,7 @@ npm run build:single
 ```
 
 Then open `dist/final-furlong-single.html` in a browser. Or run the server locally (below) and open the page it serves.
-In the single-file build, the Multiplayer screen explains that online races need the hosted version.
+In the single-file build (and for now in every build — see the note at the top), there is no Multiplayer menu item.
 
 ## Run the online version locally
 
@@ -334,6 +339,7 @@ If the game page is hosted separately (say, on a static host) and the server els
 
 ## Tests
 ```bash
+node tests/career-core.js       # career data v4: migration of v1/v2/v3 saves, calendar, ledger (no double prizes), schedule, backups, export/import
 node tests/season.js            # championship + rivals: seasons, points, tie-breakers, skips, H2H, retirement, migration
 node tests/randwick.js 2        # track engine + Royal Randwick: geometry, route lengths, chutes, navigation, AI races
 node tests/progression.js 2 24  # beginner balance + development speed with the real engine (good vs bad riding)
