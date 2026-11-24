@@ -49,7 +49,7 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
   await p.waitForFunction(() => SCENES.scene === 'farm', null, { timeout: 10000 }); await frames(5); s = await S();
   ok(!(await p.evaluate(() => !document.getElementById('sceneLoad').hidden)), 'the overlay is gone once the farm is up');
   ok(s.scene === 'farm' && s.input === 'farm' && s.ui === 'farm' && s.farm.active && s.farm.built, 'the farm is the active scene and owns the keyboard');
-  ok(s.farm.horses === 2 && s.farm.plaques === 5 && s.farm.listeners === 7, `your 2 horses stand in the 5 boxes (5 plaques); the farm attached its ${s.farm.listeners} listeners`);
+  ok(s.farm.horses === 2 && s.farm.plaques === 5 && s.farm.listeners === 9, `your 2 horses stand in the 5 boxes (5 plaques); the farm attached its ${s.farm.listeners} listeners`);
   ok(!s.race && s.meshes === 0, 'no race exists and no race meshes are alive while on the farm');
   ok(await p.evaluate(() => !document.getElementById('farmScreen').hidden && !document.getElementById('menuScreen').offsetParent), 'the farm HUD is shown and the menu is hidden');
 

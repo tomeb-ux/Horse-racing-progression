@@ -221,7 +221,7 @@ const FARMBUILD = (() => {
       const FX = L.float.x, FZ = L.float.z, y0 = 0.62;
       bx(M.concrete, FX - 9.5, 0, FZ - 4.6, FX + 8.5, 0.05, FZ + 4.8, 0xb5b2aa, { tile: 6 });
       // the rig (float + ute) is built at its own origin into its own batch, so it becomes a group that can drive off the property
-      const mainB = B; B = new W.Batch(); const rig = () => { const fx = 0, fz = 0;
+      const mainB = B; B = new W.Batch(); const rig = () => { const fx = 24, fz = 24;       // built around (24, 24) so the whole rig sits in ONE 48 m batch cell (fewer draw calls); the group is offset back
       // float: chassis, floor, painted body, roof, ramp (down), window slots, wheels, drawbar, jockey wheel
       bx(M.steel, fx - 2.8, y0 - 0.15, fz - 1.0, fx + 2.8, y0, fz + 1.0, COL.steel); bx(M.paint, fx - 2.8, y0, fz - 1.15, fx + 2.8, y0 + 0.08, fz + 1.15, 0xcfd3d6);
       bx(M.paint, fx - 2.8, y0 + 0.08, fz - 1.15, fx + 2.8, y0 + 2.0, fz - 1.07, 0xeef0ef); bx(M.paint, fx - 2.8, y0 + 0.08, fz + 1.07, fx + 2.8, y0 + 2.0, fz + 1.15, 0xeef0ef);
@@ -351,9 +351,10 @@ const FARMBUILD = (() => {
     };
     stable(); house(); feedShed(); vetBay(); floatAndUte(); track(); paddocks(); courtyard(); boundary();
     const meshes = B.flush(scene, true, true);
-    const rigGroup = new THREE.Group(); rigGroup.position.set(L.float.x, 0, L.float.z); scene.add(rigGroup); for (const m of rigB.flush(rigGroup, true, true)) meshes.push(m);
+    const rigGroup = new THREE.Group(); rigGroup.position.set(L.float.x, 0, L.float.z); scene.add(rigGroup);
+    const rigIn = new THREE.Group(); rigIn.position.set(-24, 0, -24); rigGroup.add(rigIn); for (const m of rigB.flush(rigIn, true, true)) meshes.push(m);
     { const rg = new THREE.BoxGeometry(2.12, 0.07, 2.0); rg.translate(-1.06, 0, 0); const rm = new THREE.Mesh(rg, M.timber); rm.castShadow = true; rm.receiveShadow = true;
-      const hinge = new THREE.Group(); hinge.position.set(-2.8, 0.72, 0); hinge.rotation.z = 0.296; hinge.add(rm); rigGroup.add(hinge); rigGroup.userData.ramp = hinge; owned.geo.push(rg); }
+      const hinge = new THREE.Group(); hinge.position.set(24 - 2.8, 0.72, 24); hinge.rotation.z = 0.296; hinge.add(rm); rigIn.add(hinge); rigGroup.userData.ramp = hinge; owned.geo.push(rg); }
     return { colliders: col, segs: seg, points: pts, stalls, meshes, owned, stadium, rig: rigGroup };
   }
   return { build, COL };
