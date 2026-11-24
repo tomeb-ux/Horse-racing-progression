@@ -69,6 +69,8 @@ const FARMCARE = (() => {
     const out = []; if (!F || !F.world) return out;
     for (const g of F.horses) { const i = g.userData.stallI; if (i == null) continue; const s = F.world.stalls[i], led = S.led && S.led.g === g, away = S.led && S.led.g === g;
       out.push({ id: "stall", i, hid: g.userData.hid, x: s.x + 0.35, z: -21.4, r: 2.0, text: away ? "E — Put " + nameOf(g) + " back in the box" : "E — " + nameOf(g) + ": inspect · groom · feed · prepare · lead out", led: !!led }); }
+    // empty boxes you have unlocked: E opens the horse creator (the same creator as the career hub's)
+    try { const free = CAREER.slotsFree(), n = F.horses.length; if (free > 0) { const st = F.world.stalls; for (let i = 0; i < st.length; i++) { if (F.horses.some(g => g.userData.stallI === i)) continue; if (i >= n + free) continue; const s = st[i]; out.push({ id: "vacant", i, x: s.x + 0.35, z: -21.4, r: 2.0, text: "E — Empty box: create a new horse for it" }); break; } } } catch (e) {}
     return out;
   }
   const nameOf = g => { try { const h = CAREER.data.horses.find(x => x.id === g.userData.hid); return h ? h.name : "horse"; } catch (e) { return "horse"; } };

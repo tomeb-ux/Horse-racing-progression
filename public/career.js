@@ -394,7 +394,7 @@ const CAREER = (() => {
           <div class="car-row" style="margin-top:10px"><button class="btn primary" id="hubFinish">View Final Standings</button></div></div>`
       : `<div class="car-panel car-next"><div class="car-sub">Next event · Round ${nextIdx + 1} of ${s.rounds.length}${nm.major ? " · ★ Feature race" : ""}</div>
           <h3>${esc(nm.name)}</h3>
-          <div class="car-kv"><span><b>${esc(nm.venue)}</b></span><span><b>${fmtDist(nm.dist)}</b> ${distLbl(nm.dist)}</span><span><b>${going(rd.going)}</b> going</span><span>${esc(nm.grade)}</span><span>Prize <b>${nm.prize}</b></span><span>Field <b>${nm.field}</b></span>${evBits(nextIdx)}<span>Stable standing <b>${posTxt(me.rank)}</b></span></div>
+          <div class="car-kv"><span><b>${esc(nm.venue)}</b></span><span><b>${fmtDist(nm.dist)}</b> ${distLbl(nm.dist)}</span><span><b>${going(rd.going)}</b> going</span><span>${esc(nm.grade)}</span><span>Prize <b>${CORE.purseLabel(nm)}</b></span><span>Field <b>${nm.field}</b></span>${evBits(nextIdx)}<span>Stable standing <b>${posTxt(me.rank)}</b></span></div>
           <div class="car-row" style="margin-top:12px"><button class="btn primary" id="hubEnter">Select Horse &amp; Enter</button><button class="btn" id="hubView">View Event</button><button class="btn" id="hubSkip">Skip Round</button></div></div>`;
     page(el, `
       <div class="car-panel car-row" style="justify-content:space-between;align-items:flex-end">
@@ -492,7 +492,7 @@ const CAREER = (() => {
       <div class="car-panel car-next">
         <div class="car-sub">${optional ? "Optional race · experience & records only — no championship points" : `Season ${s.n} · ${div().name} · Round ${idx + 1} of ${s.rounds.length}`}</div>
         <h3>${meta.crown ? "★ " : ""}${esc(meta.name)}</h3>
-        <div class="car-kv"><span><b>${esc(meta.venue)}</b></span><span><b>${fmtDist(meta.dist)}</b> ${distLbl(meta.dist)}</span><span><b>${going(g)}</b> going</span><span>${esc(meta.grade)}</span><span>Field <b>${meta.field}</b></span>${optional ? optBits(meta.id) : evBits(idx)}${meta.prize ? `<span>Prize <b>${meta.prize}</b></span>` : ""}${optional ? "" : `<span>Stable standing <b>${posTxt(me.rank)}</b> · ${me.pts} pts</span>`}</div>
+        <div class="car-kv"><span><b>${esc(meta.venue)}</b></span><span><b>${fmtDist(meta.dist)}</b> ${distLbl(meta.dist)}</span><span><b>${going(g)}</b> going</span><span>${esc(meta.grade)}</span><span>Field <b>${meta.field}</b></span>${optional ? optBits(meta.id) : evBits(idx)}${CORE.purseLabel(meta) !== "—" ? `<span>Prize <b>${CORE.purseLabel(meta)}</b></span><span>Entry <b>${money(CORE.entryFee(meta))}</b></span>` : ""}${optional ? "" : `<span>Stable standing <b>${posTxt(me.rank)}</b> · ${me.pts} pts</span>`}</div>
         ${meta.note ? `<div style="font-size:12.5px;margin-top:6px;color:var(--accent)">${esc(meta.note)}</div>` : ""}
         <div class="car-sub" style="margin-top:10px">Entry requirements</div>${reqHtml}
         ${optional ? "" : `<div style="font-size:12px;color:var(--fg-dim);margin-top:6px">One horse represents ${esc(C.stable)} in this round. Points: 1st 15 · 2nd 12 · 3rd 10 · 4th 8 · 5th 6 · 6th 5 · 7th 4 · 8th 3 · 9th 2 · 10th 1. Chaos Mode is never used in championship racing.</div>`}
@@ -573,6 +573,21 @@ const CAREER = (() => {
   }
   const exportText = () => CORE.exportSave(C);
   const DEV_LABEL = { early: "Early developer", avg: "Average developer", late: "Late developer" };
+  // the Office's money report (Phase 7): cash, what is owed, the next weekly bill, sponsorship, the season by category, recent prize money
+  function financeHtml(fin) {
+    const b = CORE.weeklyBill(C), e = CORE.econOf(C), club = CORE.clubOffer(C), by = fin.by || {}, nextWk = (CORE.weekOf(C.day) + 1) * 7;
+    const lab = { prize: "Prize money", sponsor: "Sponsorship", bonus: "Milestone bonuses", advance: "Club advance", entry: "Entry fees", upkeep: "Weekly bills (feed, care, property, wages)", repay: "Club repayments", care: "Quality feed", start: "Starting package" };
+    const rows = Object.keys(by).filter(k => by[k]).sort((x, y) => by[y] - by[x]).map(k => `<tr><td>${esc(lab[k] || k)}</td><td style="text-align:right;color:${by[k] < 0 ? "var(--bad)" : "var(--good)"}">${by[k] < 0 ? "−" : "+"}${money(Math.abs(by[k]))}</td></tr>`).join("");
+    const prizes = C.ledger.filter(x => x.kind === "prize").slice(-4).reverse();
+    return `<div class="car-panel"><div class="car-sub">Finances</div>
+      <div class="car-kv" style="margin:4px 0 8px"><span>Cash <b>${money(C.cash)}</b></span><span>Owed to the stable club <b style="color:${e.debt ? "var(--warn)" : "inherit"}">${money(e.debt)}</b></span><span>Reputation <b>${C.rep | 0}</b>${b.sponsor ? ` → sponsor <b>${money(b.sponsor)}</b>/week` : " (sponsors notice you from 10)"}</span></div>
+      <div class="car-sub">Next weekly bill — due ${CORE.fmtDate(nextWk, { short: true })}</div>
+      <table class="car-tbl">${b.items.map(x => `<tr><td>${esc(x.label)}</td><td style="text-align:right">${money(x.amount)}</td></tr>`).join("")}<tr><td><b>Total</b></td><td style="text-align:right"><b>${money(b.cost)}</b></td></tr>${b.sponsor ? `<tr><td>Sponsorship (income)</td><td style="text-align:right;color:var(--good)">+${money(b.sponsor)}</td></tr>` : ""}</table>
+      <div style="font-size:11.5px;color:var(--fg-dim);margin:6px 0 8px">Bills are charged automatically as the calendar moves on, as one line a week. Entry fees (about 4% of the purse) are paid when a race is entered. If cash runs short a bill becomes money owed to the club — never a negative balance — and half of each prize repays it.</div>
+      ${rows ? `<div class="car-sub">This season by category</div><table class="car-tbl">${rows}</table>` : ""}
+      ${prizes.length ? `<div class="car-sub" style="margin-top:8px">Recent prize money</div><table class="car-tbl">${prizes.map(x => `<tr><td>${CORE.fmtDate(x.day, { short: true })}</td><td>${esc(x.note)}</td><td style="text-align:right;color:var(--good)">+${money(x.amount)}</td></tr>`).join("")}</table>` : ""}
+      <div class="car-row" style="margin-top:8px"><button class="btn small" id="ofClub" ${club.ok ? "" : "disabled"}>Stable club advance ${money(CORE.ECON.CLUB.AMOUNT)}</button><span style="font-size:12px;color:var(--fg-dim)">${club.ok ? "Available now: your cash is under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season, repaid from prize money)." : club.reason === "used" ? "Already used this season." : "Available when cash falls under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season)."}</span></div></div>`;
+  }
   function openOffice() {
     style(); CORE.syncCalendar(C);
     const el = screen("office"), s = S();
@@ -580,7 +595,7 @@ const CAREER = (() => {
     const ledger = C.ledger.slice(-25).reverse();
     const ups = CORE.upcoming(C, 14);
     const evRow = e => { const m = BY_ID[e.ref] || {};
-      return `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td><b>${esc(m.name || e.ref)}</b>${e.kind === "round" ? ` <span class="car-tag car-won">Round ${e.round + 1}</span>` : ` <span class="car-tag">Optional</span>`}</td><td class="hide-s">${esc(e.venue)}</td><td>${fmtDist(m.dist || 0)}</td><td class="hide-s">${esc(m.grade || "")}</td><td class="hide-s">${m.prize || "—"}</td><td>${CORE.TOD_LABEL[e.tod] || ""}</td><td>${CORE.WX_LABEL[e.forecast.weather] || ""} · ${going(e.forecast.going)}</td></tr>`; };
+      return `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td><b>${esc(m.name || e.ref)}</b>${e.kind === "round" ? ` <span class="car-tag car-won">Round ${e.round + 1}</span>` : ` <span class="car-tag">Optional</span>`}</td><td class="hide-s">${esc(e.venue)}</td><td>${fmtDist(m.dist || 0)}</td><td class="hide-s">${esc(m.grade || "")}</td><td class="hide-s">${CORE.purseLabel(m)}</td><td>${CORE.TOD_LABEL[e.tod] || ""}</td><td>${CORE.WX_LABEL[e.forecast.weather] || ""} · ${going(e.forecast.going)}</td></tr>`; };
     const seasons = Object.keys(C.fin).map(Number).sort((a, b) => b - a).slice(0, 4);
     const bk = CORE.listBackups(localStorage);
     page(el, `<h2>Stable Office</h2>
@@ -589,13 +604,14 @@ const CAREER = (() => {
         <div><div class="car-sub">Cash</div><div class="car-big" id="ofCash" style="font-size:30px;color:var(--good)">${money(C.cash)}</div></div>
         <div class="car-kv"><span>This season: income <b>${money(fin.in)}</b></span><span>spending <b>${money(fin.out)}</b></span><span>net <b>${money(fin.in - fin.out)}</b></span></div>
       </div>
+      ${financeHtml(fin)}
       <div class="car-panel"><div class="car-sub">Ledger — most recent first</div>
         ${ledger.length ? `<table class="car-tbl"><tr><th>Date</th><th>Item</th><th style="text-align:right">Amount</th><th style="text-align:right" class="hide-s">Balance</th></tr>
         ${ledger.map(e => `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td>${esc(e.note || e.kind)}</td><td style="text-align:right;color:${e.amount < 0 ? "var(--bad)" : "var(--good)"}">${e.amount < 0 ? "−" : "+"}${money(Math.abs(e.amount))}</td><td style="text-align:right" class="hide-s">${money(e.bal)}</td></tr>`).join("")}</table>`
         : `<div style="font-size:13px;color:var(--fg-dim)">No transactions yet.</div>`}
         ${seasons.length ? `<div class="car-sub" style="margin-top:10px">Season summaries</div><table class="car-tbl"><tr><th>Season</th><th style="text-align:right">Income</th><th style="text-align:right">Spending</th><th style="text-align:right">Net</th></tr>
         ${seasons.map(n => { const f = C.fin[n]; return `<tr><td>${CORE.seasonLabel(n)}</td><td style="text-align:right">${money(f.in)}</td><td style="text-align:right">${money(f.out)}</td><td style="text-align:right">${money(f.in - f.out)}</td></tr>`; }).join("")}</table>` : ""}
-        <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Prize money for places 1–5 in a championship round is paid once into the stable's cash. Nothing can be bought yet — spending arrives in a later update.</div></div>
+        <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Prize money for places 1–5 in a championship round is paid once into the stable's cash. Horses, staff and facilities are bought in later updates.</div></div>
       <div class="car-panel"><div class="car-sub">Calendar — upcoming</div>
         <table class="car-tbl"><tr><th>Date</th><th>Race</th><th class="hide-s">Venue</th><th>Distance</th><th class="hide-s">Grade</th><th class="hide-s">Prize</th><th>Time</th><th>Forecast</th></tr>${ups.map(evRow).join("") || `<tr><td colspan="8">No events left this season.</td></tr>`}</table>
         <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Championship rounds are run in order on their dates; optional races can be entered at any time and take a day of calendar time. Time of day and weather are fixed for each event now and shown on the race itself in a later update.</div></div>
@@ -614,6 +630,7 @@ const CAREER = (() => {
       <div class="car-row"><button class="btn" id="ofBack">Back</button></div>`);
     const q = id => el.querySelector(id), msg = (t, bad) => { q("#ofMsg").innerHTML = t; q("#ofMsg").style.color = bad ? "var(--bad)" : "var(--fg)"; };
     q("#ofBack").onclick = () => home();
+    const adv = q("#ofClub"); if (adv) adv.onclick = () => { const r = CORE.clubAdvance(C); if (r.ok) { save(); toast("The stable club advanced " + money(r.amount) + " — half of every prize repays it", "good", 3.4); openOffice(); } else toast(r.reason === "used" ? "You've already had this season's advance" : "Your cash is above the club's threshold (" + money(CORE.ECON.CLUB.TRIGGER) + ")", "info", 3); };
     q("#ofExport").onclick = () => {
       try { const text = exportText(), a = document.createElement("a"), d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
         a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = "final-furlong-career-" + stamp + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
@@ -1066,7 +1083,7 @@ const CAREER = (() => {
     // step navigation (going back never loses anything)
     el.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { draft.step = +b.getAttribute("data-step"); afterStep(); });
     const afterStep = () => { if (draft.step === 2) STABLE3D.preset("silks"); else if (draft.step === 1) STABLE3D.preset("full"); STABLE3D.setRider(draft.step === 2 || draft.step === 5); drawCreate(); };
-    el.querySelector("#cBack").onclick = () => { if (draft.step === 1) { const id = draft.editId; draft = null; return id ? openProfile(C.horses.findIndex(h => h.id === id)) : (C.horses.length ? openStable() : firstRun ? (firstRun = false, show("menu")) : openHub()); } draft.step--; afterStep(); };
+    el.querySelector("#cBack").onclick = () => { if (draft.step === 1) { const id = draft.editId; draft = null; return id ? openProfile(C.horses.findIndex(h => h.id === id)) : createFromFarm ? (createFromFarm = false, hidePanel(), SCENES.enter("farm")) : (C.horses.length ? openStable() : firstRun ? (firstRun = false, show("menu")) : openHub()); } draft.step--; afterStep(); };
     const nx = el.querySelector("#cNext"); if (nx) nx.onclick = () => { if (draft.step === 1 && !cleanName(draft.name, "")) { toast("Give your horse a name first", "warn", 1.4); return; } draft.step++; afterStep(); };
     const dn = el.querySelector("#cDone"); if (dn) dn.onclick = () => edit ? saveAppearance() : confirmCreate();
     // inputs
@@ -1138,7 +1155,7 @@ const CAREER = (() => {
     CORE.fillHorse(h, C, { how: "created", age: 3, fitness: 100 });
     C.horses.push(h); C.active = C.horses.length - 1; save(); draft = null;
     toast(esc(h.name) + " moves into box " + C.horses.length + "!", "good", 2);
-    if (firstRun) { firstRun = false; hidePanel(); SCENES.enter("farm"); return; }       // your first horse: straight out to the property
+    if (firstRun || createFromFarm) { firstRun = false; createFromFarm = false; hidePanel(); SCENES.enter("farm"); return; }       // your first horse, or one made from an empty box on the farm: straight back out to the property
     openProfile(C.active);
   }
   function saveAppearance() {
@@ -1170,23 +1187,34 @@ const CAREER = (() => {
   }
   function enterOfficial(idx, hi) {
     const s = S(), h = C.horses[hi], meta = SEASON.roundDef(s, idx);
-    if (!h || idx !== s.cur || SEASON.done(s) || s.rounds[idx].st !== "open") return openHub();
-    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
-    C.active = hi; CORE.enterRound(C, idx); save();           // the date becomes the round's scheduled day
-    pending = { kind: "off", season: s.n, round: idx, hid: h.id };
+    if (!h || idx !== s.cur || SEASON.done(s) || s.rounds[idx].st !== "open") { openHub(); return false; }
+    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
+    const fee = payEntryFee(`entry:s${s.n}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) return false;
+    C.active = hi; CORE.enterRound(C, idx); save();           // the date becomes the round's scheduled day (the weekly bills fall due on the way)
+    pending = { kind: "off", season: s.n, round: idx, hid: h.id, fee: fee.fee };
     const opp = raceDayField(SEASON.runners(C, idx), meta, h, idx === s.rounds.length - 1);
     launch(competitiveCfg(meta, h, opp, s.rounds[idx].going, {
       career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
     }));
+    return true;
+  }
+  // the entry fee (Phase 7): charged once per race instance + horse through the ledger; refused (with the way out explained) if the stable can't pay
+  function payEntryFee(key, meta, h) {
+    const r = CORE.payEntry(C, key, meta, h.name); if (r.ok) { if (r.fee && !r.already) save(); return r; }
+    const off = CORE.clubOffer(C);
+    toast(`Not enough cash for the ${money(r.fee)} entry fee (you have ${money(C.cash)}). ${off.ok ? "The stable club can advance " + money(off.amount) + " from the Office." : "Choose a cheaper race or wait for prize money."}`, "warn", 4.5);
+    return { ok: false, fee: r.fee };
   }
   function enterOptional(id, hi) {
-    const meta = BY_ID[id], h = C.horses[hi]; if (!meta || !h) return openOptional();
-    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
+    const meta = BY_ID[id], h = C.horses[hi]; if (!meta || !h) { openOptional(); return false; }
+    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
+    const fee = payEntryFee(`entry:o${C.optN | 0}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) return false;
     C.active = hi; save();
     // the field: persistent rivals of the right grade for this race (the same field the form guide showed)
     const opp = raceDayField(SEASON.optionalField(C, id), meta, h, false);
-    pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0 };
+    pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0, fee: fee.fee };
     launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
+    return true;
   }
   // the race-day field: rivals primed to the player's horse (season.js raceField) — the same field the form guide shows
   function raceDayField(defs, meta, h, isFinal) { try { return SEASON.raceField(defs, meta, h, isFinal); } catch (e) { return defs; } }
@@ -1240,10 +1268,10 @@ const CAREER = (() => {
     if (P.kind === "off") { h.offRaces++; if (place === 1) h.offWins++; h.champPts += summary.pts; }
     // prize money (places 1–5): credited once through the ledger. The key names this race instance + horse, so a replayed
     // result, a reload or a second call can never pay it twice. The horse's own prize record only grows by what was credited.
-    let prize = 0;
+    let prize = 0, repaid = 0;
     if (!dnf && place >= 1 && place <= 5) {
       const pr = CORE.awardPrize(C, P.kind === "off" ? `prize:s${P.season}:${meta.id}:${h.id}` : `prize:o${P.optN}:${meta.id}:${h.id}`, meta, place, h.name);
-      if (pr.ok) { prize = pr.amount; h.prize += prize; }
+      if (pr.ok) { prize = pr.amount; h.prize += prize; const rp = CORE.repayFromPrize(C, P.kind === "off" ? `prize:s${P.season}:${meta.id}:${h.id}` : `prize:o${P.optN}:${meta.id}:${h.id}`, prize); repaid = rp.paid || 0; }
     }
     h.history.push({ raceId: meta.id, name: meta.name, place: dnf ? 0 : place, field, dnf, t: Date.now(), dist: meta.dist, tier: meta.tier || 0, off: P.kind === "off", season: P.kind === "off" ? P.season : null, day: C.day, prize });
     if (h.history.length > 40) h.history.shift();
@@ -1253,18 +1281,19 @@ const CAREER = (() => {
       if (P.kind === "off" || (meta.tier || 0) >= 2) C.wins++;
       if (P.kind === "off" && meta.major && !C.trophies.some(t => t.raceId === meta.id && t.season === P.season)) { C.trophies.push({ raceId: meta.id, race: meta.name, horse: h.name, season: P.season, t: Date.now() }); trophy = true; h.majors++; }
     }
+    const repGain = dnf ? 0 : CORE.addRep(C, place, meta, P.kind === "off"), bonus = !dnf && place >= 1 ? CORE.milestones(C, place, meta) : [];
     CORE.afterRace(C, h, meta, { going: r.cfg.going, dnf });         // post-race fitness + the date of the run (no effect on racing yet)
     if (P.kind === "opt") CORE.afterOptional(C);                      // an optional race takes a day (never past the next open round)
     save();
     // feedback on the results screen
-    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy, prize });
+    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy, prize, repaid, bonus, repGain, fee: P.fee || 0 });
     if (trophy) setTimeout(() => showMsg((meta.crown ? "★ " : "") + "YOU'VE WON THE " + meta.name.toUpperCase() + "!", 2.6), 900);
   }
   function renderPanel(o) {
     let el = document.getElementById("resCareerPanel");
     if (!el) { el = document.createElement("div"); el.id = "resCareerPanel"; el.className = "panel"; const row = document.getElementById("resAgain").parentElement; row.parentElement.insertBefore(el, row); }
     el.hidden = false;
-    const gain = `XP +${o.xp} · Training +${o.tp}${o.lv ? " · Level " + o.h.lvl : ""}${o.prize ? ` · Prize ${money(o.prize)} · Cash ${money(C.cash)}` : ""}`;
+    const gain = `XP +${o.xp} · Training +${o.tp}${o.lv ? " · Level " + o.h.lvl : ""}${o.fee ? ` · Entry −${money(o.fee)}` : ""}${o.prize ? ` · Prize +${money(o.prize)}${o.repaid ? ` (−${money(o.repaid)} repaid to the club)` : ""}` : ""}${(o.bonus || []).map(b => ` · ★ ${b.label} +${money(b.amount)}`).join("")} · Cash ${money(C.cash)}`;
     if (o.P.kind === "opt") { el.innerHTML = `<div class="cp-sub">${esc(o.meta.name)} · optional race</div><div class="cp-pts">${gain}</div><div class="cp-sub">No championship points — the season is unchanged.</div>`; return; }
     const s = o.summary, list = SEASON.standings(C), lead = list[0];
     const behind = s.behind ? `${s.behind} POINT${s.behind === 1 ? "" : "S"} BEHIND ${esc(lead.name).toUpperCase()}` : (list[1] ? `LEADING BY ${lead.pts - list[1].pts} POINT${lead.pts - list[1].pts === 1 ? "" : "S"}` : "LEADING");
@@ -1293,7 +1322,7 @@ const CAREER = (() => {
     L.slots = slots(); return L;
   }
   // ---------- the farm as the home screen (Phase 5): the way in, the calendar board, booking, the way back ----------
-  let firstRun = false, fromFarm = false;
+  let firstRun = false, fromFarm = false, createFromFarm = false;
   // back out of a screen opened from inside the farmhouse (the ledger, the trophy cabinet): to the property, not the hub
   function home() { if (fromFarm && typeof SCENES !== "undefined") { fromFarm = false; hidePanel(); SCENES.enter("farm"); } else openHub(); }
   // the ledger (the Office screen) and the trophy cabinet, opened from the farmhouse; their Back button returns to the property
@@ -1308,6 +1337,11 @@ const CAREER = (() => {
     if (!C.horses.length) { firstRun = true; return openCreate(); }
     SCENES.enter("farm");
   }
+  // E at an empty box on the farm opens the horse creator (the same 5-step creator as before); Back or Create returns you to the property
+  function createForFarm() {
+    if (!C) load(); if (C.horses.length >= slots()) { toast("Win more races to unlock another box", "info", 2.4); return false; }
+    race = null; hidePanel(); createFromFarm = true; fromFarm = false; openCreate(); return true;
+  }
   // the board's month (and the booking screen's): races on the calendar, today, what is booked
   const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const MS_DAY = 86400000;
@@ -1319,7 +1353,7 @@ const CAREER = (() => {
     if (e.day < C.day) why = "Already run";
     else if (e.kind === "round") { const st = s.rounds[e.round] && s.rounds[e.round].st; open = !SEASON.done(s) && e.round === s.cur && st === "open"; why = open ? "" : st === "done" ? "Completed" : st === "skip" ? "Skipped" : "Opens after the previous round"; }
     else { open = nr == null || e.day < nr; why = open ? "" : "Held after the next championship round"; }
-    return { eid: e.id, kind: e.kind === "round" ? "round" : "optional", ref: e.ref, round: e.round, name: meta.name, venue: meta.venue, dist: meta.dist, grade: meta.grade, prize: meta.prize || "", crown: !!meta.crown, major: !!meta.major,
+    return { eid: e.id, kind: e.kind === "round" ? "round" : "optional", ref: e.ref, round: e.round, name: meta.name, venue: meta.venue, dist: meta.dist, grade: meta.grade, prize: CORE.purseLabel(meta) === "—" ? "" : CORE.purseLabel(meta), fee: CORE.entryFee(meta), crown: !!meta.crown, major: !!meta.major,
       day: e.day, date: CORE.fmtDate(e.day), dateShort: CORE.fmtDate(e.day, { short: true }), tod: CORE.TOD_LABEL[e.tod] || "", weather: (CORE.WX_LABEL[e.forecast && e.forecast.weather] || ""), going: e.forecast ? e.forecast.going : "good", open, why, meta };
   }
   function calendarData(off) {
@@ -1355,6 +1389,7 @@ const CAREER = (() => {
     if (!info || !h) return { ok: false, error: "That race or horse isn't available." };
     if (!info.open) return { ok: false, error: info.why || "That race can't be booked yet." };
     if (!SEASON.eligibility(h, info.meta).ok) return { ok: false, error: h.name + " isn't qualified for the " + info.name + "." };
+    const fee = CORE.entryFee(info.meta); if (C.cash < fee) return { ok: false, error: `The entry fee is ${money(fee)} and the stable has ${money(C.cash)}. Ask the stable club for an advance at the desk, or pick a cheaper race.`, fee };
     C.booking = { eid: info.eid, hid: h.id, kind: info.kind, ref: info.ref, round: info.round, name: info.name, venue: info.venue, day: info.day, at: C.day };
     C.active = C.horses.indexOf(h); save(); return { ok: true, booking: Object.assign({}, C.booking) };
   }
@@ -1363,9 +1398,11 @@ const CAREER = (() => {
   // the booked race starts (the float has left the property): the same entry the hub's buttons use
   function startBooked() {
     const b = booking(); if (!b) return { ok: false, error: "Nothing is booked." };
-    delete C.booking; save(); hidePanel(); race = null;
-    if (b.kind === "round") enterOfficial(b.round, b.hi);
-    else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); enterOptional(b.ref, b.hi); }
+    hidePanel(); race = null; let ok = false;
+    if (b.kind === "round") ok = enterOfficial(b.round, b.hi);
+    else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); ok = enterOptional(b.ref, b.hi); }
+    if (!ok) return { ok: false, error: "The entry could not be made (entry fee or eligibility)." };
+    delete C.booking; save();                                // consumed exactly once, only when the race really started
     return { ok: true };
   }
   // ---------- stable care and hands-on training (Phase 6): the rules live in career-core.js (CORE.groom / feed / prepare / drillReward / restDay) ----------
@@ -1411,6 +1448,6 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, setPlayer, hasSave, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
+  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

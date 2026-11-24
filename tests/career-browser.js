@@ -215,19 +215,19 @@ const SPEECH_STUB = () => {
   ok(/CHAMPIONSHIP POSITION: \w+ → \w+/.test(after.panel) && /POINT/.test(after.panel), 'results show the championship update: ' + after.panel.replace(/\s+/g, ' ').slice(0, 140));
   ok(after.order.slice(0, 10).join() === after.resNames.join(), 'official round result = the race\'s own finishing order');
   const pz = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'), key = 'prize:s1:maiden:' + h.id, last = C.ledger[C.ledger.length - 1];
-    return { cash: C.cash, last, has: CORE.applied(C, key), n: C.ledger.filter(e => e.kind === 'prize').length, prize: h.prize, h: h.history[h.history.length - 1], fit: h.fitness, lrd: h.lastRaceDay, day: C.day, audit: CORE.audit(C), panel: (document.getElementById('resCareerPanel') || {}).textContent, place: C.season.rounds[0].res.find(e => e.sid === 'player').place, key }; });
-  ok(pz.place === 1 && pz.cash === cash0 + 24000 && pz.n === 1 && pz.last.amount === 24000 && pz.last.key === pz.key && pz.has && pz.audit.length === 0, `winning the $40,000 Maiden Plate credited $24,000 once through the ledger (cash ${cash0} → ${pz.cash}), key ${pz.key}`);
-  ok(pz.prize === 24000 && pz.h.prize === 24000 && pz.h.day === pz.day && pz.lrd === pz.day && pz.fit < 100 && /Prize \$24,000/.test(pz.panel), `the horse's prize record, race history (date) and post-race fitness (${pz.fit}) were updated, and the results panel shows the prize`);
+    return { cash: C.cash, last, pe: C.ledger.find(e => e.key === key), has: CORE.applied(C, key), n: C.ledger.filter(e => e.kind === 'prize').length, prize: h.prize, h: h.history[h.history.length - 1], fit: h.fitness, lrd: h.lastRaceDay, day: C.day, audit: CORE.audit(C), panel: (document.getElementById('resCareerPanel') || {}).textContent, place: C.season.rounds[0].res.find(e => e.sid === 'player').place, key }; });
+  ok(pz.place === 1 && pz.pe && pz.pe.amount === 7200 && pz.n === 1 && pz.has && pz.audit.length === 0, `winning the Maiden Plate (face value $40,000, a real purse of $12,000 since Phase 7) credited $7,200 once through the ledger (cash ${cash0} → ${pz.cash}), key ${pz.key}`);
+  ok(pz.prize === 7200 && pz.h.prize === 7200 && pz.h.day === pz.day && pz.lrd === pz.day && pz.fit < 100 && /Prize \+\$7,200/.test(pz.panel), `the horse's prize record, race history (date) and post-race fitness (${pz.fit}) were updated, and the results panel shows the prize`);
   const rp = await p.evaluate(() => { const C = CAREER.data, h = C.horses.find(x => x.name === 'Black Caviar'), c0 = C.cash;
     const a = CORE.awardPrize(C, 'prize:s1:maiden:' + h.id, SEASON.BY_ID.maiden, 1, h.name); window.__origOnResult(race, 1); CAREER.onResult(race, 1); return { dup: a.dup === true && !a.ok, same: C.cash === c0, prize: h.prize }; });
-  ok(rp.dup && rp.same && rp.prize === 24000, 'replaying the same race result (ledger key and the result hook) pays nothing more');
+  ok(rp.dup && rp.same && rp.prize === 7200, 'replaying the same race result (ledger key and the result hook) pays nothing more');
   // a replayed results flow / reload must not award it again
   await p.evaluate(() => CAREER.onResult(race, 1));
   ok(await p.evaluate(() => CAREER.data.season.cur === 1 && SEASON.standings(CAREER.data).find(r => r.you).pts) === after.pts, 'calling the result hook again awards nothing');
   await p.reload(); await p.waitForFunction(() => typeof CAREER !== 'undefined'); await p.evaluate(() => { renderer.render = () => {}; });
   await p.click('#btnCareer'); await sleep(200); await p.evaluate(() => { if (ui.state === 'farm') CAREER.open(); }); await sleep(200);
   ok(await p.evaluate(p0 => CAREER.data.season.cur === 1 && SEASON.standings(CAREER.data).find(r => r.you).pts === p0 && CAREER.data.season.rounds[0].st === 'done', after.pts), 'after a page reload the calendar and points are unchanged');
-  ok(await p.evaluate(c => { const C = CAREER.data; return C.cash === c + 24000 && C.ledger.filter(e => e.kind === 'prize').length === 1 && C.day === CORE.roundEvent(C, 0).day && CORE.audit(C).length === 0; }, cash0), 'after the reload the prize is still there exactly once, the date and ledger are intact');
+  ok(await p.evaluate(c => { const C = CAREER.data; return C.ledger.filter(e => e.kind === 'prize' && e.amount === 7200).length === 1 && C.day === CORE.roundEvent(C, 0).day && CORE.audit(C).length === 0; }, cash0), 'after the reload the prize is still there exactly once, the date and ledger are intact');
 
   console.log('\n— skip a round');
   await p.click('#hubSkip'); await sleep(200);
@@ -236,7 +236,7 @@ const SPEECH_STUB = () => {
   const sk = await p.evaluate(() => { const C = CAREER.data, rd = C.season.rounds[1]; return { cur: C.season.cur, st: rd.st, me: rd.res.some(e => e.sid === 'player'), n: rd.res.length, pts: SEASON.standings(C).find(r => r.you).pts, ai: SEASON.standings(C).filter(r => !r.you).reduce((s, r) => s + r.pts, 0) }; });
   ok(sk.cur === 2 && sk.st === 'skip' && !sk.me && sk.n === 9 && sk.pts === after.pts, `skipped round: calendar advanced, 9 AI results recorded, no points for the stable (${JSON.stringify(sk)})`);
   ok(await p.evaluate(() => CAREER.data.day === CORE.roundEvent(CAREER.data, 1).day), 'skipping round 2 moved the date to its scheduled day');
-  ok(await p.evaluate(c => CAREER.data.cash === c + 24000, cash0), 'skipping a round earns no prize money');
+  ok(await p.evaluate(() => CAREER.data.ledger.filter(e => e.kind === 'prize').length === 1), 'skipping a round earns no prize money');
   ok(await p.evaluate(() => { const r = CAREER._test; r.enterOfficial(1, 0); return !race || race.cfg.career == null || CAREER.data.season.cur === 2; }), 'the skipped round cannot be entered afterwards');
   await p.evaluate(() => { if (race) quitToMenu(); CAREER.open(); });
 

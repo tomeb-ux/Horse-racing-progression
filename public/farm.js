@@ -234,7 +234,7 @@ const FARM = (() => {
     return p.text;
   }
   function allPoints() { const w = cur(); if (!w) return []; if (place === "in") return w.points; return w.points.concat(FARMCARE.points(), FARMDAY.points(), typeof FARMTRAIN !== "undefined" ? FARMTRAIN.points() : []); }
-  function nearest() { const w = cur(); if (!w) return null; let best = null, bd = 1e9; for (const p of allPoints()) { if (!p.text && p.id !== "stall") continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d <= p.r && d < bd) { best = p; bd = d; } } return best; }
+  function nearest() { const w = cur(); if (!w) return null; let best = null, bd = 1e9; for (const p of allPoints()) { if (!p.text && p.id !== "stall" && p.id !== "vacant") continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d <= p.r && d < bd) { best = p; bd = d; } } return best; }
   function interact() {
     const p = nearest(); if (!p) return false;
     if (p.id === "office") { enterHouse(); return true; }
@@ -248,6 +248,7 @@ const FARM = (() => {
     }
     if (p.id === "travel") return floatInteract();
     if (p.id === "stall") return FARMCARE.openMenu(p.i);
+    if (p.id === "vacant") { try { return CAREER.createForFarm(); } catch (e) { console.error(e); return false; } }
     if (p.id === "ramp" || p.id === "cab") return FARMDAY.interact(p);
     if (typeof FARMTRAIN !== "undefined" && FARMTRAIN.interact(p)) return true;
     return false;
@@ -279,7 +280,8 @@ const FARM = (() => {
   function restDay() {
     let r; try { r = CAREER.care.rest(); } catch (e) { console.error(e); r = { ok: false }; }
     if (!r.ok) { const m = r.reason === "booked-today" ? "Your race is today — head out to the float" : r.reason === "round-today" ? "A championship round is on today — enter it or skip it from the calendar first" : "Can't rest right now"; try { toast(m, "info", 3); } catch (e) {} return true; }
-    startTrans(1.1, () => { refreshBoard(); if (fadeEl) fadeEl.style.opacity = "1"; }, () => { try { toast("A good night's rest — it is now " + CAREER.care.today, "good", 3); } catch (e) {} objective(); });
+    const bl = r.bills || [], paid = bl.reduce((t, x) => t + x.paid, 0), spon = bl.reduce((t, x) => t + x.sponsor, 0), owed = bl.reduce((t, x) => t + x.owed, 0);
+    startTrans(1.1, () => { refreshBoard(); if (fadeEl) fadeEl.style.opacity = "1"; }, () => { try { toast("A good night's rest — it is now " + CAREER.care.today + (bl.length ? " · weekly bill −$" + paid.toLocaleString() + (spon ? ", sponsor +$" + spon.toLocaleString() : "") + (owed ? " ($" + owed.toLocaleString() + " owed to the club)" : "") : ""), "good", 4); } catch (e) {} objective(); });
     return true;
   }
   function enterHouse() {

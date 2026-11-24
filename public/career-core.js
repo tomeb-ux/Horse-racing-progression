@@ -195,10 +195,8 @@ const CORE = (() => {
   // Replaces the old record-only 60/20/10 string parsing: places 1–5 are paid and the amount is credited once through the ledger.
   const SPLIT_STD = [0.60, 0.20, 0.10, 0.06, 0.04], SPLIT_TOP = [0.58, 0.19, 0.10, 0.07, 0.06];
   // Races without a purse in the data (the optional races) pay nothing, exactly as before. Real purse balancing is the economy phase.
-  function purseOf(meta) {
-    const n = meta && typeof meta.prize === "string" ? +meta.prize.replace(/[^0-9]/g, "") : +(meta && meta.prize);
-    return finite(n) && n > 0 ? Math.round(n) : 0;
-  }
+  // the game's purse = the race's face-value prize × a per-tier scale (Phase 7 rebalance; see ECON.PURSE_SCALE), rounded to $50
+  function purseOf(meta) { const f = purseFace(meta); return f > 0 ? Math.max(50, Math.round(f * purseScale(meta) / 50) * 50) : 0; }
   const splitFor = meta => ((meta && meta.tier) | 0) >= 3 ? SPLIT_TOP : SPLIT_STD;
   function prizeFor(meta, place) { place = place | 0; if (place < 1 || place > 5) return 0; return Math.round(purseOf(meta) * splitFor(meta)[place - 1]); }
   // credit a prize once. The key names the race instance + horse, so replays and reloads cannot pay it twice.
@@ -291,10 +289,11 @@ const CORE = (() => {
     const fac = C.fac || {};
     for (const h of C.horses || []) { if (finite(h.fitness)) h.fitness = Math.min(100, Math.round(h.fitness + recoveryPerDay(h, fac) * (to - from))); }
     C.day = to;
+    const bills = chargeWeeks(C, from, to);
     const rolled = seasonOfDay(to) !== seasonOfDay(from), aged = [];
     for (const h of C.horses || []) { const a = ageOf(h, to); if (a !== h.age) { if (rolled) aged.push({ name: h.name, age: a }); h.age = a; } }
     for (const h of C.horses || []) { if (h.trainDay != null && h.trainDay < to) h.trainedToday = 0; }
-    return { ok: true, from, to, days: to - from, skips, rolled, aged };
+    return { ok: true, from, to, days: to - from, skips, rolled, aged, bills };
   }
   // entering (or skipping) a championship round: the date becomes the round's scheduled day (never earlier than today)
   function enterRound(C, idx) {
@@ -356,6 +355,7 @@ const CORE = (() => {
     C.entries = Array.isArray(C.entries) ? C.entries.filter(isObj).slice(0, 20) : [];
     C.notices = Array.isArray(C.notices) ? C.notices.filter(isObj).slice(-NOTICE_KEEP) : [];
     C.farm = isObj(C.farm) ? C.farm : { state: "default" };
+    econOf(C);
     for (const h of C.horses) fillHorse(h, C, { how: from < V ? "migrated" : "created", age: from < V ? migratedAge(h, C) : 3 });
     syncCalendar(C);
     if (from < V) C.migrated = { from, at: Date.now() };
@@ -456,12 +456,100 @@ const CORE = (() => {
   // "Rest a day": one calendar day (through advance, so horses recover and the clock stays consistent). Never skips a race that is today.
   function restDay(C) {
     if (C.booking && dayInt(C.booking.day) <= dayInt(C.day)) return { ok: false, reason: "booked-today" };
-    const res = advance(C, 1, {}); if (res.ok) return { ok: true, from: res.from, to: res.to };
+    const res = advance(C, 1, {}); if (res.ok) return { ok: true, from: res.from, to: res.to, bills: res.bills || [] };
     if (res.needsConfirm) return { ok: false, reason: "round-today", skips: res.skips };
     return { ok: false, reason: "error" };
   }
 
-  return { CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
+  // ---------------------------------------------------------------- the stable economy (Phase 7)
+  // Fictional, gameplay-balanced Australian dollars (not real racing prices). Prize money is the main income; the stable pays an entry fee per race, a weekly bill (feed & care
+  // per horse, property upkeep, facility upkeep, wages once staff exist) that is charged automatically as the calendar moves on and shown as ONE line, and earns a little sponsorship once its
+  // reputation grows. Nothing can leave the account below zero: an unpayable bill becomes money owed to the stable club (repaid from half of each prize), and once a season the club
+  // advances emergency funds when cash is low — so there is always a way back (a cheap race, a prize, an advance) and never an unrecoverable bankruptcy.
+  const ECON = {
+    PURSE_SCALE: { 1: 0.30, 2: 0.18, 3: 0.06, 4: 0.05 },       // × the race's face-value purse (Provincial … Group 1 … Everest)
+    ENTRY_PCT: 0.04, ENTRY_MIN: 400,                           // entry fee: 4 % of the purse, never under $400 (optional races have no purse and no fee)
+    HORSE_WEEK: 600, PROPERTY_WEEK: 400, FAC_WEEK: 150,        // per horse per week; the property; per facility upgrade level per week
+    SPONSOR: [[100, 2500], [60, 1200], [30, 600], [10, 250]],  // weekly sponsorship by reputation (rep ≥ first, pays second)
+    CLUB: { AMOUNT: 8000, TRIGGER: 3000, REPAY: 0.5 },        // one emergency advance per season, only when cash is under the trigger; half of each prize repays it
+    MILESTONES: [["win1", "First win", 2000], ["win5", "5 career wins", 5000], ["win10", "10 career wins", 10000], ["win25", "25 career wins", 25000], ["stakes", "First stakes win", 10000], ["g1", "First Group 1 win", 50000]],
+  };
+  const weekOf = d => Math.floor(dayInt(d) / 7);
+  const fmtMoney = n => (n < 0 ? "−" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-AU");
+  const round50 = n => Math.max(0, Math.round(n / 50) * 50);
+  const purseFace = meta => { const n = meta && typeof meta.prize === "string" ? +meta.prize.replace(/[^0-9]/g, "") : +(meta && meta.prize); return finite(n) && n > 0 ? Math.round(n) : 0; };
+  const purseScale = meta => ECON.PURSE_SCALE[Math.max(1, Math.min(4, ((meta && meta.tier) | 0) || 1))];
+  const entryFee = meta => { const p = purseOf(meta); return p > 0 ? Math.max(ECON.ENTRY_MIN, round50(p * ECON.ENTRY_PCT)) : 0; };
+  const purseLabel = meta => { const p = purseOf(meta); return p > 0 ? fmtMoney(p) : "—"; };
+  function econOf(C) {
+    if (!isObj(C.econ)) C.econ = {}; const e = C.econ;
+    if (!finite(e.debt) || e.debt < 0) e.debt = 0; e.debt = Math.round(e.debt); if (!finite(e.clubSeason)) e.clubSeason = 0; if (!finite(e.paidWeek)) e.paidWeek = weekOf(C.day); if (!isObj(e.last)) e.last = null;
+    return e;
+  }
+  const sponsorWeekly = rep => { for (const [r, v] of ECON.SPONSOR) if ((+rep || 0) >= r) return v; return 0; };
+  // what one week costs and earns right now (shown in the Office as "upcoming expenses")
+  function weeklyBill(C) {
+    const n = (C.horses || []).length, fac = C.fac || {}, lv = Object.values(fac).reduce((a, v) => a + (finite(v) ? v : 0), 0), staff = C.staff || {};
+    const wages = Object.values(staff).reduce((a, s) => a + (s && finite(s.wage) ? s.wage : 0), 0);
+    const items = [{ k: "feed", label: `Feed & care · ${n} horse${n === 1 ? "" : "s"}`, amount: n * ECON.HORSE_WEEK }, { k: "property", label: "Property upkeep", amount: ECON.PROPERTY_WEEK + lv * ECON.FAC_WEEK }];
+    if (wages) items.push({ k: "wages", label: "Staff wages", amount: wages });
+    const cost = items.reduce((a, x) => a + x.amount, 0), income = sponsorWeekly(C.rep);
+    return { items, cost, sponsor: income, net: income - cost };
+  }
+  // pay `amount` as far as the cash allows; any unpaid remainder is owed to the club (never a negative balance)
+  function payBill(C, key, amount, kind, note) {
+    const e = econOf(C); amount = Math.round(amount); if (amount <= 0) return { ok: true, paid: 0, owed: 0 };
+    if (Object.prototype.hasOwnProperty.call(C.txn || {}, key)) return { ok: false, dup: true, paid: 0, owed: 0 };
+    const cash = Math.max(0, finite(C.cash) ? C.cash : 0), pay = Math.min(amount, cash), owe = amount - pay;
+    if (pay > 0) { const r = apply(C, key, -pay, kind, note + (owe ? " (part-paid)" : "")); if (!r.ok) return { ok: false, paid: 0, owed: 0, reason: r.reason }; }
+    else { if (!isObj(C.txn)) C.txn = {}; C.txn[key] = dayInt(C.day); }
+    if (owe > 0) e.debt = Math.min(e.debt + owe, 5e6);
+    return { ok: true, paid: pay, owed: owe };
+  }
+  // called by advance(): every week boundary crossed charges one bill (and pays any sponsorship), exactly once per week (txn keys)
+  function chargeWeeks(C, from, to) {
+    const e = econOf(C), w0 = Math.max(e.paidWeek, weekOf(from)) + 1, w1 = weekOf(to), bills = []; if (w1 < w0) return bills;
+    for (let w = w0; w <= Math.min(w1, w0 + 60); w++) {
+      const b = weeklyBill(C), wd = w * 7, label = fmtDate(wd, { short: true });
+      const spon = b.sponsor > 0 ? apply(C, "spons:w" + w, b.sponsor, "sponsor", "Sponsorship · week of " + label) : { ok: false };
+      const r = payBill(C, "week:w" + w, b.cost, "upkeep", "Weekly bill · " + label + " · " + b.items.map(x => x.label + " " + fmtMoney(x.amount)).join(" · "));
+      bills.push({ week: w, day: wd, cost: b.cost, paid: r.paid, owed: r.owed, sponsor: spon.ok ? b.sponsor : 0 }); e.paidWeek = w;
+    }
+    e.last = { from: dayInt(from), to: dayInt(to), cost: bills.reduce((a, x) => a + x.cost, 0), sponsor: bills.reduce((a, x) => a + x.sponsor, 0), owed: bills.reduce((a, x) => a + x.owed, 0), weeks: bills.length };
+    return bills;
+  }
+  // an entry fee for a race (key names the race instance + horse: re-entering the same instance never charges twice)
+  function payEntry(C, key, meta, horseName) {
+    const fee = entryFee(meta); if (!fee) return { ok: true, fee: 0 };
+    if (Object.prototype.hasOwnProperty.call(C.txn || {}, key)) return { ok: true, fee, already: true };
+    const r = apply(C, key, -fee, "entry", "Entry fee · " + meta.name + (horseName ? " · " + horseName : ""));
+    return r.ok ? { ok: true, fee } : { ok: false, fee, reason: r.reason === "insufficient" ? "cash" : r.reason, short: r.short || 0 };
+  }
+  const clubOffer = C => { const e = econOf(C), sn = seasonOfDay(C.day); if (e.clubSeason === sn) return { ok: false, reason: "used" }; if ((C.cash | 0) >= ECON.CLUB.TRIGGER) return { ok: false, reason: "not-needed", trigger: ECON.CLUB.TRIGGER }; return { ok: true, amount: ECON.CLUB.AMOUNT }; };
+  function clubAdvance(C) {
+    const o = clubOffer(C); if (!o.ok) return o; const e = econOf(C), sn = seasonOfDay(C.day);
+    const r = apply(C, "club:s" + sn, ECON.CLUB.AMOUNT, "advance", "Stable club emergency advance (repaid from prize money)"); if (!r.ok) return { ok: false, reason: r.dup ? "used" : r.reason };
+    e.debt += ECON.CLUB.AMOUNT; e.clubSeason = sn; return { ok: true, amount: ECON.CLUB.AMOUNT, debt: e.debt };
+  }
+  // half of every prize repays what the stable owes the club
+  function repayFromPrize(C, prizeKey, amount) {
+    const e = econOf(C); if (e.debt <= 0 || !(amount > 0)) return { ok: true, paid: 0 };
+    const r = Math.min(e.debt, Math.floor(amount * ECON.CLUB.REPAY)); if (r <= 0) return { ok: true, paid: 0 };
+    const t = apply(C, "repay:" + prizeKey, -r, "repay", "Stable club repayment (half of the prize)"); if (!t.ok) return { ok: true, paid: 0 };
+    e.debt -= r; return { ok: true, paid: r, debt: e.debt };
+  }
+  // reputation grows with results; milestones pay once, ever
+  function addRep(C, place, meta, official) {
+    const t = (meta && meta.tier) | 0; let g = 0; if (place === 1) g = t >= 3 ? 15 : t >= 2 ? 8 : official ? 4 : 1; else if (place >= 2 && place <= 3) g = official ? 1 : 0;
+    C.rep = clampN((C.rep | 0) + g, 0, 100000); return g;
+  }
+  function milestones(C, place, meta) {
+    const got = [], t = (meta && meta.tier) | 0, wins = C.wins | 0, ok = id => ({ win1: wins >= 1, win5: wins >= 5, win10: wins >= 10, win25: wins >= 25, stakes: place === 1 && t >= 2, g1: place === 1 && t >= 3 })[id];
+    for (const [id, label, amt] of ECON.MILESTONES) if (ok(id)) { const r = apply(C, "ms:" + id, amt, "bonus", "Milestone · " + label); if (r.ok) got.push({ id, label, amount: amt }); }
+    return got;
+  }
+
+  return { ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
     cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
