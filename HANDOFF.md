@@ -3,7 +3,7 @@
 Paste this file's contents into a new Claude Code chat to continue work. All the code is in this project folder (`ffmp/`).
 Detailed notes of the last updates: `docs/WORKLOG-P2.md`, `docs/WORKLOG-P3.md`, `docs/WORKLOG-P4.md`.
 
-**Current direction (user): the Career Mode expansion, one approved phase at a time — read `CAREER_EXPANSION_SPEC.md` (master spec), `CAREER_PLAN.md` (approved plan) and `CAREER_PROGRESS.md` (status, decisions, known issues, exactly what the next phase needs) FIRST. Phases 1 (audit) and 2 (career data architecture + save migration) are done; STOP after each phase and wait for the owner's review before starting the next.**
+**Current direction (user): the Career Mode expansion, one approved phase at a time — read `CAREER_EXPANSION_SPEC.md` (master spec), `CAREER_PLAN.md` (approved plan) and `CAREER_PROGRESS.md` (status, decisions, known issues, exactly what the next phase needs) FIRST. Phases 1 (audit), 2 (career data architecture + save migration) and 3 (scene separation) are done (3 awaiting the owner's review); STOP after each phase and wait for the owner's review before starting the next.**
 **Multiplayer is hidden and disabled** (`FF_FEATURES.multiplayer = false` in `public/index.html`: no menu button, `?join=` links and auto-rejoin do nothing). Its code is kept untouched (`public/mp.js`, `server/`, `tests/mp-*.js`) — flip the flag to restore it. Do not spend time keeping online in sync with new features, and do not run `tests/mp-*.js` (report them as "not run — multiplayer disabled by design"). (The old `?mp=1` switch mentioned in earlier handoffs never existed in code.) Asset/licence manifest: `ASSETS.md`.
 
 ## What it is
@@ -24,11 +24,13 @@ self-contained HTML file; an optional Node server adds online multiplayer. Proce
   Cache Storage downloads (checksum), streaming speaker with lookahead + stale-line dropping (`VOICE`). `tools/fetch-voices.js`
   copies the Kokoro files into `public/voices/` (git-ignored) for self-hosting.
 - `public/stable3d.js` — the 3D racing stable (`STABLE3D`): grooming bay, five boxes, trophy room, orbit camera, picking.
+- `public/scenes.js` — **`SCENES`: scene + input-context manager** (scenes `menu · stable · office · farm · race`; input contexts `race | farm | ui`). It *follows* `ui.state`: `show()` calls `SCENES.sync(state)`; scene hooks via `SCENES.register(name,{enter,leave})`; `SCENES.enter("farm"|"career"|"menu",{instant})` (the farm goes behind a loading overlay unless instant); held keys are released on every scene change; `snapshot()/mark()/check()` measure GPU geometries/textures/heap for leak tests; `SCENES.log` = last 40 transitions. `SCENE_SERVICES` (index.html) provides `leaveRace()` and `clearKeys()`.
+- `public/farm.js` — **`FARM`: the farm scene — currently a labelled PLACEHOLDER** (flat ground, stable block with 5 boxes holding the career's real horses, float, trees, walkable figure, "E — Travel to next race"). Own `THREE.Scene` + camera on the shared renderer; static geometry built once; per-visit horses/plaques disposed in `leave()`; its own capture-phase key listeners swallow all plain keys so nothing reaches the riding controls. Phase 4 replaces the content, keeps the lifecycle.
 - `public/career-core.js` — **career data architecture (pure logic, Node-testable, global `CORE`; loaded after season.js, before career.js)**: save schema v4 + `migrate` (v1/v2/v3 → v4, idempotent), `fresh`; calendar (day 0 = Sat 1 Aug 2026 = start of season 1; seasons run 1 Aug–31 Jul; horses age on 1 Aug; `fmtDate`, `seasonOfDay`, `advance` with skip warnings / `cap` / `force`, `enterRound`, `afterOptional`, `startSeason`); money ledger `apply(C, key, amount, kind, note)` (a key applies once ever; refuses negative balances; `audit`); prize schedule (`prizeFor`, `awardPrize`; places 1–5, purse from the race's `prize` string, optional races pay nothing); horse age / growth / fitness / recovery data + rules (NOT yet affecting racing); deterministic dated programme (`placeSeason`/`syncCalendar`: rounds on Saturdays + optional meetings, each with time of day and a weather/going forecast stored on the event); `backup(storage, raw, label)` (verified, never overwrites an older backup); `exportSave` / `parseImport` (checksummed envelope).
 - `public/career.js` — Career UI: hub (now shows date + cash + Office button), creator (5 steps), stable/profile/training, rivals, form guide, events, championship screens, **Office** (cash, ledger, dated calendar, horse condition, export/import/backups), results bridge. `load()` = parse → verified backup of the stored text when the version isn't 4 (`ff_career_v<N>_backup`) → `prepare()` (`sanHorse` + `SEASON.migrate` + `CORE.migrate`). `onResult` credits prize money through the ledger once (key `prize:s<season>:<raceId>:<horseId>`), records the date + post-race fitness.
 - `public/mp.js` — online client. `server/` — authoritative server (race-server.js, rooms.js, protocol.js, index.js).
 - `tools/build-single.js` — inlines sim, season, commentary, mp, venues, stable3d, career-core, career into `dist/final-furlong-single.html`. Every new script needs a `swap()` line here AND a `<script>` tag in index.html.
-- Script order in index.html: sim.js → season.js → commentary.js → voice-core.js → voice.js → (main inline) → eleven.js → gfx.js → mp.js → venues.js → presentation.js → stable3d.js → career-core.js → career.js.
+- Script order in index.html: sim.js → season.js → commentary.js → voice-core.js → voice.js → (main inline) → eleven.js → gfx.js → mp.js → venues.js → presentation.js → stable3d.js → scenes.js → farm.js → career-core.js → career.js.
 
 ## Published artifact (single-player)
 `https://claude.ai/artifact/RUnGGeTzSHw7XxG5iESe6G` — publish from `/home/user/ffmp-extract/final-furlong.html` (a copy of
@@ -64,6 +66,7 @@ PORT=8095 node tests/presentation-browser.js        # parade ring, barriers, win
 node tools/shots.js <outDir> [shots.json]           # real in-game screenshots (see the file for options)
 node tests/progression.js 2 24                      # balance + development speed (real engine)
 PORT=8095 node tests/career-browser.js              # 114 checks (87 before Phase 2): v4 migration + backup, hidden multiplayer, prize once, dates, Office, export/import, stable/creator/camera/training/rivals/Randwick/commentary
+PORT=8095 node tests/scenes-browser.js               # 36 checks: scene tracking, farm controls + collision, key isolation, nothing of the other world drawn, commentary stops, 10 farm↔race trips with no resource growth
 node tools/build-single.js && node tests/single-browser.js   # the single-file build opened from disk: inlined core, v3→v4 + backup, newer-version save backed up, Office, multiplayer hidden (8 checks)
 node tests/field.js public/sim.js 112 ; node tests/chaos.js public/sim.js ; node tests/avoid.js public/sim.js
 node tests/pileup.js public/sim.js full 60 ; node tests/pushfall.js public/sim.js
@@ -73,7 +76,7 @@ Gotchas: after `npm install`, delete `node_modules/playwright*` (use the preinst
 voices (tests stub `speechSynthesis`). The build container has no outbound web access (reference sites were unreachable).
 
 ## Status
-Latest (Career expansion Phase 2): multiplayer hidden, save v4, ledger, calendar, Office — see `CAREER_PROGRESS.md`. Before that: multiplayer re-enabled (FF_FEATURES.multiplayer = true; now false again). Career horses online: `pickCareer` (server/protocol.js
+Latest (Career expansion Phase 3): scene manager + input contexts + placeholder farm (Career hub → Farm (preview)); Phase 2: multiplayer hidden, save v4, ledger, calendar, Office — see `CAREER_PROGRESS.md`. Before that: multiplayer re-enabled (FF_FEATURES.multiplayer = true; now false again). Career horses online: `pickCareer` (server/protocol.js
 cleanDef — every field bounded), `cfg.humanDefs` in sim.js Race, `CAREER.onlineHorses()` / `CAREER.recordOnline()`
 (h.online — record only). The server holds the race until every client sends `loaded` (≤ 10 s). Online stall balance:
 the client runs `race.trackOne` locally for display, the server decides. Lunge/stride presses are dated to the moment

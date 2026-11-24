@@ -23,9 +23,9 @@ Implementation plan (approved): `CAREER_PLAN.md`.
 | Phase | Status |
 |---|---|
 | 1 — Existing project audit | **Done.** Findings are in `CAREER_PLAN.md` §1 |
-| 2 — Career data architecture + save migration | **Done — awaiting the owner's review** (details below) |
-| 3 — Scene separation | **Next.** Not started — do not begin until Phase 2 is approved |
-| 4 — Farm environment | Not started |
+| 2 — Career data architecture + save migration | **Done and approved by the owner** (on `main`, published) |
+| 3 — Scene separation | **Done — awaiting the owner's review** (details below) |
+| 4 — Farm environment | **Next.** Not started — do not begin until Phase 3 is approved |
 | 5 — Third-person character | Not started |
 | 6 — Farm interactions | Not started |
 | 7 — Finances | Not started |
@@ -148,24 +148,59 @@ What the new tests cover: v1, v2 and v3 save fixtures migrated with every horse 
   below ~520 KB after eight simulated seasons (tested). The ledger window (300 entries) and applied-key set (4,000) are bounded.
 - **Commentary intro at unknown venues.** A career race at a venue other than Randwick or Flemington picks the generic intro
   "Welcome to Furlong Park…" (`commentary.js` `venueKey`). Fix in Phase 11 with neutral existing lines.
-- **Venues are cached forever** (`venues.js` `use`) — Phase 3 must measure memory across repeated transitions.
-- **The career frame path skips diagnostics** (`perfFrame`, `GFX.autoTick` don't run on career screens) — the farm branch must call both.
+- **Venues are cached forever** (`venues.js` `use`). Measured in Phase 3: ten farm ↔ race round trips (identical field) leave GPU geometries/textures unchanged (282 → 282, 67 → 67), JS heap Δ ≈ 0.5 MB. With *random* opponents the game's own horse-model cache grows for the first ~7 races, then flattens (277 → 304 geometries) — a cache, not a leak. No dispose path is needed yet; `FARM.dispose()` exists for the farm.
+- **The career *stable* frame path still skips `perfFrame`/`autoTick`** (unchanged; they do run on the farm and in races).
 - **GitHub zip not regenerated** (the user's upload zip is a build output; this phase was delivered as a git push + the artifact).
 
-## Exactly what Phase 3 requires (from `CAREER_PLAN.md`; do not start until the owner approves Phase 2)
-1. **`public/scenes.js`** (new; add a `swap()` line in `tools/build-single.js` and a `<script>` tag after `stable3d.js`):
-   a `SCENES` manager with `current ∈ {menu, farm, office, stable, race}`, `enter/leave` hooks, a loading overlay, a resource
-   ledger and leak check (`renderer.info.memory`, `performance.memory`), and **input contexts** `SCENES.input = "race" | "farm" | "ui"`.
-   Race keydown actions and `handlePlayerInput` must require `input === "race"`; the farm reads only its own keys; held keys
-   are cleared on every context switch (like the existing `blur` handler).
-2. **Placeholder farm scene** with its own `THREE.Scene` + camera sharing `renderer` (pattern: `STABLE3D`): ground, five boxes
-   and one interaction point "travel to race", so transitions can be tested before art.
-3. **Clean enter/leave:** entering the farm → `race = null`, `clearRaceMeshes()`, `COMM.stop()`, audio stop, race scene not
-   rendered; entering a race → farm horses disposed (`disposeHorse`), farm not updated, farm input detached.
-4. Farm branch in the frame loop must run `perfFrame` + `GFX.autoTick`.
-5. **Tests:** new `tests/scenes-browser.js` — 10 farm ↔ race round trips with `renderer.info.memory.geometries/textures`
-   back at baseline (± small) and bounded heap growth (`--enable-precise-memory-info`); farm keys never move `riderInput` and
-   race keys are inert on the farm; commentary stops on leaving a race. Run `PORT=8095 node tools/smooth.js` **before and after**
-   (this is the first phase that touches the frame loop) and report any regression. Plus the full regression list.
-6. Career data must be untouched by scene changes: reuse `CAREER.data` + `CORE`, never write cash except via `CORE.apply`.
-7. When done: update this file and HANDOFF.md, commit, build (`node tools/build-single.js`), publish to the existing artifact, then STOP.
+## Phase 3 — what was implemented (scene separation)
+
+The race itself is untouched: no change to `sim.js`, the race loop's simulation/render code, physics, graphics, horses, AI or commentary.
+
+1. **`public/scenes.js` (new) — `SCENES`**, a scene + input-context manager that *follows the existing UI state*: `show()` calls
+   `SCENES.sync(state)`, so every existing screen works exactly as before. Scenes: `menu · stable · office · farm · race`.
+   Input contexts: `race` (racing/pause/replay/parade/celebrate), `farm`, `ui`. On every scene change the held keys are released
+   (like the window-blur handler). Per-scene `enter/leave` hooks (`SCENES.register`), a loading overlay (`SCENES.withOverlay`),
+   `SCENES.enter("farm" | "career" | "menu", {instant})`, and a resource ledger: `snapshot()` (GPU geometries/textures/programs,
+   JS heap, whether a race is alive, farm info), `mark(name)` / `check(name, tol)` for leak checks, and a log of the last 40
+   transitions. Every route out of the race world goes through `SCENE_SERVICES.leaveRace()` (index.html): finishes a parade/
+   celebration, clears replay/highlights, `race = null`, `clearRaceMeshes()`; `show()` already silences the commentary.
+2. **`public/farm.js` (new) — `FARM`, a labelled PLACEHOLDER scene**: its own `THREE.Scene` + camera drawn by the shared
+   renderer (the `STABLE3D` pattern). Flat ground, a stable block with five boxes where the career's real horses stand (via
+   `CAREER.farmStalls()` → `buildHorse(toDef(h))`) with name plaques, a horse float, trees, a walkable placeholder figure,
+   third-person camera, and one interaction point: **E — Travel to next race** (opens the usual event screen for the next
+   championship round). Movement: W A S D, Shift = run, ← → or drag = look, **Esc = back to the Career hub**; simple collision with
+   the stable block and float and a boundary. `enter()` builds the static geometry once (kept afterwards), stands the horses, and
+   attaches the farm's own keyboard/pointer/resize listeners; `leave()` removes the listeners and disposes horses + plaques;
+   `FARM.dispose()` frees the static geometry too (low-memory mode).
+3. **Input isolation.** The farm's listeners run in the *capture* phase and swallow every plain key (not Ctrl/Alt/Meta or F-keys)
+   while the farm is active; the riding controls' global `keydown` also returns early when `SCENES.input === "farm"`. The farm
+   keeps its own key map. Farm keys therefore never reach `keys`, `riderInput` or the camera, and race keys are inert on the farm.
+4. **Frame loop (`index.html`):** a farm branch (`FARM.frame(dt)`, then `perfFrame`) placed before the career-stable branch;
+   `GFX.autoTick` now also runs while on the farm, so F8 diagnostics and AUTO quality work there (this fixes the audit's
+   "career frame path skips diagnostics" for the farm; the career *stable* screens still skip them — unchanged).
+5. **`career.js`:** a **Farm (preview)** button on the Career hub; `CAREER.farmStalls()` and `CAREER.travelToNextRace()`.
+6. **`tools/build-single.js`** inlines `scenes.js` and `farm.js`; both have `<script>` tags before `career-core.js`.
+
+## Exactly what Phase 4 requires (from `CAREER_PLAN.md` §3 and `CAREER_EXPANSION_SPEC.md` §4, §6.3, §25–26; do not start until the owner approves Phase 3)
+Replace the placeholder in `public/farm.js` with the real medium-sized Australian thoroughbred training property (≈ 220 × 160 m walkable,
+laid out round a central courtyard). **Keep the lifecycle** (build once, per-visit horses disposed on leave, listeners attached on enter,
+`SCENES` hooks) and keep every Phase 3 test green.
+1. **Buildings and areas:** farmhouse / career office (exterior + an entry trigger only — the office stays a UI, not a modelled interior);
+   main stable block with **five stalls**, name plaques and the **correct saved horses** via `buildHorse(toDef(h))` (same coat, markings,
+   build, mane and tail as in races; vacant stalls visibly vacant, with age/condition/form/next-race on the plaque where known);
+   grooming/wash bay; feed and equipment shed; training area (400–600 m exercise lane or small oval + gate-practice area); **three
+   paddocks**; vet/care bay; horse transport float/truck and departure area; marked **facility upgrade slots** (modest add-on props later).
+2. **Australian look:** eucalypts (reuse `GFX.plantTrees`), timber/steel sheds, post-and-rail fences, paddock gates, troughs,
+   gravel/concrete paths, natural grass; no European-mansion or fantasy look. A **farm lighting preset** on the same `GFX` pipeline
+   (sky, one shadow-casting sun whose shadow frustum follows the player, hemi fill).
+3. **Horses behave naturally:** the existing idle path plus grazing / ear / tail variations; **distance- and frustum-gated** — nothing
+   animates for horses that can't be seen (≤ 5 player horses + ≤ 3 staff figures later).
+4. **Performance budget (measure, don't assume):** ≤ ~250 draw calls and ≤ ~500k triangles at High; static meshes merged per material
+   (`GFX.merge`), instanced fences/trees/tufts; report draw calls, triangles and frame time from the F8 overlay on the farm; AUTO
+   quality must work there. Run `tools/smooth.js` before/after and the 10-trip leak test again (the farm is now much bigger).
+5. **Keep working:** the travel-to-race interaction, Esc back to the hub, collision (replace the placeholder AABB list with the new
+   buildings, fences and horses), the farm HUD.
+6. **Tests:** new `tests/farm-browser.js` (spawn, walk the whole property, collide with every building/fence, each interaction point
+   reachable, the five stalls show the right horses with the right plaques, vacant stalls vacant, draw-call/triangle budget, idle
+   animation gated by distance) + `scenes-browser.js` + the full regression list. Screenshots for the owner's review.
+7. When done: update this file and HANDOFF.md, commit, build, publish to the existing artifact, then STOP.
