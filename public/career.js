@@ -601,6 +601,21 @@ const CAREER = (() => {
       ${prizes.length ? `<div class="car-sub" style="margin-top:8px">Recent prize money</div><table class="car-tbl">${prizes.map(x => `<tr><td>${CORE.fmtDate(x.day, { short: true })}</td><td>${esc(x.note)}</td><td style="text-align:right;color:var(--good)">+${money(x.amount)}</td></tr>`).join("")}</table>` : ""}
       <div class="car-row" style="margin-top:8px"><button class="btn small" id="ofClub" ${club.ok ? "" : "disabled"}>Stable club advance ${money(CORE.ECON.CLUB.AMOUNT)}</button><span style="font-size:12px;color:var(--fg-dim)">${club.ok ? "Available now: your cash is under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season, repaid from prize money)." : club.reason === "used" ? "Already used this season." : "Available when cash falls under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season)."}</span></div></div>`;
   }
+
+  // ---------- the Hall of Fame (Phase 14) ----------
+  function openHallOfFame() {
+    style(); const el = screen("hof"), L = (C.hof || []).slice().reverse();
+    const card = e => `<div class="car-panel"><div class="car-row" style="justify-content:space-between;align-items:baseline"><div><span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;background:${esc((e.look && e.look.coat) || "#7a4a28")};border:1px solid rgba(255,255,255,.35)"></span><b style="font-size:18px">${esc(e.name)}</b> <span class="car-tag">${e.why === "aged" ? "Retired at the end of its racing life" : "Retired"}</span></div><div style="font-size:12.5px;color:var(--fg-dim)">Season ${e.season} · age ${e.age}</div></div>
+      <div class="car-kv" style="margin:6px 0"><span>Starts <b>${e.starts}</b></span><span>Wins <b>${e.wins}</b></span><span>Placings <b>${e.places}</b></span><span>Prize money <b>${money(e.prize)}</b></span><span>Rating at retirement <b>${e.rating}</b></span>${e.majors ? `<span>Feature wins <b>${e.majors}</b></span>` : ""}${e.bestPlace ? `<span>Best finish <b>${ordinal(e.bestPlace)}</b></span>` : ""}</div>
+      ${e.trophies && e.trophies.length ? `<div style="font-size:12.5px;color:var(--fg-dim)">🏆 ${e.trophies.map(t => esc(t.race) + (t.season ? " (S" + t.season + ")" : "")).join(" · ")}</div>` : ""}
+      ${e.last && e.last.length ? `<div style="font-size:12px;color:var(--fg-dim);margin-top:4px">Last runs: ${e.last.slice(-6).map(r => r.dnf || !r.place ? "F" : r.place).join("-")}</div>` : ""}</div>`;
+    page(el, `<h2>Hall of Fame</h2><div class="car-sub">${esc(C.stable)} — every horse you have retired, with its record</div>
+      ${L.length ? L.map(card).join("") : `<div class="car-panel">No horse has been retired yet. Retire a veteran from the Horse Market's Sell / Retire tab and its record is kept here for good.</div>`}
+      <div class="car-row"><button class="btn" id="hofBack">Back</button></div>`);
+    el.querySelector("#hofBack").onclick = () => (fromFarm ? home() : openOffice());
+    show("c_hof");
+  }
+
   // ---------- the horse market (Phase 10): buy (browse, bid, buy), sell, or pay for a custom horse ----------
   let mk = { tab: "buy", sel: null, msg: "", confirm: null, from: "office" };
   const mkSwatch = L => `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;background:${esc(L.coat)};border:1px solid rgba(255,255,255,.35)"></span>`;
@@ -631,8 +646,8 @@ const CAREER = (() => {
       <div class="car-grid" style="grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">${L.length ? L.map(l => mkCard(CORE.marketView(C, l), l)).join("") : `<div class="car-panel">No horses are on offer this week.</div>`}</div>`;
     else if (mk.tab === "sell") body = `<div class="car-panel" style="font-size:12.5px;color:var(--fg-dim);margin:4px 0 8px">A sale is the horse's valuation (ability, potential, age, record, condition) less the agent's ${Math.round(CORE.MKT.COMMISSION * 100)}%, moved by this week's market. You can't sell your last horse or one that is booked into a race.</div>
       <div class="car-panel"><table class="car-tbl"><tr><th>Horse</th><th>Age</th><th>Rating</th><th class="hide-s">Record</th><th style="text-align:right">Offer</th><th></th></tr>
-      ${C.horses.map(h => { const q = CORE.sellQuote(C, h.id), c = mk.confirm === h.id; return `<tr><td><b>${esc(h.name)}</b></td><td>${h.age}</td><td>${q.rating} → ${potRating(h)}</td><td class="hide-s">${h.races} start${h.races === 1 ? "" : "s"} · ${h.wins} win${h.wins === 1 ? "" : "s"}</td><td style="text-align:right"><b>${money(q.price)}</b></td>
-        <td style="text-align:right">${q.blocked ? `<span style="font-size:12px;color:var(--fg-dim)">${q.blocked === "last" ? "your last horse" : "booked in a race"}</span>` : c ? `<button class="btn small primary" data-mksell="${h.id}">Confirm sale</button> <button class="btn small" data-mkcancel="1">Cancel</button>` : `<button class="btn small" data-mkconfirm="${h.id}">Sell…</button>`}</td></tr>`; }).join("")}</table></div>`;
+      ${C.horses.map(h => { const q = CORE.sellQuote(C, h.id), c = mk.confirm; return `<tr><td><b>${esc(h.name)}</b></td><td>${h.age}</td><td>${q.rating} → ${potRating(h)}</td><td class="hide-s">${h.races} start${h.races === 1 ? "" : "s"} · ${h.wins} win${h.wins === 1 ? "" : "s"}</td><td style="text-align:right"><b>${money(q.price)}</b></td>
+        <td style="text-align:right">${q.blocked ? `<span style="font-size:12px;color:var(--fg-dim)">${q.blocked === "last" ? "your last horse" : "booked in a race"}</span>` : c === h.id ? `<button class="btn small primary" data-mksell="${h.id}">Confirm sale</button> <button class="btn small" data-mkcancel="1">Cancel</button>` : c === "r:" + h.id ? `<button class="btn small primary" data-mkretire="${h.id}">Confirm retirement</button> <button class="btn small" data-mkcancel="1">Cancel</button>` : `<button class="btn small" data-mkconfirm="${h.id}">Sell…</button> <button class="btn small" data-mkrconfirm="${h.id}">Retire…</button>`}${CORE.retirePrompt(h) ? `<div style="font-size:11.5px;color:var(--warn)">${esc(h.name)} ${esc(CORE.retirePrompt(h))}</div>` : ""}</td></tr>`; }).join("")}</table><div style="font-size:11.5px;color:var(--fg-dim);margin-top:6px">Retiring keeps the horse's whole record in the Hall of Fame and pays a small tribute (${Math.round(CORE.HOF.TRIBUTE * 100)}% of its value); horses past ${CORE.HOF.MAX_AGE} retire at the end of the season. <a href="#" id="mkHof" style="color:var(--accent)">Open the Hall of Fame (${(C.hof || []).length})</a></div></div>`;
     else body = `<div class="car-panel"><div class="car-sub">Create your own thoroughbred</div><div style="font-size:13px;margin:4px 0 8px">Design the look, silks, ability and potential yourself in the five-step creator. ${CORE.createFee(C) ? `A custom horse costs <b>${money(CORE.createFee(C))}</b>, and the fee grows with every horse in your stable.` : "Your first horse is free."}</div>
       <button class="btn primary" id="mkCreate" ${free && C.cash >= CORE.createFee(C) ? "" : "disabled"}>Open the creator (${CORE.createFee(C) ? money(CORE.createFee(C)) : "free"})</button> <span style="font-size:12px;color:var(--fg-dim)">${!free ? "No free box." : C.cash < CORE.createFee(C) ? "Short of cash." : ""}</span></div>`;
     page(el, `<h2>Horse Market</h2><div class="car-sub">${esc(C.stable)} · ${CORE.fmtDate(C.day)} · ${C.horses.length} of ${slots()} boxes in use</div>
@@ -655,6 +670,11 @@ const CAREER = (() => {
       again(); });
     el.querySelectorAll("[data-mkconfirm]").forEach(b => b.onclick = () => { mk.confirm = b.dataset.mkconfirm; again(); });
     el.querySelectorAll("[data-mkcancel]").forEach(b => b.onclick = () => { mk.confirm = null; again(); });
+    el.querySelectorAll("[data-mkrconfirm]").forEach(b => b.onclick = () => { mk.confirm = "r:" + b.dataset.mkrconfirm; again(); });
+    el.querySelectorAll("[data-mkretire]").forEach(b => b.onclick = () => { const r = CORE.retireHorse(C, b.dataset.mkretire, "chosen"); mk.confirm = null;
+      if (r.ok) { save(); mk.msg = `<b>${esc(r.name)} is retired.</b> Its record is in the Hall of Fame${r.tribute ? " and the stable receives " + money(r.tribute) : ""}.`; toast(esc(r.name) + " has been retired to the Hall of Fame", "good", 3); } else mk.msg = r.reason === "last" ? "You can't retire your last horse." : r.reason === "booked" ? "That horse is booked into a race." : "It could not be retired.";
+      again(); });
+    const hofLink = q("#mkHof"); if (hofLink) hofLink.onclick = e => { e.preventDefault(); openHallOfFame(); };
     el.querySelectorAll("[data-mksell]").forEach(b => b.onclick = () => { const r = CORE.sellHorse(C, b.dataset.mksell); mk.confirm = null;
       if (r.ok) { save(); mk.msg = `<b>Sold.</b> ${esc(r.name)} went for ${money(r.price)}.`; toast(esc(r.name) + " sold for " + money(r.price), "good", 3); } else mk.msg = r.reason === "last" ? "You can't sell your last horse." : r.reason === "booked" ? "That horse is booked into a race." : "The sale could not be made.";
       again(); });
@@ -1279,6 +1299,7 @@ const CAREER = (() => {
     const s = S(), h = C.horses[hi], meta = SEASON.roundDef(s, idx);
     if (!h || idx !== s.cur || SEASON.done(s) || s.rounds[idx].st !== "open") { openHub(); return false; }
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
+    if (racedToday(h)) { toast(h.name + " has already raced today — give him a day", "warn", 2.6); return false; }
     const fee = payEntryFee(`entry:s${s.n}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) return false;
     const at = atmoOf(meta, "off", idx);
     C.active = hi; CORE.enterRound(C, idx); save();           // the date becomes the round's scheduled day (the weekly bills fall due on the way)
@@ -1296,10 +1317,19 @@ const CAREER = (() => {
     toast(`Not enough cash for the ${money(r.fee)} entry fee (you have ${money(C.cash)}). ${off.ok ? "The stable club can advance " + money(off.amount) + " from the Office." : "Choose a cheaper race or wait for prize money."}`, "warn", 4.5);
     return { ok: false, fee: r.fee };
   }
-  function enterOptional(id, hi) {
+  // a horse runs once a day; and a race with prize money is only run on one of its dated meetings (an open race entered from the hub moves the calendar to the next meeting, like booking it)
+  const racedToday = h => h.lastRaceDay != null && (h.lastRaceDay | 0) === (C.day | 0);
+  function enterOptional(id, hi, booked) {
     const meta = BY_ID[id], h = C.horses[hi]; if (!meta || !h) { openOptional(); return false; }
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
-    const fee = payEntryFee(`entry:o${C.optN | 0}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) return false;
+    if (racedToday(h)) { toast(h.name + " has already raced today — give him a day", "warn", 2.6); return false; }
+    let snap = null;
+    if (!booked && CORE.purseOf(meta) > 0) {
+      const m = CORE.nextMeeting(C, id), nr = CORE.nextOpenRoundDay(C);
+      if (!m || (nr != null && m.day >= nr)) { toast("The next meeting of the " + meta.name + " is after your next championship round — run or skip that round first", "warn", 3.4); return false; }
+      if (m.day > C.day) { snap = JSON.stringify(C); CORE.advance(C, m.day - C.day, { cap: true, force: true }); }
+    }
+    const fee = payEntryFee(`entry:o${C.optN | 0}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) { if (snap) restoreCareer(snap); return false; }
     const at = atmoOf(meta, "opt");
     C.active = hi; save();
     // the field: persistent rivals of the right grade for this race (the same field the form guide showed)
@@ -1494,7 +1524,7 @@ const CAREER = (() => {
     const snap = JSON.stringify(C);                           // all or nothing (Phase 13): if the entry can't be made, the calendar, cash and bills are put back exactly as they were
     try {
       if (b.kind === "round") ok = enterOfficial(b.round, b.hi);
-      else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); ok = enterOptional(b.ref, b.hi); }
+      else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); ok = enterOptional(b.ref, b.hi, true); }
     } catch (err) { console.error(err); ok = false; }
     if (!ok) { restoreCareer(snap); return { ok: false, error: "The entry could not be made (entry fee or eligibility)." }; }
     delete C.booking; save();                                // consumed exactly once, only when the race really started

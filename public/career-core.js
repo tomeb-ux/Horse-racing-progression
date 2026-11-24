@@ -305,6 +305,7 @@ const CORE = (() => {
     for (const h of C.horses || []) { const a = ageOf(h, to); if (a !== h.age) { if (rolled) aged.push({ name: h.name, age: a }); h.age = a; } }
     if (rolled) for (const h of C.horses || []) { const g = h.growth, dr = g ? declineRate(g, h.age) : 0; if (dr > 0) for (const k of ["top", "acc", "spr", "end"]) if (hashStr(h.id + "/decl/" + h.age + k) % 100 < dr * 30 && h.attrs[k] > 40) h.attrs[k]--; }
     for (const h of C.horses || []) { if (h.trainDay != null && h.trainDay < to) h.trainedToday = 0; }
+    const retired = rolled ? autoRetire(C) : []; for (const r of retired) aged.push({ name: r.name, age: HOF.MAX_AGE, retired: true });
     try { marketSync(C); } catch (e) { /* the market never blocks the calendar */ }
     return { ok: true, from, to, days: to - from, skips, rolled, aged, bills };
   }
@@ -816,7 +817,38 @@ const CORE = (() => {
   // a custom horse from the creator now costs a fee that grows with the stable (the first horse of a career is free)
   const createFee = C => MKT.CREATE_FEE[Math.min(MKT.CREATE_FEE.length - 1, (C.horses || []).length)];
 
-  return { MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
+
+  // ---------- retirement and the Hall of Fame (Phase 14) ----------
+  // A horse is retired by choice (from the Market's Sell / Retire tab) or, once past MAX_AGE, at the turn of the season. It leaves the stable but its whole record is kept in C.hof:
+  // look, silks, results, prize money, the best it ever rated, the years it raced. A small retirement tribute is paid (15 % of its valuation — far less than selling it).
+  const HOF = { MAX: 60, MAX_AGE: 12, PROMPT_AGE: 9, TRIBUTE: 0.15 };
+  function hofEntry(C, h, why) {
+    const hist = Array.isArray(h.history) ? h.history : [], best = hist.reduce((m, e) => (e && e.place > 0 && (m == null || e.place < m) ? e.place : m), null), peak = rateOf(h.attrs);
+    return { id: h.id, name: h.name, look: JSON.parse(JSON.stringify(h.look || {})), silk: h.silk, silk2: h.silk2, silkPat: h.silkPat, age: h.age, foaled: h.foaled, rating: peak, potential: rateOf(h.pot || h.attrs),
+      starts: h.races | 0, wins: h.wins | 0, places: h.places | 0, podiums: h.podiums | 0, prize: Math.round(+h.prize || 0), majors: h.majors | 0, champPts: h.champPts | 0, bestPlace: best, last: hist.slice(-10).map(e => ({ name: e.name, place: e.place, dnf: !!e.dnf, field: e.field, day: e.day })),
+      trophies: (C.trophies || []).filter(t => t && t.horse === h.name).map(t => ({ race: t.race, season: t.season, kind: t.kind })).slice(0, 30),
+      acquired: h.acquired ? { how: h.acquired.how, price: h.acquired.price } : null, retiredDay: dayInt(C.day), season: C.season ? C.season.n : 0, why };
+  }
+  const retireWhy = (C, hid) => { const h = (C.horses || []).find(x => x.id === hid); if (!h) return "none"; if (C.horses.length <= 1) return "last"; if (C.booking && C.booking.hid === hid) return "booked"; return ""; };
+  function retireHorse(C, hid, why) {
+    const block = retireWhy(C, hid); if (block) return { ok: false, reason: block };
+    const i = C.horses.findIndex(x => x.id === hid), h = C.horses[i], key = "retire:" + hid; if (applied(C, key)) return { ok: false, reason: "done" };
+    const tribute = Math.max(0, Math.round(valueOf(h) * HOF.TRIBUTE / 50) * 50), entry = hofEntry(C, h, why || "chosen");
+    if (!Array.isArray(C.hof)) C.hof = []; C.hof.push(entry); if (C.hof.length > HOF.MAX) C.hof.shift();
+    let paid = 0; if (tribute > 0) { const r = apply(C, key, tribute, "horse", "Retirement tribute: " + h.name); if (r.ok) paid = tribute; } else applyMark(C, key);
+    C.horses.splice(i, 1); if (C.active >= C.horses.length) C.active = C.horses.length - 1; if (C.active > i) C.active--; if (C.active < 0) C.active = 0;
+    if (isObj(C.farm)) { for (const k of ["care", "dev", "turnout"]) if (isObj(C.farm[k])) delete C.farm[k][hid]; }
+    C.entries = (C.entries || []).filter(e => !(e && e.hid === hid)); C.rep = clampN((C.rep | 0) + Math.min(5, 1 + Math.floor((h.wins | 0) / 4)), 0, 100000);
+    return { ok: true, entry, tribute: paid, name: h.name };
+  }
+  const applyMark = (C, key) => { if (!isObj(C.txn)) C.txn = {}; C.txn[key] = dayInt(C.day); };
+  // veterans: horses at or past PROMPT_AGE are offered retirement; those past MAX_AGE retire themselves when the season turns (never the last horse)
+  const retirePrompt = h => (h.age | 0) >= HOF.PROMPT_AGE ? ((h.age | 0) >= HOF.MAX_AGE ? "is past racing age and will retire at the end of the season" : "is a veteran — consider a well-earned retirement") : "";
+  function autoRetire(C) {
+    const out = []; for (const h of (C.horses || []).slice()) if ((h.age | 0) >= HOF.MAX_AGE && C.horses.length > 1 && !(C.booking && C.booking.hid === h.id)) { const r = retireHorse(C, h.id, "aged"); if (r.ok) out.push(r); } return out;
+  }
+
+  return { HOF, hofEntry, retireHorse, retirePrompt, autoRetire, retireWhy, MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
     cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
