@@ -101,7 +101,7 @@ const FARMBUILD = (() => {
         bx(M.paint, xb - 0.95, 0.9, zb + 0.05, xb - 0.35, 1.22, zb + 0.55, 0x3d6a45); bx(M.steel, xc + 0.35, 1.3, zb + 0.02, xc + 0.45, 1.4, zb + 0.07, COL.steel);
         bx(M.steel, xc - 0.12, eave - 0.08, -24.4, xc + 0.12, eave, -24.15, COL.black);
         // the horse stands here; the plaque hangs on the lintel
-        stalls.push({ i, x: xc, z: -24.35, door: zf, plaque: [xc - 1.36, 1.8, zf + 0.03] });
+        stalls.push({ i, x: xc, z: -24.35, door: zf, plaque: [xc + 1.36, 1.8, zf + 0.03] });
       });
       // tack room (east end) and wash bay (west end)
       const tx0 = 10.12;

@@ -269,7 +269,27 @@ The race, physics, graphics, horses, AI and commentary are untouched. `index.htm
 
 ## Test report — Phase 4 (risk-based; farm-only change — see "Testing policy")
 
-__P4_REPORT__
+Policy applied: **Tier 2 — farm-only change** (new farm files, `career.js` gained two read-only helpers, `index.html` only gained script tags). The race code, `sim.js`, `season.js`, results/rewards, horse attributes, commentary and the race part of the frame loop were **not touched**, so the long racing suite was **deferred**.
+
+**Executed (all on the final code):**
+
+| Test | Result |
+|---|---|
+| `node tests/career-core.js` | PASS 128 / 0 |
+| `tests/farm-browser.js` (new) | **PASS 33 / 0** — layout, the right horse in each box (coat type, face marking, socks match the saved horse) facing the door on the straw, plaques (name · age · condition · rating · form · next race), collision against the stable, farmhouse, garden fence, paddock fence, paddock gate, oval rail, feed shed, float and the boundary, the walker pushed out of all 18 buildings/props it was dropped into, **18 places a player needs all reachable on foot (0.5 m grid search from the spawn)** while stable interior / house interior / paddock interior / oval infield are not, farmhouse door → Office → Back, float prompt, budget, idle animation gating, memory (4 more visits: geometries 378 → 378, textures 89 → 89; `dispose()` frees 144 geometries / 30 textures) |
+| `tests/scenes-browser.js` | PASS 36 / 0 — final code (an earlier run on this phase failed 5 checks twice, first run and rerun alone: they measured walking by wall-clock time and AUTO-quality by sampler state, which the heavier farm on a software renderer (~1–2 fps) breaks; the checks now count frames and spy on `GFX.autoTick`; no product code changed for that) |
+| `tests/career-browser.js` | PASS 114 / 0 |
+| Short racing smoke: `steering-browser.js` | PASS 70 / 0 |
+| `start-browser.js` | PASS 8 / 0 (first run in this phase 8 / 0; once more after the last edit 8 / 0) |
+| `replay-lunge-browser.js` | PASS 9 / 0 |
+| `node tests/single-browser.js` (the built single file) | PASS 8 / 0 (run twice) |
+
+**Deferred (not run this phase, and why):** the Node racing suite (`season`, `riding-control`, `randwick`, `flemington`, `chaos`, `avoid`, `commentary`, `commentary-scenarios`, `eleven-plan`, `career_difficulty`), `presentation-browser`, `eleven-browser`, `longrace-browser`, `auto-quality-browser` and `tools/smooth.js` — no racing-engine, race-loop, graphics-kit, venue or commentary code was changed. They were last run in full at the end of Phase 3 (all green) and will be run in full again at the Phase 9 gate. `tests/mp-*.js`: **not run — multiplayer disabled by design.**
+
+**Farm performance (measured, 15 camera positions, 1400 × 788, software renderer, high quality):** at most **249 draw calls** (the whole-property overview; budget 250) and **261k triangles** (budget 500k); typical ground-level views 64–177 calls, 87–232k triangles. The property is 104 merged meshes plus ~2,600 instanced trees / shrubs / tufts / rocks (culled per cell, nearby-only shadows). World build ≈ 1.1 s of JS (≈ 3 s total first entry on this software renderer, behind the loading overlay).
+
+**Screenshots** (15 angles — courtyard, stalls ×2, verandah, farmhouse ×2, paddocks ×2, training oval ×2, overview, float, feed shed, entrance gate, trough) are produced by `PORT=8095 node tools/farm-shots.js <dir>`; the set for review was delivered with this phase.
+
 
 ## Known issues / limits after Phase 4
 - **The walker is still a stand-in figure** (Phase 5 builds the real character, appearance and outfits). The camera is simple (no obstacle pull-in yet).
