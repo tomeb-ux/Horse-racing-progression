@@ -2,6 +2,7 @@
 // Checks the owner's brief: noticeable but GRADUAL progress (about 3–4 seasons to approach potential), individual rates, real trade-offs, nothing past potential.   node tests/development.js
 const S = require('../public/season.js'), K = require('../public/career-core.js');
 let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' ✓ ' + m); } else { fail++; console.log(' ✗ ' + m); } };
+if (process.env.RXP) K.DEV.RACE_XP_SCALE = +process.env.RXP; if (process.env.BASE) K.DEV.BASE = +process.env.BASE;
 const AK = ['top', 'acc', 'end', 'spr', 'rec', 'tem', 'agi', 'sta'], BASE = 54, START_POOL = 136, START_CAP = 84, POT_POOL = 168, POT_CAP = 98;
 const TPL = { mile: { top: 20, acc: 16, spr: 18, end: 18, rec: 14, tem: 16, agi: 18, sta: 16 }, sprint: { top: 22, acc: 26, spr: 22, sta: 24, agi: 12, tem: 10, end: 10, rec: 10 }, stay: { end: 30, rec: 26, top: 18, tem: 22, spr: 10, acc: 8, agi: 10, sta: 12 } };
 function create(id, t) { const w = TPL[t], sum = AK.reduce((s, x) => s + w[x], 0), a = {}; let left = START_POOL; for (const x of AK) { const v = Math.min(START_CAP - BASE, Math.floor(START_POOL * w[x] / sum)); a[x] = BASE + v; left -= v; }
@@ -32,8 +33,8 @@ function run(label, o) {
   out.dev = K.devReport(C, h); out.atts = att0; console.log(`${label.padEnd(34)} headroom closed by season 1–5: ${out.pct.join('% · ')}%  · rating ${out.rating.join(' → ')} · setbacks ${out.setbacks} · min fitness ${out.minFit}`); return out;
 }
 const A = run('balanced, light, no staff', {}), B = run('balanced, normal, trainer 2', { int: 2, trainer: 2 }), Bf = run('balanced, normal, trainer 2, facilities 2', { int: 2, trainer: 2, fac: 2 }), Hd = run('balanced, HARD, trainer 2', { int: 3, trainer: 2 }),
-  Rst = run('rest (racing experience only)', { plan: 'rest' }), Sp = run('sprinter, speed plan, normal', { tpl: 'sprint', plan: 'speed', int: 2, trainer: 1 }), St = run('stayer, stamina plan, normal', { tpl: 'stay', plan: 'stamina', int: 2, trainer: 1 });
-ok(B.pct[0] >= 12 && B.pct[0] <= 40, `after ONE season of good training a horse has closed ${B.pct[0]}% of its headroom — noticeable, not maxed`);
+  Rst = run('rest (racing experience only)', { plan: 'rest' }), Sp = run('same horse, speed plan, normal', { tpl: 'mile', plan: 'speed', int: 2, trainer: 1 }), St = run('same horse, stamina plan, normal', { tpl: 'mile', plan: 'stamina', int: 2, trainer: 1 });
+ok(B.pct[0] >= 15 && B.pct[0] <= 40, `after ONE season of good training a horse has closed ${B.pct[0]}% of its headroom — noticeable, not maxed`);
 ok(B.pct[2] >= 55 && B.pct[2] <= 92, `after THREE seasons ${B.pct[2]}% — most of the way`); ok(B.pct[3] >= 68, `after FOUR seasons ${B.pct[3]}% — approaching potential (the owner's 3–4 seasons)`);
 ok(B.pct[4] <= 100 && B.pct[4] >= B.pct[3], 'it keeps creeping up towards the ceiling and never passes it (' + B.pct[4] + '%)');
 ok(A.pct[0] < B.pct[0] && A.pct[3] < B.pct[3], `a light, unmanaged plan develops a horse more slowly than a managed one (${A.pct[3]}% vs ${B.pct[3]}% at season 4)`);

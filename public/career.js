@@ -186,7 +186,7 @@ const CAREER = (() => {
       name: h.name, say: h.say || "", role: st.label, style: st.code,
       coat: parseInt(h.look.coat.slice(1), 16), silk: h.silk, silk2: h.silk2, silkPat: h.silkPat,
       look: Object.assign({}, h.look, { socks: h.look.socks.slice() }),
-      attrs: Object.assign({}, h.attrs), _sid: "player", _hid: h.id,
+      attrs: CORE.raceAttrs(C, h).attrs, _sid: "player", _hid: h.id,
     };
   }
   const activeHorse = () => C.horses[C.active] || null;
@@ -1278,7 +1278,7 @@ const CAREER = (() => {
     SEASON.recordH2H(C, h, meta, resOf(r, h, true).map(e => ({ hid: e.hid, place: e.place, t: e.t, player: e.sid === "player" })), S().n);
     // 2. the horse's own record + experience
     const xp = xpFor(meta, r, h, place || field, dnf);
-    h.xp += xp; h.races++; h.xpFrac += xp / XP_PER_PT;
+    h.xp += xp; h.races++; h.xpFrac += xp / XP_PER_PT * CORE.DEV.RACE_XP_SCALE;       // racing experience builds the horse more slowly now: training and age do the rest (Phase 9)
     const tp = Math.floor(h.xpFrac); h.xpFrac -= tp; h.trainPts += tp;
     let lv = 0; while (h.xp >= xpForLevel(h.lvl)) { h.xp -= xpForLevel(h.lvl); h.lvl++; lv++; }
     if (!dnf) { if (place === 1) h.wins++; if (place <= 3) h.podiums++; if (place <= 4) h.places++; }
@@ -1431,6 +1431,7 @@ const CAREER = (() => {
     prepare: hid => { horseById(hid); return careSave(CORE.prepare(C, hid)); }, unprepare: hid => { horseById(hid); return careSave(CORE.unprepare(C, hid)); },
     drill: (hid, id, grade) => { horseById(hid); return careSave(CORE.drillReward(C, hid, id, grade)); },
     wash: hid => { horseById(hid); return careSave(CORE.wash(C, hid)); }, save() { if (C) save(); },
+    plan: (hid, plan, int) => { horseById(hid); return careSave(CORE.setPlan(C, hid, plan, int)); },
     rest() { if (!C) load(); const r = CORE.restDay(C); if (r.ok) { save(); } return r; },
     get cash() { if (!C) load(); return C.cash; }, get day() { if (!C) load(); return C.day; }, get today() { if (!C) load(); return CORE.fmtDate(C.day); },
   };
@@ -1439,7 +1440,7 @@ const CAREER = (() => {
     const h = horseById(hid); if (!h) return null; const s = S(), st = detectStyle(h.attrs), form = (h.history || []).slice(-5).map(e => e.dnf || !e.place ? "F" : e.place).join("-");
     const pot = h.pot || null;
     return { id: h.id, name: h.name, age: h.age, rating: rating(h), style: st.label, pref: st.dist, fitness: h.fitness, composure: h.composure, cond: h.fitness >= 85 ? "Fit" : h.fitness >= 70 ? "Fresh" : h.fitness >= 50 ? "Tired" : "Needs a spell",
-      attrs: ATTRS.map(([k, lab]) => ({ k, lab, v: h.attrs[k], p: pot ? pot[k] : h.attrs[k] })), races: h.races | 0, wins: h.wins | 0, places: h.places | 0, form, trainPts: h.trainPts | 0, prize: h.prize | 0, status: care.status(hid) };
+      attrs: ATTRS.map(([k, lab]) => ({ k, lab, v: h.attrs[k], p: pot ? pot[k] : h.attrs[k] })), races: h.races | 0, wins: h.wins | 0, places: h.places | 0, form, trainPts: h.trainPts | 0, prize: h.prize | 0, status: care.status(hid), dev: CORE.devReport(C, h), race: CORE.raceAttrs(C, h) };
   }
   // the player's character (Phase 5): saved as the changes are made in the wardrobe
   function setPlayer(p) { if (!C) load(); const cur = C.player || {}; C.player = CORE.cleanPlayer({ look: Object.assign({}, cur.look, p.look), colours: Object.assign({}, cur.colours, p.colours), outfit: p.outfit || cur.outfit }); save(); return C.player; }
@@ -1466,6 +1467,6 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
+  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, plans: CORE.PLANS, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

@@ -93,16 +93,21 @@ const FARMCARE = (() => {
     const st = info.status, booked = bookedHid() === hid, led = S.led && S.led.g === m.g;
     const btn = (k, label, done, hot) => `<button data-k="${k}" style="pointer-events:auto;cursor:pointer;display:flex;justify-content:space-between;gap:14px;width:100%;margin:3px 0;padding:9px 12px;border-radius:9px;border:1px solid ${hot ? "rgba(232,195,90,.95)" : "rgba(255,255,255,.2)"};background:${hot ? "rgba(232,195,90,.16)" : "rgba(255,255,255,.06)"};color:#f2efe6;font:600 14px var(--font-b,system-ui);text-align:left"><span><kbd style="opacity:.7;margin-right:8px">${k}</kbd>${label}</span><span style="color:#8fd18f">${done || ""}</span></button>`;
     let h = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><b style="font:800 17px var(--font-d,system-ui);letter-spacing:.04em">${esc2(info.name)}</b><span style="font-size:12px;color:#c8d2c8">${info.age}yo · ${info.cond} · Rtg ${info.rating}</span></div>`;
-    if (m.sub === "feed") {
+    if (m.sub === "plan") {
+      const d = info.dev, P = CAREER.plans;
+      h += `<div style="margin:6px 0 2px;font-size:12px;color:#c8d2c8">Weekly training plan — runs by itself as days pass (a rest day each week; a taper before a booked race). Now: <b>${esc2(P[d.plan].label)}</b>, ${["light", "normal", "hard"][d.int - 1]}.</div>`;
+      h += Object.keys(P).map((k, i) => btn(i + 1, P[k].label, d.plan === k ? "✓" : "")).join("") + `<div style="display:flex;gap:6px;margin-top:4px">${["Light", "Normal", "Hard"].map((t, i) => `<button data-k="i${i + 1}" style="pointer-events:auto;cursor:pointer;flex:1;padding:7px;border-radius:9px;border:1px solid ${d.int === i + 1 ? "rgba(232,195,90,.95)" : "rgba(255,255,255,.2)"};background:${d.int === i + 1 ? "rgba(232,195,90,.16)" : "rgba(255,255,255,.06)"};color:#f2efe6;font:600 13px var(--font-b,system-ui)"><kbd style="opacity:.7">${"LNH"[i]}</kbd> ${t}</button>`).join("")}</div>` + btn("Esc", "Back", "");
+    } else if (m.sub === "feed") {
       h += `<div style="margin:6px 0 2px;font-size:12.5px;color:#c8d2c8">Today: ${CAREER.care.today} · cash $${CAREER.care.cash.toLocaleString()}</div>` + btn(1, "Stable feed — free", st.fed && st.tier === 0 ? "✓ fed" : "") + btn(2, "Quality feed — $250 (a little more recovery and calm)", st.fed && st.tier === 1 ? "✓ fed" : "") + btn("Esc", "Back", "");
     } else if (S.card) {
       h += `<div style="margin:8px 0 4px;font-size:12px;color:#c8d2c8">${esc2(info.style)} · best at ${esc2(info.pref)} · ${info.races} starts, ${info.wins} wins${info.form ? " · form " + info.form : ""} · ${info.trainPts} training points</div>`;
-      h += bar("Fitness", info.fitness, 100, "#7bd88f") + bar("Composure", info.composure, 100, "#7cc6e8") + bar("Readiness", st.readiness, 100, "#e8c35a");
+      h += bar("Fitness", info.fitness, 100, "#7bd88f") + bar("Composure", info.composure, 100, "#7cc6e8") + bar("Readiness", st.readiness, 100, "#e8c35a") + bar("Training load", info.dev.load, 100, info.dev.load > 60 ? "#e25b4a" : "#d8cfae", info.dev.form);
       h += `<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;column-gap:14px">${info.attrs.map(a => bar(a.lab, a.v, 100, "#d8cfae", a.v + "/" + a.p)).join("")}</div>`;
+      h += `<div style="margin-top:6px;font-size:12px;color:#c8d2c8">Development: <b>${info.dev.pctOfPotential}%</b> of potential · ${info.dev.remaining} points of headroom left · plan <b>${esc2(CAREER.plans[info.dev.plan].label)}</b> · ${info.dev.sessions} sessions${info.race.pen ? ` · <span style="color:#e8a35a">tired: racing at −${Math.round(info.race.pen * 100)}%</span>` : info.race.peak ? ` · <span style="color:#8fd18f">peaking</span>` : ""}</div>`;
       h += `<div style="margin-top:6px;font-size:11.5px;color:#a9b4a9">The bar shows today's value; the figure after the slash is this horse's potential. Care changes composure, recovery and readiness only — it never changes racing.</div>` + btn("Esc", "Close", "");
     } else {
       h += `<div style="margin:5px 0 3px;font-size:12px;color:#c8d2c8">Readiness ${st.readiness}${st.groomed ? " · groomed ✓" : ""}${st.fed ? " · fed ✓" : ""}${st.prepared ? " · tacked up ✓" : ""}</div>`;
-      h += btn(1, "Inspect", "") + btn(2, "Groom", st.groomed ? "✓ today" : "") + btn(3, "Feed", st.fed ? "✓ today" : "") + btn(4, booked ? "Prepare for the " + esc2(bookedName()) : "Tack up (training / racing)", st.prepared ? "✓ ready" : "", booked && !st.prepared) + btn(5, led ? "Put back in the box" : "Lead out of the box", "", booked && st.prepared && !led) + btn("Esc", "Close", "");
+      h += btn(1, "Inspect", "") + btn(2, "Groom", st.groomed ? "✓ today" : "") + btn(3, "Feed", st.fed ? "✓ today" : "") + btn(4, booked ? "Prepare for the " + esc2(bookedName()) : "Tack up (training / racing)", st.prepared ? "✓ ready" : "", booked && !st.prepared) + btn(5, led ? "Put back in the box" : "Lead out of the box", "", booked && st.prepared && !led) + btn(6, "Training plan", CAREER.plans[info.dev.plan].label) + btn("Esc", "Close", "");
     }
     menuEl.innerHTML = h; menuEl.querySelectorAll("button[data-k]").forEach(b => { b.onclick = () => key(b.dataset.k === "Esc" ? "escape" : b.dataset.k); });
   }
@@ -112,12 +117,14 @@ const FARMCARE = (() => {
     if (k === "escape") { if (m.sub || S.card) { m.sub = null; S.card = false; render(); } else closeMenu(); return true; }
     const hid = m.g.userData.hid;
     if (m.sub === "feed") { if (k === "1" || k === "2") { m.sub = null; start("feed", { tier: k === "2" ? 1 : 0 }); } return true; }
+    if (m.sub === "plan") { const ks = Object.keys(CAREER.plans), n = parseInt(k, 10), dv = CAREER.horseInfo(hid).dev; if (n >= 1 && n <= ks.length) { CAREER.care.plan(hid, ks[n - 1], dv.int); render(); } else if ("lnh".includes(k) && k.length === 1) { CAREER.care.plan(hid, dv.plan, "lnh".indexOf(k) + 1); render(); } else if (/^i[123]$/.test(k)) { CAREER.care.plan(hid, dv.plan, +k[1]); render(); } return true; }
     if (S.card) return true;
     if (k === "1") { S.card = true; start("inspect"); render(); return true; }
     if (k === "2") { start("groom"); return true; }
     if (k === "3") { m.sub = "feed"; render(); return true; }
     if (k === "4") { start("prepare"); return true; }
     if (k === "5") { if (S.led && S.led.g === m.g) start("putback"); else start("lead"); return true; }
+    if (k === "6") { m.sub = "plan"; render(); return true; }
     return false;
   }
 

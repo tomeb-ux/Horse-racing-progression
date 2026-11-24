@@ -30,21 +30,17 @@ function career() { const C = K.fresh(4242); C.horses = [mkHorse('h0', 'Alpha', 
   const r0 = K.readiness(C, h); K.groom(C, 'h1'); K.feed(C, 'h1', 0); ok(K.readiness(C, h) >= r0 && K.readiness(C, h) <= 100, 'readiness only goes up with care and stays within 0–100');
   C.day++; ok(!K.careStatus(C, h).prepared, 'tack-up is only good for the day'); K.prepare(C, 'h1'); K.unprepare(C, 'h1'); ok(!K.careStatus(C, h).prepared, 'unprepare clears it'); }
 
-// ---------------------------------------------------------------- drill rewards: once a day, capped a week, never when tired
-{ const C = career(), h = C.horses[0]; h.fitness = 90;
-  let r = K.drillReward(C, 'h0', 'accel', 1); ok(r.ok && r.pts === 0.5 && h.xpFrac === 0.5 && h.trainPts === 3 * 0 && h.fitness === 87, 'a perfect drill earns the maximum 0.5 points and costs 3 fitness');
-  const snap = J(C); r = K.drillReward(C, 'h0', 'settle', 1); ok(r.ok && r.pts === 0 && r.reason === 'today' && h.xpFrac === 0.5 && h.fitness === 87, 'a second drill the same day is practice only (no reward, no cost)');
+// ---------------------------------------------------------------- hands-on drills (Phase 9: they build the attributes slowly): once a day, capped a week, never when tired or sore
+{ const C = career(), h = C.horses[0]; h.fitness = 90; const acc0 = h.attrs.acc, pr0 = K.devRec(C, h).prog.acc;
+  let r = K.drillReward(C, 'h0', 'accel', 1); ok(r.ok && r.pts > 0 && r.pts < 0.2 && K.devRec(C, h).prog.acc > pr0 && h.fitness === 87 && Array.isArray(r.gains) && r.after, 'a perfect acceleration drill adds a small fraction of progress to ACCELERATION (' + r.pts + ') and costs 3 fitness');
+  ok(h.attrs.acc === acc0, 'one session never changes a whole attribute point — development takes weeks');
+  const snap = J([h.attrs, K.devRec(C, h).prog, h.fitness]); r = K.drillReward(C, 'h0', 'settle', 1); ok(r.ok && r.pts === 0 && r.reason === 'today' && J([h.attrs, K.devRec(C, h).prog, h.fitness]) === snap, 'a second drill the same day is practice only (no progress, no cost)');
   ok(K.careStatus(C, h).best.accel === 100 && K.careStatus(C, h).best.settle === 100, 'the best score is still recorded for practice runs');
-  C.day++; r = K.drillReward(C, 'h0', 'accel', 0); ok(r.ok && r.pts === 0.15 && Math.abs(h.xpFrac - 0.65) < 1e-9 || (r.ok && h.trainPts >= 0), 'a poor drill earns the minimum, a perfect one the maximum (' + r.pts + ')');
-  // training points carry into whole points
-  const C2 = career(), g = C2.horses[0]; g.fitness = 100; g.xpFrac = 0.8; g.trainPts = 2; r = K.drillReward(C2, 'h0', 'accel', 1); ok(g.trainPts === 3 && Math.abs(g.xpFrac - 0.3) < 1e-9, 'fractions carry into whole training points (0.8 + 0.5 → +1, 0.3 left)');
-  // tired horses gain nothing
-  const C3 = career(), t = C3.horses[0]; t.fitness = 50; r = K.drillReward(C3, 'h0', 'accel', 1); ok(r.ok && r.pts === 0 && r.reason === 'tired' && t.fitness === 50 && t.xpFrac === 0, 'a tired horse (fitness < ' + K.CARE.DRILL_MIN_FITNESS + ') gains nothing and loses nothing');
-  // weekly cap: even resting a day at a time you cannot farm it
-  const C4 = career(), w = C4.horses[0]; w.fitness = 100; C4.day = 7 * 10; let total = 0; for (let d = 0; d < 7; d++) { w.fitness = 100; total += K.drillReward(C4, 'h0', 'accel', 1).pts; C4.day++; }
-  ok(total <= K.CARE.DRILL_WEEK_CAP + 1e-9 && total >= 0.99, 'seven consecutive perfect days earn at most ' + K.CARE.DRILL_WEEK_CAP + ' points in the week (' + total + ')');
-  C4.day = 7 * 11; w.fitness = 100; ok(K.drillReward(C4, 'h0', 'accel', 1).pts === 0.5, 'a new week opens a fresh allowance');
-  for (const bad of [NaN, -5, 7, undefined, 'x', null]) { const C5 = career(); C5.horses[0].fitness = 100; const r5 = K.drillReward(C5, 'h0', 'accel', bad); ok(r5.ok && r5.pts >= 0.15 - 1e-9 && r5.pts <= 0.5 + 1e-9, 'a nonsense grade (' + String(bad) + ') is clamped into range'); }
+  const hi = career(), q = hi.horses[0]; q.fitness = 100; K.drillReward(hi, 'h0', 'accel', 1); const perfect = K.devRec(hi, q).prog.acc; const lo = career(), q2 = lo.horses[0]; q2.fitness = 100; K.drillReward(lo, 'h0', 'accel', 0); ok(perfect > K.devRec(lo, q2).prog.acc * 1.8, 'a well-ridden drill is worth clearly more than a poor one (' + perfect.toFixed(3) + ' vs ' + K.devRec(lo, q2).prog.acc.toFixed(3) + ')');
+  const t = career(), th = t.horses[0]; th.fitness = 50; r = K.drillReward(t, 'h0', 'accel', 1); ok(r.ok && r.pts === 0 && r.reason === 'tired' && th.fitness === 50, 'a tired horse (fitness < ' + K.CARE.DRILL_MIN_FITNESS + ') gains nothing and loses nothing');
+  const w = career(), wh = w.horses[0]; w.day = 7 * 10; let n = 0; for (let d = 0; d < 7; d++) { wh.fitness = 100; K.devRec(w, wh).load = 0; if (K.drillReward(w, 'h0', 'accel', 1).pts > 0) n++; w.day++; } ok(n === K.DEV.HANDS_WEEK, 'seven consecutive perfect days count for at most ' + K.DEV.HANDS_WEEK + ' hands-on sessions in the week (' + n + ')');
+  w.day = 7 * 11; wh.fitness = 100; K.devRec(w, wh).load = 0; ok(K.drillReward(w, 'h0', 'accel', 1).pts > 0, 'a new week opens a fresh allowance');
+  for (const bad of [NaN, -5, 7, undefined, 'x', null]) { const C5 = career(); C5.horses[0].fitness = 100; const r5 = K.drillReward(C5, 'h0', 'accel', bad); ok(r5.ok && r5.pts >= 0 && r5.pts < 0.2, 'a nonsense grade (' + String(bad) + ') is clamped into range'); }
   ok(!K.drillReward(C, 'nobody', 'accel', 1).ok, 'an unknown horse earns nothing'); }
 
 // ---------------------------------------------------------------- Rest a day

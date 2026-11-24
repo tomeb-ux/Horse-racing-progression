@@ -287,13 +287,21 @@ const CORE = (() => {
     const skips = skipsBetween(C, from, to);
     if (skips.length && !o.force) return { ok: false, needsConfirm: true, from, to, days: to - from, skips };
     const fac = C.fac || {};
-    for (const h of C.horses || []) { if (finite(h.fitness)) h.fitness = Math.min(100, Math.round(h.fitness + recoveryPerDay(h, fac) * (to - from))); }
     C.day = to;
-    const bills = chargeWeeks(C, from, to), nd = to - from, fx = facEffects(C);
-    if (fx.recover || fx.calm) for (const h of C.horses || []) { if (fx.recover && finite(h.fitness)) h.fitness = Math.min(100, h.fitness + fx.recover * nd); if (fx.calm && finite(h.composure) && h.composure < 90) h.composure = Math.min(90, h.composure + fx.calm * nd); }
-    if (fx.groom) { const keep = C.day; for (let d = 1; d <= Math.min(nd, 60); d++) { C.day = from + d; staffDaily(C); } C.day = keep; }
+    const bills = chargeWeeks(C, from, to), nd = to - from, fx = facEffects(C), keepDay = C.day;
+    // day by day: horses recover (recovery attribute + facilities + vet), boxes settle them, a groom does the care, and each horse's weekly plan runs one session
+    const span = Math.min(nd, 150);
+    for (let d = 1; d <= span; d++) {
+      C.day = from + d;
+      for (const h of C.horses || []) { if (finite(h.fitness)) h.fitness = Math.min(100, h.fitness + recoveryPerDay(h, fac) + fx.recover); if (fx.calm && finite(h.composure) && h.composure < 90) h.composure = Math.min(90, h.composure + fx.calm); }
+      if (fx.groom) staffDaily(C);
+      autoDay(C, C.day);
+    }
+    if (nd > span) for (const h of C.horses || []) if (finite(h.fitness)) h.fitness = Math.min(100, h.fitness + (recoveryPerDay(h, fac) + fx.recover) * (nd - span));
+    C.day = keepDay; for (const h of C.horses || []) if (finite(h.fitness)) h.fitness = Math.round(h.fitness);
     const rolled = seasonOfDay(to) !== seasonOfDay(from), aged = [];
     for (const h of C.horses || []) { const a = ageOf(h, to); if (a !== h.age) { if (rolled) aged.push({ name: h.name, age: a }); h.age = a; } }
+    if (rolled) for (const h of C.horses || []) { const g = h.growth, dr = g ? declineRate(g, h.age) : 0; if (dr > 0) for (const k of ["top", "acc", "spr", "end"]) if (hashStr(h.id + "/decl/" + h.age + k) % 100 < dr * 30 && h.attrs[k] > 40) h.attrs[k]--; }
     for (const h of C.horses || []) { if (h.trainDay != null && h.trainDay < to) h.trainedToday = 0; }
     return { ok: true, from, to, days: to - from, skips, rolled, aged, bills };
   }
@@ -454,12 +462,11 @@ const CORE = (() => {
     if ((finite(h.fitness) ? h.fitness : 80) < CARE.DRILL_MIN_FITNESS) return { ok: true, pts: 0, reason: "tired" };
     if (r.drillDay === d) return { ok: true, pts: 0, reason: "today" };
     if (r.wk !== wk) { r.wk = wk; r.wkPts = 0; }
-    const room = Math.max(0, CARE.DRILL_WEEK_CAP - r.wkPts); if (room < 0.05) return { ok: true, pts: 0, reason: "week" };
-    const pts = Math.round(Math.min(room, CARE.DRILL_PTS_MIN + (CARE.DRILL_PTS_MAX - CARE.DRILL_PTS_MIN) * grade) * 100) / 100;
-    r.drillDay = d; r.wkPts = Math.round((r.wkPts + pts) * 100) / 100;
-    h.xpFrac = (+h.xpFrac || 0) + pts; const tp = Math.floor(h.xpFrac + 1e-9); h.xpFrac = Math.round((h.xpFrac - tp) * 1000) / 1000; h.trainPts = (h.trainPts | 0) + tp;
-    h.fitness = clampN((finite(h.fitness) ? h.fitness : 80) - CARE.DRILL_FITNESS_COST, 0, 100);
-    return { ok: true, pts, trainPts: tp, reason: "" };
+    if (r.wkPts >= DEV.HANDS_WEEK) return { ok: true, pts: 0, reason: "week" };
+    const before = devReport(C, h), out = trainSession(C, h, DRILL_ATTR[drill] || {}, { source: "hands", grade, int: 2 });
+    if (!out.ok) return { ok: true, pts: 0, reason: out.reason };
+    r.drillDay = d; r.wkPts += 1;
+    return { ok: true, pts: out.total, gains: out.gains, before, after: devReport(C, h), setback: out.setback, reason: "" };
   }
   // "Rest a day": one calendar day (through advance, so horses recover and the clock stays consistent). Never skips a race that is today.
   function restDay(C) {
@@ -605,7 +612,74 @@ const CORE = (() => {
   // a groom does the daily brushing and feeding for every horse (the same once-a-day rules, so a horse that was done by hand is not done twice)
   function staffDaily(C) { if (!staffOf(C, "groom")) return 0; let n = 0; for (const h of C.horses || []) { const g = groom(C, h.id), f = feed(C, h.id, 0); if ((g.ok && !g.already) || (f.ok && !f.already)) n++; } return n; }
 
-  return { FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
+  // ---------------------------------------------------------------- long-term development (Phase 9)
+  // Attributes grow slowly and individually: scheduled training (a weekly plan, run automatically as days pass), hands-on drills ridden on the farm (a modest extra, scaled by how well they
+  // were ridden) and racing experience all feed FRACTIONAL progress; every whole point of progress becomes +1 on the attribute (never past its potential). Gains are scaled by the horse's age curve,
+  // by how close it already is to its potential (diminishing returns), by its current training load, and by capped facility / staff boosts. Hard training raises LOAD and costs fitness: pushed
+  // too far the horse gets sore and must rest; a tapered week before a race lets it peak. Tuned (tests/development.js) so consistent good training takes about 3–4 racing seasons to approach potential.
+  const AK = ["top", "acc", "end", "spr", "rec", "tem", "agi", "sta"];
+  const DEV = { BASE: 0.009, INT: [0.6, 1, 1.4], INT_FIT: [1.5, 3, 4.5], INT_LOAD: [4, 8, 13], HANDS: [0.5, 1.4], HANDS_FIT: 3, FIT_MIN: 45, LOAD_DECAY: 9, LOAD_HIGH: 60, LOAD_SORE: 80, AUTO_NOTRAINER: 0.7, RACE_XP_SCALE: 0.15, HANDS_WEEK: 4 };
+  const PLANS = {
+    balanced: { label: "All-round", w: { top: 1, acc: 1, end: 1, spr: 1, rec: 0.6, tem: 0.6, agi: 0.6, sta: 0.8 } }, speed: { label: "Speed", w: { top: 1.6, acc: 1.3, spr: 1.2 } }, stamina: { label: "Stamina", w: { end: 1.8, rec: 1, top: 0.4 } },
+    starts: { label: "Starts and temperament", w: { sta: 1.8, tem: 1.2, acc: 0.5 } }, acc: { label: "Acceleration", w: { acc: 2, top: 0.4 } }, sprint: { label: "Sprint", w: { spr: 2, top: 0.6 } }, agility: { label: "Agility", w: { agi: 2, tem: 0.5 } }, rest: { label: "Rest", w: {} },
+  };
+  const DRILL_ATTR = { gate: { sta: 1, tem: 0.4 }, accel: { acc: 1, top: 0.25 }, sprint: { spr: 1, top: 0.4 }, endurance: { end: 1, rec: 0.4 }, settle: { tem: 1 }, agility: { agi: 1 } };
+  function devRec(C, h) {
+    if (!isObj(C.farm)) C.farm = { state: "default" }; if (!isObj(C.farm.dev)) C.farm.dev = {}; let r = C.farm.dev[h.id]; if (!isObj(r)) r = C.farm.dev[h.id] = {};
+    if (!isObj(r.prog)) r.prog = {}; for (const k of AK) if (!finite(r.prog[k]) || r.prog[k] < 0 || r.prog[k] >= 1) r.prog[k] = clampN(+r.prog[k] || 0, 0, 0.999);
+    if (!finite(r.load)) r.load = 0; if (!finite(r.sore)) r.sore = 0; if (!finite(r.sessDay)) r.sessDay = -1; if (!finite(r.handsDay)) r.handsDay = -1; if (!finite(r.handsWk)) r.handsWk = -1; if (!finite(r.handsN)) r.handsN = 0;
+    if (typeof r.plan !== "string" || !PLANS[r.plan]) r.plan = "balanced"; if (!finite(r.int) || r.int < 1 || r.int > 3) r.int = 1; if (!Array.isArray(r.log)) r.log = []; if (!finite(r.total)) r.total = 0; if (!finite(r.sessions)) r.sessions = 0;
+    return r;
+  }
+  const potOfH = (h, k) => (h.pot && finite(h.pot[k])) ? h.pot[k] : h.attrs[k];
+  // add progress to one attribute (whole points become +1, never past the potential); returns what happened
+  function addProg(C, h, k, add) {
+    const r = devRec(C, h), rem = Math.max(0, potOfH(h, k) - h.attrs[k]); if (rem <= 0 || add <= 0) return { k, add: 0, points: 0 };
+    let p = r.prog[k] + add, pts = 0; while (p >= 1 && h.attrs[k] < potOfH(h, k)) { p -= 1; h.attrs[k]++; pts++; } if (h.attrs[k] >= potOfH(h, k)) p = 0;
+    r.prog[k] = Math.round(p * 1000) / 1000; r.total = Math.round((r.total + add) * 1000) / 1000; return { k, add: Math.round(add * 1000) / 1000, points: pts };
+  }
+  // one training session: `weights` {attr: w}; o = { source: "auto" | "hands", grade, int }. Returns the gains and the cost, or why nothing happened.
+  function trainSession(C, h, weights, o) {
+    o = o || {}; const r = devRec(C, h), d = dayInt(C.day), hands = o.source === "hands", int = clampN((o.int | 0) || r.int, 1, 3);
+    if (r.sore > 0) return { ok: false, reason: "sore", days: r.sore };
+    const fit = finite(h.fitness) ? h.fitness : 80; if (fit < DEV.FIT_MIN) return { ok: false, reason: "tired" };
+    if (!hands && r.sessDay === d) return { ok: false, reason: "done" };
+    const g = h.growth || growthProfile(h.id), age = finite(h.age) ? h.age : 4, ageF = devRate(g, age), loadF = r.load > DEV.LOAD_HIGH ? 0.55 : r.load > 40 ? 0.85 : 1;
+    const srcF = hands ? DEV.HANDS[0] + (DEV.HANDS[1] - DEV.HANDS[0]) * clampN(+o.grade || 0, 0, 1) : 1, trainer = staffOf(C, "trainer"), autoF = !hands && !trainer ? DEV.AUTO_NOTRAINER : 1;
+    const gains = []; let any = 0;
+    for (const k of AK) { const w = weights[k]; if (!w) continue; const rem = Math.max(0, potOfH(h, k) - h.attrs[k]), headF = rem >= 10 ? 1 : Math.max(0.12, rem / 10) * (rem > 0 ? 1 : 0), fx = facEffects(C, k).train;
+      const add = DEV.BASE * w * DEV.INT[int - 1] * ageF * headF * loadF * fx * srcF * autoF; const res = addProg(C, h, k, add); gains.push(res); any += res.add; }
+    const cost = hands ? DEV.HANDS_FIT : DEV.INT_FIT[int - 1]; h.fitness = clampN(Math.round((fit - cost) * 10) / 10, 0, 100);
+    r.load = Math.min(120, r.load + DEV.INT_LOAD[int - 1] * (hands ? 0.6 : 1)); r.sessions++; if (hands) { r.handsDay = d; r.handsN++; } else r.sessDay = d;
+    let setback = false;
+    if (r.load > DEV.LOAD_SORE) { const roll = hashStr(h.id + "/sore/" + d) % 100; if (roll < 35 * facEffects(C).setback) { setback = true; r.sore = 2 + (hashStr(h.id + "/s2/" + d) % 3); h.fitness = clampN(h.fitness - 4, 0, 100); } }
+    r.log.push({ day: d, src: hands ? "hands" : "auto", gains: gains.filter(x => x.add > 0).map(x => [x.k, x.add]) }); if (r.log.length > 14) r.log.shift();
+    return { ok: true, gains, total: Math.round(any * 1000) / 1000, cost, setback, load: r.load };
+  }
+  // a weekly plan runs by itself as the calendar advances (one session a day, a rest day each week, a taper before a booked race, none when sore or tired)
+  function autoDay(C, day) {
+    for (const h of C.horses || []) {
+      const r = devRec(C, h); r.load = Math.max(0, r.load - DEV.LOAD_DECAY); if (r.sore > 0) r.sore--;
+      if (r.plan === "rest" || dowOf(day) === 0 || r.sore > 0) continue; const b = C.booking; if (b && b.hid === h.id && b.day - day <= 2 && b.day >= day) continue;
+      trainSession(C, h, PLANS[r.plan].w, { source: "auto", int: r.int });
+    }
+  }
+  function setPlan(C, id, plan, int) { const h = horseOf(C, id); if (!h || !PLANS[plan]) return { ok: false }; const r = devRec(C, h); r.plan = plan; r.int = clampN(int | 0 || r.int, 1, 3); return { ok: true, plan: r.plan, int: r.int }; }
+  // the state of development for the results screen / care card: per attribute progress to the next point, remaining potential, and how far along the horse is
+  function devReport(C, h) {
+    const r = devRec(C, h); const rows = AK.map(k => ({ k, v: h.attrs[k], pot: potOfH(h, k), prog: r.prog[k], rem: Math.max(0, potOfH(h, k) - h.attrs[k]) }));
+    const start = AK.reduce((a, k) => a + (h.pot ? h.pot[k] : h.attrs[k]), 0), cur = AK.reduce((a, k) => a + h.attrs[k], 0), head = rows.reduce((a, x) => a + x.rem, 0);
+    return { rows, load: Math.round(r.load), sore: r.sore, plan: r.plan, int: r.int, sessions: r.sessions, total: r.total, remaining: head, pctOfPotential: Math.round(100 * cur / Math.max(1, start)), log: r.log.slice(-7), form: peaking(C, h) ? "peaking" : r.load > DEV.LOAD_HIGH ? "overworked" : r.sore > 0 ? "sore" : "steady" };
+  }
+  const peaking = (C, h) => { const r = devRec(C, h); return (finite(h.fitness) ? h.fitness : 80) >= 95 && r.load <= 25 && r.sore === 0; };
+  // what the horse races with today: an unfit horse loses a little speed and stamina (explained, ≤ 6 %), a well-managed one that is peaking gains a little
+  function raceAttrs(C, h) {
+    const a = Object.assign({}, h.attrs), pen = fitnessPenalty(finite(h.fitness) ? h.fitness : 100), pk = peaking(C, h) ? 1.02 : 1;
+    for (const k of ["top", "acc", "end", "spr"]) a[k] = Math.round(a[k] * (1 - pen) * (k === "end" ? 1 : pk));
+    return { attrs: a, pen, peak: pk > 1 };
+  }
+
+  return { DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
     cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
