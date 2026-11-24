@@ -49,7 +49,7 @@ const FARM = (() => {
     Object.assign(sunLight.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 260 }); fscene.add(sunLight, sunLight.target);
     fig = FARMPEOPLE.make(appearance()); fig.root.visible = false; fscene.add(fig.root); fig.root.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     buildHud();
-    FARMCARE.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
+    FARMCARE.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); FARMLIFE.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
   }
   function ensureHouse() {
     if (iworld) return;
@@ -195,7 +195,7 @@ const FARM = (() => {
     endTrip: () => { trip = null; if (hud) hud.querySelector("#farmInfo").style.visibility = ""; }, setPlace: v => { place = v; }, objective: () => objective(), heightAt: (x, z) => world.heightAt(x, z),
     keys: fk, resolve: (q, r, o) => resolve(q, r, o), toast: (m, k, d) => { try { toast(m, k, d); } catch (e) {} }, setBusy: v => { busy = !!v; if (v) { for (const k in fk) if (!(FARMDRIVE.on)) fk[k] = false; prompt.hidden = true; near = null; } }, faceCam: yaw => { CAM.yaw = yaw; camReady = false; },
     cineCam: { set(pos, look, fov, k) { CINE.tp.set(pos[0], pos[1], pos[2]); CINE.tl.set(look[0], look[1], look[2]); CINE.fov = fov || 56; CINE.k = k || 6; CINE.on = true; if (!CINE.init) { CINE.init = true; CINE.cp.copy(fcam.position); const d = new THREE.Vector3(); fcam.getWorldDirection(d); CINE.cl.copy(fcam.position).addScaledVector(d, 10); } }, clear() { CINE.on = false; CINE.init = false; camReady = false; } },
-    blockedAt: (x, y, z) => blockedAt(x, y, z), quickGo: () => { if (place === "in") exitHouse(() => FARMDAY.quickLeave()); else FARMDAY.quickLeave(); }, refreshObjective: () => { try { FARMDAY.changedQuiet(); } catch (e) {} objective(); }, hideFig: v => { hideFigure = !!v; if (v && fig) fig.root.visible = false; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
+    blockedAt: (x, y, z) => blockedAt(x, y, z), place: () => place, quickGo: () => { if (place === "in") exitHouse(() => FARMDAY.quickLeave()); else FARMDAY.quickLeave(); }, refreshObjective: () => { try { FARMDAY.changedQuiet(); } catch (e) {} objective(); }, hideFig: v => { hideFigure = !!v; if (v && fig) fig.root.visible = false; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
   };
   function openPanel(name) {
     if (panel || trip) return; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
@@ -233,7 +233,7 @@ const FARM = (() => {
     }
     return p.text;
   }
-  function allPoints() { const w = cur(); if (!w) return []; if (place === "in") return w.points; return w.points.concat(FARMCARE.points(), FARMDAY.points(), typeof FARMTRAIN !== "undefined" ? FARMTRAIN.points() : []); }
+  function allPoints() { const w = cur(); if (!w) return []; if (place === "in") return w.points; return w.points.concat(FARMCARE.points(), FARMDAY.points(), FARMLIFE.points(), typeof FARMTRAIN !== "undefined" ? FARMTRAIN.points() : []); }
   function nearest() { const w = cur(); if (!w) return null; let best = null, bd = 1e9; for (const p of allPoints()) { if (!p.text && p.id !== "stall" && p.id !== "vacant") continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d <= p.r && d < bd) { best = p; bd = d; } } return best; }
   function interact() {
     const p = nearest(); if (!p) return false;
@@ -248,6 +248,7 @@ const FARM = (() => {
     }
     if (p.id === "travel") return floatInteract();
     if (p.id === "stall") return FARMCARE.openMenu(p.i);
+    if (FARMLIFE.interact(p)) return true;
     if (p.id === "vacant") { try { return CAREER.createForFarm(); } catch (e) { console.error(e); return false; } }
     if (p.id === "ramp" || p.id === "cab") return FARMDAY.interact(p);
     if (typeof FARMTRAIN !== "undefined" && FARMTRAIN.interact(p)) return true;
@@ -421,7 +422,7 @@ const FARM = (() => {
       } else if (person === 1) P.face = CAM.yaw;
     } else { P.speed += (0 - P.speed) * Math.min(1, dt * 9); P.moving = false; }
     collide(); const gy = place === "in" ? 0 : world.heightAt(P.x, P.z); P.y += (gy - P.y) * Math.min(1, dt * 14); if (Math.abs(gy - P.y) > 1) P.y = gy;
-    if (!paused) { FARMCARE.frame(dt); FARMDAY.frame(dt); }
+    if (!paused) { FARMCARE.frame(dt); FARMDAY.frame(dt); FARMLIFE.frame(dt); }
     { let df = P.face - lastFace; df = Math.atan2(Math.sin(df), Math.cos(df)); lastFace = P.face; turnRate += (df / Math.max(dt, 1e-3) - turnRate) * Math.min(1, dt * 10); }
     const wantAct = FARMCARE.led && !busy ? "lead" : null; if (!busy && (fig.action ? fig.action.name : null) !== wantAct && !FARMCARE.busy) FARMPEOPLE.act(fig, wantAct);
     if (!FARMCARE.busy && !FARMDAY.active) FARMPEOPLE.pose(fig, dt, P.speed, turnRate);
@@ -473,9 +474,9 @@ const FARM = (() => {
       if (r.place === "in") { ensureHouse(); place = "in"; iscene.add(fig.root); refreshBoard(); title.textContent = (builtName + " · farmhouse").toUpperCase(); }
       P.x = r.x; P.z = r.z; P.y = r.place === "in" ? 0 : world.heightAt(r.x, r.z); P.face = r.face; CAM.yaw = r.yaw; CAM.pitch = r.pitch;
     }
-    resetRig(); stand(); FARMCARE.enter(); FARMDAY.enter(); FARMTRAIN.enter(); busy = false; hideFigure = false; CINE.on = CINE.init = false; guideKey = ""; lastStage = ""; departT = 0; departB = null; bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
+    resetRig(); stand(); FARMCARE.enter(); FARMLIFE.enter(); FARMDAY.enter(); FARMTRAIN.enter(); busy = false; hideFigure = false; CINE.on = CINE.init = false; guideKey = ""; lastStage = ""; departT = 0; departB = null; bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
   }
-  function leave() { try { FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; }
+  function leave() { try { FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; }
   // where you appear next time: the hardstand by the float, after a race
   function arrive(where) { resume = null; P.arrive = where === "hardstand" ? [31.5, 10.5, Math.PI / 2] : null; }
   function resetRig() { const g = world && world.structures && world.structures.rig; if (g) { g.position.set(FARMWORLD.L.float.x, 0, FARMWORLD.L.float.z); g.rotation.set(0, 0, 0); if (g.userData.ramp) g.userData.ramp.rotation.z = 0.296; } }
@@ -493,7 +494,7 @@ const FARM = (() => {
     if (active && !force) return false;
     if (!built) return true;
     stopShowcase(); active = false; try { FARMCARE.leave(); } catch (e) {} unstand();
-    if (guide) { guide.dispose(); guide = null; } try { FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
+    if (guide) { guide.dispose(); guide = null; } try { FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
     if (iworld) { iworld.dispose(); iworld = null; iscene = null; }
     world.dispose(); for (const g of own.geo) g.dispose(); for (const m of own.mat) m.dispose(); own.geo = []; own.mat = [];
     if (fig) { FARMPEOPLE.dispose(fig); fig = null; }

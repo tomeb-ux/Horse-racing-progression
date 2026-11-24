@@ -289,7 +289,9 @@ const CORE = (() => {
     const fac = C.fac || {};
     for (const h of C.horses || []) { if (finite(h.fitness)) h.fitness = Math.min(100, Math.round(h.fitness + recoveryPerDay(h, fac) * (to - from))); }
     C.day = to;
-    const bills = chargeWeeks(C, from, to);
+    const bills = chargeWeeks(C, from, to), nd = to - from, fx = facEffects(C);
+    if (fx.recover || fx.calm) for (const h of C.horses || []) { if (fx.recover && finite(h.fitness)) h.fitness = Math.min(100, h.fitness + fx.recover * nd); if (fx.calm && finite(h.composure) && h.composure < 90) h.composure = Math.min(90, h.composure + fx.calm * nd); }
+    if (fx.groom) { const keep = C.day; for (let d = 1; d <= Math.min(nd, 60); d++) { C.day = from + d; staffDaily(C); } C.day = keep; }
     const rolled = seasonOfDay(to) !== seasonOfDay(from), aged = [];
     for (const h of C.horses || []) { const a = ageOf(h, to); if (a !== h.age) { if (rolled) aged.push({ name: h.name, age: a }); h.age = a; } }
     for (const h of C.horses || []) { if (h.trainDay != null && h.trainDay < to) h.trainedToday = 0; }
@@ -415,7 +417,7 @@ const CORE = (() => {
   function careRec(C, h) {
     if (!isObj(C.farm)) C.farm = { state: "default" }; if (!isObj(C.farm.care)) C.farm.care = {};
     let r = C.farm.care[h.id]; if (!isObj(r)) r = C.farm.care[h.id] = {};
-    for (const k of ["groomDay", "fedDay", "prepDay", "drillDay"]) if (!finite(r[k])) r[k] = -1;
+    for (const k of ["groomDay", "fedDay", "prepDay", "drillDay", "washDay"]) if (!finite(r[k])) r[k] = -1;
     if (!finite(r.fedTier)) r.fedTier = 0; if (!finite(r.wk)) r.wk = -1; if (!finite(r.wkPts)) r.wkPts = 0; if (!isObj(r.best)) r.best = {};
     return r;
   }
@@ -427,6 +429,12 @@ const CORE = (() => {
     const h = horseOf(C, id); if (!h) return { ok: false, reason: "no-horse" }; const r = careRec(C, h), d = dayInt(C.day);
     if (r.groomDay === d) return { ok: true, already: true, gain: 0, composure: h.composure };
     const before = finite(h.composure) ? h.composure : 70; h.composure = clampN(before + CARE.GROOM_COMPOSURE, 0, 100); r.groomDay = d; return { ok: true, already: false, gain: h.composure - before, composure: h.composure };
+  }
+
+  function wash(C, id) {
+    const h = horseOf(C, id); if (!h) return { ok: false, reason: "no-horse" }; const r = careRec(C, h), d = dayInt(C.day);
+    if (r.washDay === d) return { ok: true, already: true, gain: 0 };
+    const c0 = finite(h.composure) ? h.composure : 70; h.composure = clampN(c0 + 3, 0, 100); h.fitness = clampN((finite(h.fitness) ? h.fitness : 80) + 1, 0, 100); r.washDay = d; return { ok: true, already: false, gain: h.composure - c0 };
   }
   // tier 0 = the stable's feed (free); tier 1 = quality feed (a ledger expense, once per horse per day)
   function feed(C, id, tier) {
@@ -549,7 +557,55 @@ const CORE = (() => {
     return got;
   }
 
-  return { ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
+  // ---------------------------------------------------------------- facilities and staff (Phase 8)
+  // Facilities (levels 0–3: Basic → Elite) and three staff roles. Every effect is a small, explicit, CAPPED multiplier — better facilities and staff make training more efficient and recovery
+  // faster, but nothing here can lift an attribute past its potential, and the total training boost is capped (FAC_CAP), so performance can never be bought without limit.
+  const FACILITIES = {
+    training: { name: "Training equipment", cost: [25000, 80000, 220000], blurb: "treadmill, weights and tack: training gains +4% / +8% / +12%" },
+    track: { name: "Exercise track surface", cost: [20000, 70000, 200000], blurb: "a better surface: speed and agility drills +3% / +6% / +9%, fewer jarring sessions" },
+    recovery: { name: "Recovery area (walker and wash bay)", cost: [20000, 65000, 180000], blurb: "horses recover +1 / +2 / +3 fitness a day" },
+    comfort: { name: "Stable comfort", cost: [15000, 50000, 150000], blurb: "calmer boxes: composure settles back +1 / +2 / +3 a day" },
+    feed: { name: "Feed and tack room", cost: [15000, 45000, 120000], blurb: "quality feed costs 15% / 30% / 45% less and works slightly better" },
+    gates: { name: "Starting-gate practice unit", cost: [20000, 60000, 160000], blurb: "gate training gains +10% / +20% / +30%" },
+    vet: { name: "Vet bay", cost: [25000, 75000, 200000], blurb: "overtraining setbacks are rarer and shorter; recovery +0 / +1 / +1" },
+  };
+  const STAFFROLES = {
+    trainer: { name: "Trainer", wage: [500, 1100, 2400], blurb: "runs your scheduled training: efficiency +8% / +16% / +24% on their speciality, +4% / +8% / +12% elsewhere", specs: ["speed", "stamina", "starts", "all-rounder"] },
+    groom: { name: "Groom", wage: [300, 650, 1300], blurb: "brushes and feeds every horse each day for you (the small composure lift, automatically)", specs: ["calm horses", "keen horses", "all-rounder"] },
+    vet: { name: "Vet", wage: [400, 900, 1800], blurb: "recovery +1 / +2 / +3 fitness a day and fewer overtraining setbacks", specs: ["general"] },
+  };
+  const FAC_CAP = 1.25, STAFF_NAMES = ["Sam Ridley", "Jo Marshall", "Kerry Dunn", "Mick O'Neill", "Priya Nair", "Tom Hargreaves", "Lena Cho", "Bec Walker", "Dan Pereira", "Mel Fraser", "Aroha Tane", "Hugh Barlow"];
+  const facLevel = (C, k) => clampN((C.fac && C.fac[k]) | 0, 0, 3);
+  const staffOf = (C, r) => (C.staff && isObj(C.staff[r])) ? C.staff[r] : null;
+  // what the stable's facilities and staff give right now (all capped)
+  function facEffects(C, focus) {
+    const tr = staffOf(C, "trainer"), t = tr ? clampN(tr.tier | 0, 1, 3) : 0, match = tr && (tr.spec === "all-rounder" || tr.spec === focus || (tr.spec === "speed" && /^(top|acc|spr)$/.test(focus || "")) || (tr.spec === "stamina" && /^(end|rec)$/.test(focus || "")) || (tr.spec === "starts" && /^(sta|tem)$/.test(focus || "")));
+    const trainer = t ? 1 + (match ? 0.08 : 0.04) * t : 1, equip = 1 + 0.04 * facLevel(C, "training") + (/^(top|acc|spr|agi)$/.test(focus || "") ? 0.03 * facLevel(C, "track") : 0) + (focus === "sta" ? 0.1 * facLevel(C, "gates") : 0);
+    const vet = staffOf(C, "vet"), v = vet ? clampN(vet.tier | 0, 1, 3) : 0;
+    return { train: Math.min(FAC_CAP, trainer * equip), recover: v + (facLevel(C, "vet") >= 2 ? 1 : 0), calm: facLevel(C, "comfort"), feedDiscount: 0.15 * facLevel(C, "feed"), setback: Math.max(0.2, 1 - 0.2 * v - 0.12 * facLevel(C, "vet")), groom: !!staffOf(C, "groom") };
+  }
+  function buyFacility(C, key) {
+    if (!FACILITIES[key]) return { ok: false, reason: "unknown" }; if (!isObj(C.fac)) C.fac = {}; const lv = facLevel(C, key);
+    if (lv >= 3) return { ok: false, reason: "max" }; const cost = FACILITIES[key].cost[lv];
+    const r = apply(C, "fac:" + key + ":" + (lv + 1), -cost, "facility", FACILITIES[key].name + " → level " + (lv + 1));
+    if (!r.ok) return { ok: false, reason: r.dup ? "owned" : r.reason === "insufficient" ? "cash" : r.reason, cost, short: r.short || 0 };
+    C.fac[key] = lv + 1; return { ok: true, level: lv + 1, cost };
+  }
+  function hireStaff(C, role, tier, spec) {
+    const R = STAFFROLES[role]; if (!R) return { ok: false, reason: "unknown" }; tier = clampN(tier | 0, 1, 3); if (!isObj(C.staff)) C.staff = {};
+    if (staffOf(C, role)) return { ok: false, reason: "filled" }; if (!R.specs.includes(spec)) spec = R.specs[0];
+    const n = (C.econ && C.econ.hires | 0) + 1, wage = R.wage[tier - 1], fee = wage * 2;
+    const r = apply(C, "hire:" + role + ":" + n, -fee, "staff", "Hired " + R.name + " (tier " + tier + ") — recruitment fee");
+    if (!r.ok) return { ok: false, reason: r.reason === "insufficient" ? "cash" : r.reason, fee, short: r.short || 0 };
+    const e = econOf(C); e.hires = n; const name = STAFF_NAMES[(hashStr(C.seed + "/staff/" + role + n)) % STAFF_NAMES.length];
+    C.staff[role] = { tier, spec, name, wage, hired: dayInt(C.day), look: { skin: ["#f1d2b6", "#e0b48c", "#c68e6b", "#a06a48"][hashStr(name) % 4], hair: hashStr(name + "h") % 6, hairCol: ["#15110d", "#3a2616", "#6b4423", "#a9743a", "#8d8a85"][hashStr(name + "c") % 5], shirt: ["#2e5e8a", "#8a2e2e", "#2e8a4f", "#7a5a2e"][hashStr(name + "s") % 4] } };
+    return { ok: true, staff: C.staff[role], fee };
+  }
+  function fireStaff(C, role) { if (!staffOf(C, role)) return { ok: false, reason: "none" }; C.staff[role] = null; return { ok: true }; }
+  // a groom does the daily brushing and feeding for every horse (the same once-a-day rules, so a horse that was done by hand is not done twice)
+  function staffDaily(C) { if (!staffOf(C, "groom")) return 0; let n = 0; for (const h of C.horses || []) { const g = groom(C, h.id), f = feed(C, h.id, 0); if ((g.ok && !g.already) || (f.ok && !f.already)) n++; } return n; }
+
+  return { FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
     cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,

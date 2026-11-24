@@ -573,6 +573,19 @@ const CAREER = (() => {
   }
   const exportText = () => CORE.exportSave(C);
   const DEV_LABEL = { early: "Early developer", avg: "Average developer", late: "Late developer" };
+  // facilities and staff (Phase 8): bought and hired from the Office; every effect is capped (see CORE.FAC_CAP)
+  function facilitiesHtml() {
+    const F = CORE.FACILITIES, R = CORE.STAFFROLES, pips = n => [0, 1, 2].map(i => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px;background:${i < n ? "var(--accent)" : "rgba(255,255,255,.2)"}"></span>`).join("");
+    const rows = Object.keys(F).map(k => { const lv = CORE.facLevel(C, k), nxt = lv < 3 ? F[k].cost[lv] : 0, can = lv < 3 && C.cash >= nxt;
+      return `<tr><td><b>${esc(F[k].name)}</b><div style="font-size:11.5px;color:var(--fg-dim)">${esc(F[k].blurb)}</div></td><td>${pips(lv)}</td><td style="text-align:right">${lv < 3 ? `<button class="btn small" data-buy="${k}" ${can ? "" : "disabled"}>${lv ? "Upgrade" : "Build"} ${money(nxt)}</button>` : "<span style='color:var(--good)'>Elite</span>"}</td></tr>`; }).join("");
+    const wk = CORE.weeklyBill(C);
+    const staff = Object.keys(R).map(r => { const st = CORE.staffOf(C, r);
+      if (st) return `<tr><td><b>${esc(R[r].name)}</b> — ${esc(st.name)} <span class="car-tag">tier ${st.tier}</span> <span class="car-tag">${esc(st.spec)}</span><div style="font-size:11.5px;color:var(--fg-dim)">${esc(R[r].blurb)}</div></td><td style="text-align:right">${money(st.wage)}/week</td><td style="text-align:right"><button class="btn small" data-fire="${r}">Let go</button></td></tr>`;
+      return `<tr><td><b>${esc(R[r].name)}</b> — vacant<div style="font-size:11.5px;color:var(--fg-dim)">${esc(R[r].blurb)}</div></td><td colspan="2" style="text-align:right"><select data-spec="${r}" style="background:rgba(18,26,21,.9);color:var(--fg);border:1px solid var(--panel-line);border-radius:6px;padding:4px">${R[r].specs.map(x => `<option>${esc(x)}</option>`).join("")}</select> ${[1, 2, 3].map(t => `<button class="btn small" data-hire="${r}:${t}" ${C.cash >= R[r].wage[t - 1] * 2 ? "" : "disabled"}>Tier ${t} · ${money(R[r].wage[t - 1])}/wk</button>`).join(" ")}</td></tr>`; }).join("");
+    return `<div class="car-panel"><div class="car-sub">Facilities</div><table class="car-tbl">${rows}</table>
+      <div class="car-sub" style="margin-top:10px">Staff</div><table class="car-tbl">${staff}</table>
+      <div style="font-size:11.5px;color:var(--fg-dim);margin-top:6px">A new hire costs two weeks' wages up front. Wages and facility upkeep are part of the one weekly bill (now ${money(wk.cost)}). The total training boost from staff and facilities is capped at +${Math.round((CORE.FAC_CAP - 1) * 100)}%, and nothing can raise a horse past its potential.</div></div>`;
+  }
   // the Office's money report (Phase 7): cash, what is owed, the next weekly bill, sponsorship, the season by category, recent prize money
   function financeHtml(fin) {
     const b = CORE.weeklyBill(C), e = CORE.econOf(C), club = CORE.clubOffer(C), by = fin.by || {}, nextWk = (CORE.weekOf(C.day) + 1) * 7;
@@ -605,6 +618,7 @@ const CAREER = (() => {
         <div class="car-kv"><span>This season: income <b>${money(fin.in)}</b></span><span>spending <b>${money(fin.out)}</b></span><span>net <b>${money(fin.in - fin.out)}</b></span></div>
       </div>
       ${financeHtml(fin)}
+      ${facilitiesHtml()}
       <div class="car-panel"><div class="car-sub">Ledger — most recent first</div>
         ${ledger.length ? `<table class="car-tbl"><tr><th>Date</th><th>Item</th><th style="text-align:right">Amount</th><th style="text-align:right" class="hide-s">Balance</th></tr>
         ${ledger.map(e => `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td>${esc(e.note || e.kind)}</td><td style="text-align:right;color:${e.amount < 0 ? "var(--bad)" : "var(--good)"}">${e.amount < 0 ? "−" : "+"}${money(Math.abs(e.amount))}</td><td style="text-align:right" class="hide-s">${money(e.bal)}</td></tr>`).join("")}</table>`
@@ -630,6 +644,9 @@ const CAREER = (() => {
       <div class="car-row"><button class="btn" id="ofBack">Back</button></div>`);
     const q = id => el.querySelector(id), msg = (t, bad) => { q("#ofMsg").innerHTML = t; q("#ofMsg").style.color = bad ? "var(--bad)" : "var(--fg)"; };
     q("#ofBack").onclick = () => home();
+    el.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => { const r = CORE.buyFacility(C, b.dataset.buy); if (r.ok) { save(); toast(CORE.FACILITIES[b.dataset.buy].name + " is now level " + r.level + " (−" + money(r.cost) + ")", "good", 3); openOffice(); } else toast(r.reason === "cash" ? "Not enough cash — " + money(r.short) + " short" : "Can't buy that", "warn", 3); });
+    el.querySelectorAll("[data-hire]").forEach(b => b.onclick = () => { const [role, tier] = b.dataset.hire.split(":"), sp = el.querySelector(`[data-spec="${role}"]`), r = CORE.hireStaff(C, role, +tier, sp && sp.value); if (r.ok) { save(); toast(r.staff.name + " joins as your " + CORE.STAFFROLES[role].name.toLowerCase() + " (−" + money(r.fee) + ")", "good", 3); openOffice(); } else toast(r.reason === "cash" ? "Not enough cash for the recruitment fee" : "That role is already filled", "warn", 3); });
+    el.querySelectorAll("[data-fire]").forEach(b => b.onclick = () => { CORE.fireStaff(C, b.dataset.fire); save(); toast("They have left the stable", "info", 2.4); openOffice(); });
     const adv = q("#ofClub"); if (adv) adv.onclick = () => { const r = CORE.clubAdvance(C); if (r.ok) { save(); toast("The stable club advanced " + money(r.amount) + " — half of every prize repays it", "good", 3.4); openOffice(); } else toast(r.reason === "used" ? "You've already had this season's advance" : "Your cash is above the club's threshold (" + money(CORE.ECON.CLUB.TRIGGER) + ")", "info", 3); };
     q("#ofExport").onclick = () => {
       try { const text = exportText(), a = document.createElement("a"), d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
@@ -1413,6 +1430,7 @@ const CAREER = (() => {
     groom: hid => { horseById(hid); return careSave(CORE.groom(C, hid)); }, feed: (hid, tier) => { horseById(hid); return careSave(CORE.feed(C, hid, tier)); },
     prepare: hid => { horseById(hid); return careSave(CORE.prepare(C, hid)); }, unprepare: hid => { horseById(hid); return careSave(CORE.unprepare(C, hid)); },
     drill: (hid, id, grade) => { horseById(hid); return careSave(CORE.drillReward(C, hid, id, grade)); },
+    wash: hid => { horseById(hid); return careSave(CORE.wash(C, hid)); }, save() { if (C) save(); },
     rest() { if (!C) load(); const r = CORE.restDay(C); if (r.ok) { save(); } return r; },
     get cash() { if (!C) load(); return C.cash; }, get day() { if (!C) load(); return C.day; }, get today() { if (!C) load(); return CORE.fmtDate(C.day); },
   };
@@ -1448,6 +1466,6 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
+  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

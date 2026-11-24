@@ -149,6 +149,7 @@ const FARMLIFE = (() => {
     const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
     const mat = new THREE.MeshBasicMaterial({ map: upTex, vertexColors: true, side: THREE.DoubleSide }); upMesh = new THREE.Mesh(geo, mat); upMesh.frustumCulled = false; F.scene.add(upMesh);
   }
-  function frame(dt) { if (!F) return; stepAnim(dt); stepOut(dt); stepNpcs(dt); }
+  function frame(dt) { if (!F) return; if (upMesh) upMesh.visible = F.cam.position.y < 16;      // the signs are small: not drawn from the high whole-property views
+    stepAnim(dt); stepOut(dt); stepNpcs(dt); }
   return { init, enter, leave, dispose, frame, points, interact, buildUpgrades, isOut, get anim() { return anim; }, get out() { return out; }, get npcs() { return npcs; }, setTurnout, GATE, padInfo, WASH };
 })();

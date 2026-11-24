@@ -67,7 +67,7 @@ const FARMCARE = (() => {
   const stallAnchor = i => { const s = F.world.stalls[i]; return { x: s.x + 0.72, z: -21.74 }; };
   function points() {
     const out = []; if (!F || !F.world) return out;
-    for (const g of F.horses) { const i = g.userData.stallI; if (i == null) continue; const s = F.world.stalls[i], led = S.led && S.led.g === g, away = S.led && S.led.g === g;
+    for (const g of F.horses) { const i = g.userData.stallI; if (i == null || g.userData.out) continue; const s = F.world.stalls[i], led = S.led && S.led.g === g, away = S.led && S.led.g === g;
       out.push({ id: "stall", i, hid: g.userData.hid, x: s.x + 0.35, z: -21.4, r: 2.0, text: away ? "E — Put " + nameOf(g) + " back in the box" : "E — " + nameOf(g) + ": inspect · groom · feed · prepare · lead out", led: !!led }); }
     // empty boxes you have unlocked: E opens the horse creator (the same creator as the career hub's)
     try { const free = CAREER.slotsFree(), n = F.horses.length; if (free > 0) { const st = F.world.stalls; for (let i = 0; i < st.length; i++) { if (F.horses.some(g => g.userData.stallI === i)) continue; if (i >= n + free) continue; const s = st[i]; out.push({ id: "vacant", i, x: s.x + 0.35, z: -21.4, r: 2.0, text: "E — Empty box: create a new horse for it" }); break; } } } catch (e) {}
@@ -164,7 +164,7 @@ const FARMCARE = (() => {
   function animateHorses(dt) {
     const L = S.led, A = S.act, cam = F.cam;
     for (const g of F.horses) {
-      if (g.visible === false) continue;
+      if (g.visible === false || g.userData.out) continue;
       if (L && L.g === g && L.mode !== "stall") continue;                           // the led horse is animated in lead()
       const d = Math.hypot(g.position.x - cam.position.x, g.position.z - cam.position.z); if (d > 38 && !(A && A.g === g)) continue;
       animateHorse(g, 0, 0, 0, 0, 0, 0, dt, null);
@@ -243,8 +243,9 @@ const FARMCARE = (() => {
   // the horse is loaded on the float: it leaves the lead (the caller hides it); untake puts it back in its box
   function take() { const L = S.led; if (!L) return null; S.led = null; if (ropeLine) ropeLine.visible = false; return L.g; }
   function untake(g) { const i = g.userData.stallI, s = F.world.stalls[i]; g.visible = true; g.position.set(s.x + (i % 2 ? 0.1 : -0.1), 0.15, s.z + 0.55); g.rotation.y = -Math.PI / 2 + (i % 2 ? 0.1 : -0.08); if (doors) { doors.d[i].a = doors.d[i].want = 0; doors.set(); } if (ropeLine) ropeLine.visible = false; return g; }
+  function adopt(g, hid) { if (S.led) return false; S.led = { g, hid, i: g.userData.stallI, mode: "follow", sp: 0, gait: 0, look: 0 }; return true; }
   function ropeVisible(v) { if (ropeLine) ropeLine.visible = !!v && !!S.led; }
-  return { init, enter, leave, dispose, take, untake, ropeVisible, frame, animateHorses, points, openMenu, closeMenu, key, release, summon, setTack, tackFor, startAction,
+  return { init, enter, leave, dispose, take, untake, adopt, ropeVisible, frame, animateHorses, points, openMenu, closeMenu, key, release, summon, setTack, tackFor, startAction,
     get led() { return S.led; }, get busy() { return !!S.act; }, get menuOpen() { return !!S.menu; }, get acting() { return S.act ? S.act.kind : ""; }, get doors() { return doors; }, rope() { return ropeLine; },
     ledHid() { return S.led ? S.led.hid : null; }, ledMesh() { return S.led ? S.led.g : null; }, setLeadLook(v) { if (S.led) S.led.look = v; }, hold(h) { if (S.led) S.led.hold = h; }, freeze(v) { if (S.led) S.led.freeze = !!v; }, ropeUpdate, DUR };
 })();
