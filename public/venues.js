@@ -707,11 +707,11 @@ const VENUES = (() => {
       if (vs && vs.style === "country") {                                               // a regional race club: the small country look on the generic course
         const key = "country" + (vs.variant ? 1 : 0); if (!built[key]) { built[key] = buildCountry(trk, vs.variant ? 1 : 0); world.add(built[key]); }
         built[key].userData.setTown(vs.town); for (const k in built) built[k].visible = k === key; if (generic) generic.visible = false; current = built[key]; currentId = key;
-        scene.fog.near = FOG0[0]; scene.fog.far = FOG0[1]; const cr = current.userData.crowd, c = cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); return;
+        GFX.fogRange(FOG0[0], FOG0[1]); const cr = current.userData.crowd, c = cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); return;
       }
-      if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); scene.fog.near = FOG0[0]; scene.fog.far = FOG0[1]; return;
+      if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); GFX.fogRange(FOG0[0], FOG0[1]); return;
     }
-    scene.fog.near = 650; scene.fog.far = 5600;                                   // a clear day: the city skyline shows through the haze
+    GFX.fogRange(650, 5600);                                   // a clear day: the city skyline shows through the haze
     if (!built[trk.id]) { built[trk.id] = trk.id === "flemington" ? buildFlemington(trk) : buildRandwick(trk); world.add(built[trk.id]); }
     for (const k in built) built[k].visible = k === trk.id;
     if (generic) generic.visible = false;

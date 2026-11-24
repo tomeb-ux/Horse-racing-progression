@@ -1265,6 +1265,11 @@ const CAREER = (() => {
       champ: false, fixedOpponents: null,
     }, extra);
   }
+  // the time of day and weather the calendar stored for the meeting you are running (the booked one if it is this race, else the round's date / the race's next meeting)
+  function atmoOf(meta, kind, idx) {
+    try { let e = null; if (C.booking && C.booking.ref === meta.id) e = ((C.cal && C.cal.events) || []).find(x => x.id === C.booking.eid);
+      if (!e) e = kind === "off" ? CORE.roundEvent(C, idx) : CORE.nextMeeting(C, meta.id); return e ? { tod: e.tod, wx: e.forecast && e.forecast.weather } : {}; } catch (er) { return {}; }
+  }
   function launch(cfg) {
     try { audio.ensure(); } catch (e) {}
     try { if (typeof COMM !== "undefined") COMM.prime(); } catch (e) {}
@@ -1275,11 +1280,12 @@ const CAREER = (() => {
     if (!h || idx !== s.cur || SEASON.done(s) || s.rounds[idx].st !== "open") { openHub(); return false; }
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
     const fee = payEntryFee(`entry:s${s.n}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) return false;
+    const at = atmoOf(meta, "off", idx);
     C.active = hi; CORE.enterRound(C, idx); save();           // the date becomes the round's scheduled day (the weekly bills fall due on the way)
     pending = { kind: "off", season: s.n, round: idx, hid: h.id, fee: fee.fee };
     const opp = raceDayField(SEASON.runners(C, idx), meta, h, idx === s.rounds.length - 1);
     launch(competitiveCfg(meta, h, opp, s.rounds[idx].going, {
-      career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
+      career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), tod: at.tod, wx: at.wx, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
     }));
     return true;
   }
@@ -1294,11 +1300,12 @@ const CAREER = (() => {
     const meta = BY_ID[id], h = C.horses[hi]; if (!meta || !h) { openOptional(); return false; }
     if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
     const fee = payEntryFee(`entry:o${C.optN | 0}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) return false;
+    const at = atmoOf(meta, "opt");
     C.active = hi; save();
     // the field: persistent rivals of the right grade for this race (the same field the form guide showed)
     const opp = raceDayField(SEASON.optionalField(C, id), meta, h, false);
     pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0, fee: fee.fee };
-    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
+    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), tod: at.tod, wx: at.wx, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
     return true;
   }
   // the race-day field: rivals primed to the player's horse (season.js raceField) — the same field the form guide shows

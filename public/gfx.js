@@ -99,39 +99,84 @@ const GFX = (() => {
   /* ---------- sky + environment ---------- */
   const SUN_DIR = new THREE.Vector3(180, 260, 120).normalize();
   const SKY_FRAG = `
-    uniform vec3 sunDir; uniform float uEnv; varying vec3 vW;
+    uniform vec3 sunDir, uZen, uMid, uHor, sunCol; uniform float uEnv, uGlow, uStars; varying vec3 vW;
     void main() {
       vec3 d = normalize(vW); float y = d.y;
-      vec3 zen = vec3(0.105, 0.245, 0.56), mid = vec3(0.30, 0.48, 0.74), hor = vec3(0.70, 0.78, 0.84);
+      vec3 zen = uZen, mid = uMid, hor = uHor;
       vec3 c = mix(hor, mid, smoothstep(0.0, 0.22, y)); c = mix(c, zen, smoothstep(0.18, 0.95, y));
       float sd = max(dot(d, sunDir), 0.0);
-      c += vec3(1.0, 0.86, 0.66) * (pow(sd, 6.0) * 0.18 + pow(sd, 48.0) * 0.45);
-      if (y < 0.0) c = mix(hor * 0.92, uEnv > 0.5 ? vec3(0.17, 0.22, 0.11) : hor * 0.85, smoothstep(0.0, 0.08, -y));
-      if (uEnv > 0.5) c += vec3(26.0, 23.0, 18.0) * smoothstep(0.9992, 0.9998, sd);   // the sun disc: a sharp specular source
+      c += sunCol * (pow(sd, 6.0) * 0.18 * (1.0 - 0.5 * uGlow) + pow(sd, 48.0) * 0.45);
+      // a warm band along the horizon on the sun's side at the ends of the day
+      vec2 hz = normalize(d.xz + 1e-4), sz = normalize(sunDir.xz + 1e-4); float side = max(dot(hz, sz), 0.0);
+      c += sunCol * uGlow * (0.25 + 0.75 * pow(side, 3.0)) * (1.0 - smoothstep(0.0, 0.33, y)) * 0.42;
+      if (uStars > 0.0) { float st = step(0.9984, fract(sin(dot(floor(d * 260.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453)); c += vec3(0.9, 0.95, 1.0) * st * uStars * smoothstep(0.08, 0.5, y); }
+      if (y < 0.0) c = mix(hor * 0.92, uEnv > 0.5 ? vec3(0.17, 0.22, 0.11) * (0.25 + 0.75 * clamp(sunCol.r, 0.0, 1.0)) : hor * 0.85, smoothstep(0.0, 0.08, -y));
+      if (uEnv > 0.5) c += sunCol * 26.0 * uSunDisc * smoothstep(0.9992, 0.9998, sd);   // the sun disc: a sharp specular source
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
       #include <encodings_fragment>
-    }`;
+    }`.replace("uniform float uEnv, uGlow, uStars;", "uniform float uEnv, uGlow, uStars, uSunDisc;");
   const SKY_VERT = `varying vec3 vW; void main() { vW = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`;
   let skyMesh = null, envRT = null;
+  const skyU = () => ({ sunDir: { value: SUN_DIR }, uZen: { value: new THREE.Vector3(0.105, 0.245, 0.56) }, uMid: { value: new THREE.Vector3(0.30, 0.48, 0.74) }, uHor: { value: new THREE.Vector3(0.70, 0.78, 0.84) }, sunCol: { value: new THREE.Vector3(1.0, 0.86, 0.66) }, uGlow: { value: 0 }, uStars: { value: 0 }, uSunDisc: { value: 1 }, uEnv: { value: 0 } });
+  const SKYU = skyU();
+  // ---- Phase 12: time of day and weather. setAtmosphere(ATMO.params(tod, wx)) re-lights the race scene: the sky dome, the sun / ambient / fill lights and exposure, the haze, the environment map
+  // (built once per look and cached), how wet the turf is and how hard it rains. With nothing passed it is the original afternoon, so a Quick Race is unchanged.
+  const A = { p: null, env: new Map(), fogMul: 1, wet: 0, sunOff: new THREE.Vector3(120, 220, 80), rain: null, turf: [] };
+  const v3 = (u, a) => u.value.set(a[0], a[1], a[2]);
+  function envFor(p) {
+    const key = p.key; let hit = A.env.get(key);
+    if (hit) { hit.t = performance.now(); return hit.rt.texture; }
+    const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene(), U = skyU(); U.sunDir.value = new THREE.Vector3().fromArray(p.sunDir); v3(U.uZen, p.sky.zen); v3(U.uMid, p.sky.mid); v3(U.uHor, p.sky.hor); v3(U.sunCol, p.sunColor); U.uGlow.value = p.glow; U.uEnv.value = 1; U.uSunDisc.value = p.hotSun ? 1 : 0;
+    const em = new THREE.ShaderMaterial({ uniforms: U, vertexShader: `varying vec3 vW; void main() { vW = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false });
+    es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 64, 32), em));
+    const tm = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping; const rt = pm.fromScene(es, 0.0, 0.1, 100); renderer.toneMapping = tm; pm.dispose(); em.dispose(); es.children[0].geometry.dispose();
+    A.env.set(key, { rt, t: performance.now() });
+    if (A.env.size > 5) { let old = null, ok = null; for (const [k, v] of A.env) { if (k === key || v.rt.texture === scene.environment) continue; if (!old || v.t < old.t) { old = v; ok = k; } } if (old) { old.rt.dispose(); A.env.delete(ok); } }
+    return rt.texture;
+  }
+  function setAtmosphere(p) {
+    p = p || ATMO.params("afternoon", "clear"); if (A.p && A.p.tod === p.tod && A.p.wx === p.wx && skyMesh) return A.p; A.p = p;
+    SUN_DIR.fromArray(p.sunDir); v3(SKYU.uZen, p.sky.zen); v3(SKYU.uMid, p.sky.mid); v3(SKYU.uHor, p.sky.hor); v3(SKYU.sunCol, p.sunColor); SKYU.uGlow.value = p.glow; SKYU.uStars.value = p.tod === "evening" ? 1 : p.tod === "dusk" ? 0.35 * (1 - p.cloud) : 0;
+    hemi.color.setHex(p.hemiSky); hemi.groundColor.setHex(p.hemiGround); hemi.intensity = p.hemiI; sun.color.setRGB(p.sunLight[0], p.sunLight[1], p.sunLight[2]); sun.intensity = p.lightI; fill.intensity = p.fillI;
+    A.sunOff.set(p.lightDir[0], Math.max(p.lightDir[1], 0.13), p.lightDir[2]).normalize().multiplyScalar(263);
+    renderer.toneMappingExposure = p.expo;
+    scene.fog.color.setRGB(p.fogColor[0], p.fogColor[1], p.fogColor[2]).convertLinearToSRGB(); A.fogMul = p.fogMul;
+    if (skyMesh) { scene.environment = envFor(p); envRT = A.env.get(p.key).rt; }
+    setWet(p.wet); setRain(p.rain);
+    return p;
+  }
+  // the fog distances for a venue, shortened by the weather
+  function fogRange(near, far) { scene.fog.near = near * A.fogMul; scene.fog.far = far * A.fogMul; }
+  // wet turf: darker and glossier. Every turf material registers its dry look so it can be darkened and restored.
+  function setWet(w) { A.wet = w; for (const m of A.turf) { m.color.copy(m.userData.dry).multiplyScalar(1 - 0.24 * w); m.roughness = m.userData.rough - 0.36 * w; } }
+  // rain: one line-segment mesh of streaks round the camera, animated entirely in the vertex shader (one draw call)
+  function createRain(N) {
+    N = N || 3600; const g = new THREE.BufferGeometry(), base = new Float32Array(N * 6), end = new Float32Array(N * 2), r = rand(51);
+    for (let i = 0; i < N; i++) { const x = (r() - 0.5) * 70, y = r() * 40, z = (r() - 0.5) * 70; for (let k = 0; k < 2; k++) { base.set([x, y, z], (i * 2 + k) * 3); end[i * 2 + k] = k; } }
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 6), 3)); g.setAttribute("aBase", new THREE.BufferAttribute(base, 3)); g.setAttribute("aEnd", new THREE.BufferAttribute(end, 1));
+    const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, fog: false, uniforms: { uTime: { value: 0 }, uCam: { value: new THREE.Vector3() }, uAlpha: { value: 0.4 }, uSpeed: { value: 24 }, uLen: { value: 0.9 }, uWind: { value: new THREE.Vector2(3, 1.2) } },
+      vertexShader: `attribute vec3 aBase; attribute float aEnd; uniform float uTime, uSpeed, uLen; uniform vec3 uCam; uniform vec2 uWind; varying float vA;
+        void main() { float fall = mod(aBase.y - uTime * uSpeed, 40.0); vec3 p = vec3(aBase.x, uCam.y - 14.0 + fall, aBase.z); vec3 dir = normalize(vec3(uWind.x, -uSpeed, uWind.y));
+          p.xz = uCam.xz + mod(p.xz - uCam.xz + 35.0, 70.0) - 35.0; p += vec3(uWind.x, 0.0, uWind.y) * (fall / uSpeed) * 0.0; p -= dir * uLen * aEnd; vA = 1.0 - 0.75 * aEnd; gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0); }`,
+      fragmentShader: `uniform float uAlpha; varying float vA; void main() { gl_FragColor = vec4(0.78, 0.84, 0.92, uAlpha * vA); }` });
+    const mesh = new THREE.LineSegments(g, m); mesh.frustumCulled = false; mesh.renderOrder = 5; mesh.visible = false; mesh.userData.N = N;
+    mesh.onBeforeRender = (rd, sc, cam) => { m.uniforms.uCam.value.copy(cam.position); };
+    mesh.userData.set = (k, dt) => { mesh.visible = k > 0.01; if (!mesh.visible) return; g.setDrawRange(0, Math.floor(N * Math.min(1, 0.25 + 0.75 * k)) * 2); m.uniforms.uAlpha.value = 0.22 + 0.3 * k; m.uniforms.uLen.value = 0.7 + 0.5 * k; };
+    mesh.userData.tick = dt => { m.uniforms.uTime.value += dt; };
+    return mesh;
+  }
+  function setRain(k) { if (!A.rain && k > 0.01) { A.rain = createRain(); scene.add(A.rain); } if (A.rain) A.rain.userData.set(k); }
   function buildSky() {
     // replace the old vertex-coloured dome with a shader dome (same look family, with a sun glow) that matches the env map
     scene.children.filter(o => o.isMesh && o.geometry && o.geometry.parameters && o.geometry.parameters.radius === 2100).forEach(o => { scene.remove(o); o.geometry.dispose(); o.material.dispose(); });
-    const m = new THREE.ShaderMaterial({ uniforms: { sunDir: { value: SUN_DIR }, uEnv: { value: 0 } }, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false });
+    const m = new THREE.ShaderMaterial({ uniforms: SKYU, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false });
     skyMesh = new THREE.Mesh(new THREE.SphereGeometry(2100, 48, 24), m); skyMesh.renderOrder = -10; skyMesh.frustumCulled = false;
     skyMesh.onBeforeRender = (r, s, cam) => skyMesh.position.copy(cam.position);
     scene.add(skyMesh);
     scene.background = null;
-    scene.fog.color.setRGB(0.70, 0.78, 0.84).convertLinearToSRGB();   // the haze matches the horizon (fog colour is in output space)
-    // environment: render the same sky (with a ground hemisphere and a hot sun disc) into a prefiltered cube map
-    const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene();
-    const em = new THREE.ShaderMaterial({ uniforms: { sunDir: { value: SUN_DIR }, uEnv: { value: 1 } }, vertexShader: `varying vec3 vW; void main() { vW = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false });
-    es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 64, 32), em));
-    const tm = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
-    envRT = pm.fromScene(es, 0.0, 0.1, 100); renderer.toneMapping = tm;
-    scene.environment = envRT.texture; pm.dispose(); em.dispose();
-    // with sky light coming from the environment, the flat hemisphere fill can come down
-    hemi.intensity = 0.32; fill.intensity = 0.12; sun.intensity = 2.3; renderer.toneMappingExposure = 0.82;
+    // with sky light coming from the environment, the flat hemisphere fill can come down; the lights, fog, exposure and environment now come from the atmosphere (the original afternoon by default)
+    setAtmosphere(A.p || ATMO.params("afternoon", "clear"));
   }
 
   /* ---------- tileable procedural noise for textures ---------- */
@@ -199,7 +244,7 @@ const GFX = (() => {
   function turfMaterial(kind, tint) {
     const T = turfTextures();
     const m = new THREE.MeshStandardMaterial({ color: tint || (kind === "track" ? 0xd8e6c8 : kind === "lawn" ? 0xd4e2c0 : 0xc8d4b0), roughness: 0.92, metalness: 0, map: T.turf, normalMap: T.turfN });
-    m.normalScale.set(0.9, 0.9);
+    m.normalScale.set(0.9, 0.9); m.userData.dry = m.color.clone(); m.userData.rough = m.roughness; A.turf.push(m); if (A.wet) { m.color.multiplyScalar(1 - 0.24 * A.wet); m.roughness -= 0.36 * A.wet; }
     const U = { uMacro: { value: T.macro }, uStripe: { value: kind === "track" ? 1 : 0 }, uLawn: { value: kind === "lawn" ? 1 : 0 } };
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, U);
@@ -581,6 +626,7 @@ const GFX = (() => {
   let crowdAnimT = 0;                          // 1 in replays / the winner presentation: part of the crowd cheers
   function setCrowdAnim(v) { crowdAnimT = v ? 1 : 0; }
   function update(dt, excite, focus, roar) {
+    if (A.rain && A.rain.visible) A.rain.userData.tick(dt);
     uTime.value += dt;
     updateLODs();                               // rail posts, trees, roses, spectators: detail by on-screen size
     crowdU.uExcite.value += ((excite || 0) - crowdU.uExcite.value) * Math.min(1, dt * 1.5);
@@ -633,7 +679,7 @@ const GFX = (() => {
     for (let i = 0; i < uv.count; i++) { const nx = Math.abs(N.getX(i)), ny = Math.abs(N.getY(i)); const a = nx > 0.5 ? P.getZ(i) : P.getX(i), b = ny > 0.5 ? P.getZ(i) : P.getY(i); uv.setXY(i, a / t, b / t); }
     return g;
   }
-  return { applyQuality, buildSky, turfMaterial, turfTextures, plantTrees, treeGeo, shrubs, rail, crowd, update, chunked, addLOD, LODS, setCrowdAnim, get lodBias() { return lodBias; }, set lodBias(v) { lodBias = v; }, get horseBias() { return horseBias; }, AUTO, AUTO_STEPS, autoTick, autoReset, setAuto, runtimeParams, mats, glassMat, wallBox, merge, paint, lin, fbm, pnoise, hash, rand, dataTex, QUALITY, q, uTime, crowdU, get envMap() { return envRT && envRT.texture; } };
+  return { applyQuality, buildSky, setAtmosphere, envFor, fogRange, setWet, createRain, get atmo() { return A.p; }, get sunOffset() { return A.sunOff; }, get fogMul() { return A.fogMul; }, atmosphere: A, turfMaterial, turfTextures, plantTrees, treeGeo, shrubs, rail, crowd, update, chunked, addLOD, LODS, setCrowdAnim, get lodBias() { return lodBias; }, set lodBias(v) { lodBias = v; }, get horseBias() { return horseBias; }, AUTO, AUTO_STEPS, autoTick, autoReset, setAuto, runtimeParams, mats, glassMat, wallBox, merge, paint, lin, fbm, pnoise, hash, rand, dataTex, QUALITY, q, uTime, crowdU, get envMap() { return envRT && envRT.texture; } };
 })();
 // start-up: sky + environment lighting, quality preset, and the original course's turf upgraded to the new material
 (function gfxInit() {

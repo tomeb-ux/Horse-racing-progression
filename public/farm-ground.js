@@ -69,16 +69,18 @@ const FARMGROUND = (() => {
 
   // ---------------------------------------------------------------- the sky dome (+ matching fog)
   function sky(scene, owned, sunDir) {
-    const g = new THREE.SphereGeometry(900, 32, 16), m = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { sunDir: { value: sunDir } },
+    const g = new THREE.SphereGeometry(900, 32, 16), m = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { sunDir: { value: sunDir }, uHor: { value: new THREE.Vector3(0.74, 0.83, 0.90) }, uMid: { value: new THREE.Vector3(0.50, 0.69, 0.89) }, uTop: { value: new THREE.Vector3(0.25, 0.46, 0.79) }, sunCol: { value: new THREE.Vector3(1.0, 0.82, 0.55) }, uGlow: { value: 0 }, uStars: { value: 0 } },
       vertexShader: "varying vec3 vD; void main() { vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-      fragmentShader: `varying vec3 vD; uniform vec3 sunDir;
+      fragmentShader: `varying vec3 vD; uniform vec3 sunDir, uHor, uMid, uTop, sunCol; uniform float uGlow, uStars;
         void main() { vec3 d = normalize(vD); float h = clamp(d.y, -0.2, 1.0);
-          vec3 hor = vec3(0.74, 0.83, 0.90), mid = vec3(0.50, 0.69, 0.89), top = vec3(0.25, 0.46, 0.79);
+          vec3 hor = uHor, mid = uMid, top = uTop;
           vec3 c = mix(hor, mid, smoothstep(0.05, 0.4, h)); c = mix(c, top, smoothstep(0.3, 0.9, h));
-          float s = max(dot(d, normalize(sunDir)), 0.0); c += vec3(1.0, 0.82, 0.55) * (pow(s, 6.0) * 0.28 + pow(s, 80.0) * 0.55);
+          float s = max(dot(d, normalize(sunDir)), 0.0); c += sunCol * (pow(s, 6.0) * 0.28 + pow(s, 80.0) * 0.55);
+          vec2 hz = normalize(d.xz + 1e-4), sz = normalize(sunDir.xz + 1e-4); c += sunCol * uGlow * (0.25 + 0.75 * pow(max(dot(hz, sz), 0.0), 3.0)) * (1.0 - smoothstep(0.0, 0.33, max(d.y, 0.0))) * 0.42;
+          if (uStars > 0.0 && d.y > 0.0) { float st = step(0.9984, fract(sin(dot(floor(d * 260.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453)); c += vec3(0.9, 0.95, 1.0) * st * uStars * smoothstep(0.08, 0.5, d.y); }
           c = mix(c, vec3(0.62, 0.66, 0.60), smoothstep(0.0, -0.2, d.y)); gl_FragColor = vec4(c, 1.0); }` });
     const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = -10; scene.add(mesh); owned.geo.push(g); owned.mat.push(m);
-    scene.fog = new THREE.Fog(new THREE.Color(0.74, 0.83, 0.90).convertSRGBToLinear(), 80, 300);
+    scene.fog = new THREE.Fog(new THREE.Color(0.74, 0.83, 0.90).convertSRGBToLinear(), 80, 300); mesh.userData.U = m.uniforms;
     return mesh;
   }
 
@@ -129,7 +131,7 @@ const FARMGROUND = (() => {
     o = o || {}; const owned = { geo: [], mat: [], tex: [] }, t0 = performance.now();
     W.makeTextures(); W.makeMaterials();
     const splat = makeSplat(); owned.tex.push(splat); const gm = groundMaterial(splat); owned.mat.push(gm); terrain(scene, gm, owned);
-    const sunDir = new THREE.Vector3(0.55, 0.62, 0.56).normalize(); sky(scene, owned, sunDir);
+    const sunDir = new THREE.Vector3(0.55, 0.62, 0.56).normalize(), skyMesh = sky(scene, owned, sunDir);
     const built = FARMBUILD.build(scene, o);
     // ---- plants
     const uT = { value: 0 }, leaf = W.M.leaf; leaf.onBeforeCompile = sh => { sh.uniforms.uTime = uT; sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uTime;").replace("#include <begin_vertex>", `#include <begin_vertex>
@@ -176,7 +178,7 @@ const FARMGROUND = (() => {
     for (const t of tufts) { const ln = 0.4 + 0.6 * hash(Math.round(t.x * 3), Math.round(t.z * 3), 21); t.tint = new THREE.Color().setRGB(0.52 + 0.4 * ln, 0.56 + 0.3 * ln, 0.34 + 0.16 * ln).convertSRGBToLinear(); t.s *= 0.72; }
     veg.push(...scatter(scene, tufts, tg, null, tm, { cell: 45, pad: 4, sink: 0.04, shadow: false, receive: false }).map(c => Object.assign(c, { far: 75, near: 1e9, shadowOk: false })));
     return {
-      structures: built, heightAt, colliders: built.colliders, segs: built.segs, points: built.points, stalls: built.stalls, sunDir, ms: performance.now() - t0,
+      skyU: skyMesh.userData.U, structures: built, heightAt, colliders: built.colliders, segs: built.segs, points: built.points, stalls: built.stalls, sunDir, ms: performance.now() - t0,
       // per frame: sway clock, then for every plant cell: distance (detail level + far cull), a frustum test (instanced meshes carry no bounds of their own) and, for trees, shadows only when near
       update(dt, camera) {
         uT.value += dt; const cam = camera.position; camera.updateMatrixWorld(); _pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); _fr.setFromProjectionMatrix(_pm);

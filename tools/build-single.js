@@ -17,6 +17,7 @@ swap('<script src="voice.js"></script>', inline('voice.js'));
 { const dir = path.join(pub, 'assets', 'audio', 'commentary'), man = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')), data = {};
   for (const c of man.clips) data[c.file] = fs.readFileSync(path.join(dir, c.file)).toString('base64');
   swap('<script src="eleven.js"></script>', '<script>window.__FF_COMM_LIB = ' + JSON.stringify({ manifest: man, data }) + ';</script>\n' + inline('eleven.js')); }
+swap('<script src="atmosphere.js"></script>', inline('atmosphere.js'));
 swap('<script src="gfx.js"></script>', inline('gfx.js'));
 swap('<script src="mp.js"></script>', inline('mp.js'));
 swap('<script src="venues.js"></script>', inline('venues.js'));

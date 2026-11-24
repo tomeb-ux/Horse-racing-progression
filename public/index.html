@@ -708,6 +708,7 @@ addEventListener("resize", resize); resize();
 
 /* Lights */
 const hemi = new THREE.HemisphereLight(0xd9e9ff, 0x56703f, 0.72); scene.add(hemi);
+const SUNV0 = { x: 120, y: 220, z: 80 }, sunOff = () => (typeof GFX !== "undefined" && GFX.sunOffset) || SUNV0;     // where the sun stands relative to the camera (the atmosphere moves it)
 const sun = new THREE.DirectionalLight(0xfff0d6, 1.7);
 sun.position.set(180, 260, 120);
 sun.castShadow = settings.shadows;
@@ -2864,7 +2865,7 @@ function updateCamera(dt) {
   camera.fov = cam.fov; camera.updateProjectionMatrix();
   // shadow camera follows player (or menu horse)
   const focus = racing ? p.pos : menuHorsePos;
-  sun.position.set(focus.x + 120, 220, focus.z + 80);
+  sun.position.set(focus.x + sunOff().x, sunOff().y, focus.z + sunOff().z);
   sun.target.position.set(focus.x, 0, focus.z);
   sun.target.updateMatrixWorld();
 }
@@ -3924,7 +3925,7 @@ function updateReplay(dt) {
       camera.setViewOffset(W0, H0, ox, oy, w, hh); camera.updateProjectionMatrix();
     }
   }
-  sun.position.set(camera.position.x + 120, 220, camera.position.z + 80); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
+  sun.position.set(camera.position.x + sunOff().x, sunOff().y, camera.position.z + sunOff().z); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
   // overlays: the finishing line and the focus horses' names
   const W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio, 2);
   if (rpCanvas.width !== Math.round(W * dpr) || rpCanvas.height !== Math.round(H * dpr)) { rpCanvas.width = Math.round(W * dpr); rpCanvas.height = Math.round(H * dpr); }
@@ -4067,7 +4068,7 @@ function updateHighlights(dt) {
   camPos.x += (tx - camPos.x) * kp; camPos.y += (ty - camPos.y) * kp; camPos.z += (tz - camPos.z) * kp;
   camLook.x += (lx - camLook.x) * kl; camLook.y += (ly - camLook.y) * kl; camLook.z += (lz - camLook.z) * kl;
   camera.position.copy(camPos); camera.lookAt(camLook); camera.fov = fov; camera.updateProjectionMatrix();
-  sun.position.set(camera.position.x + 120, 220, camera.position.z + 80); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
+  sun.position.set(camera.position.x + sunOff().x, sunOff().y, camera.position.z + sunOff().z); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
   $("rpSlow").className = "rp-slow" + (slow < 1 ? " on" : ""); $("rpSlow").textContent = slow < 1 ? "Slow motion" : "";
 }
 
@@ -4115,6 +4116,7 @@ function startRace(cfg) {
   riderInput.effort = race.player.effort;
   buildGates(race.route, race.gateCount);
   buildMarkers(race.route, race.dist);
+  try { const cc = cfg.career; GFX.setAtmosphere(cc && cc.tod ? ATMO.params(cc.tod, cc.wx) : null); } catch (e) { console.error(e); }      // the time of day and weather of the booked event (the original afternoon for a Quick Race)
   if (typeof VENUES !== "undefined") VENUES.use(race.trk, cfg);
   buildShots(race.trk); drawMinimapBase();
   spawnHorseMeshes(race);
@@ -4553,6 +4555,7 @@ if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude
 else boot();
 </script>
 <script src="eleven.js"></script>
+<script src="atmosphere.js"></script>
 <script src="gfx.js"></script>
 <script src="mp.js"></script>
 <script src="venues.js"></script>

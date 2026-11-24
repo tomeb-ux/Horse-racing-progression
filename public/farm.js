@@ -16,7 +16,7 @@
      them and disposes everything per-visit; dispose() frees the whole property (low-memory mode, a rename).
    ===================================================================== */
 const FARM = (() => {
-  let built = false, active = false, showcase = false, hud = null, prompt = null, title = null, objEl = null, cross = null, fadeEl = null, pauseEl = null, panelEl = null, skipEl = null, hintEl = null;
+  let built = false, active = false, showcase = false, hud = null, prompt = null, title = null, wxEl = null, objEl = null, cross = null, fadeEl = null, pauseEl = null, panelEl = null, skipEl = null, hintEl = null;
   let fscene = null, fcam = null, world = null, sunLight = null, hemi = null, builtName = "";
   let iscene = null, iworld = null;                                  // the farmhouse interior (built the first time you go in)
   const own = { geo: [], mat: [], tex: [] };
@@ -47,6 +47,7 @@ const FARM = (() => {
     hemi = new THREE.HemisphereLight(0xdde8f4, 0x726a4a, 0.34); fscene.add(hemi);
     sunLight = new THREE.DirectionalLight(0xfff1dc, 1.75); sunLight.castShadow = true; sunLight.shadow.mapSize.set(2048, 2048); sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.04;
     Object.assign(sunLight.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 260 }); fscene.add(sunLight, sunLight.target);
+    applyAtmosphere(true);
     fig = FARMPEOPLE.make(appearance()); fig.root.visible = false; fscene.add(fig.root); fig.root.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     buildHud();
     FARMCARE.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); FARMLIFE.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
@@ -63,6 +64,7 @@ const FARM = (() => {
     hud = document.createElement("div"); hud.id = "farmScreen"; hud.className = "screen"; hud.hidden = true; hud.style.cssText = "pointer-events:none;background:none;padding:0";
     hud.innerHTML = `<div id="farmInfo" style="position:absolute;left:max(14px,env(safe-area-inset-left,0px));top:max(14px,env(safe-area-inset-top,0px));background:rgba(9,14,11,.7);border:1px solid var(--panel-line,#2a3a30);border-radius:10px;padding:10px 14px;font-size:12.5px;line-height:1.5;color:#f2efe6;max-width:min(440px,calc(100vw - 28px))">
         <b id="farmTitle" style="font-family:var(--font-d,system-ui);font-size:15px;letter-spacing:.05em"></b>
+        <div id="farmWx" style="color:#aebdb1;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase"></div>
         <div id="farmObj" style="color:#e8c35a;font-weight:600;margin-top:2px"></div>
         <div id="farmHint" style="color:#c8d2c8;margin-top:2px">W A S D walk · Shift run · mouse look · V first / third person · E interact · Esc pause</div></div>
       <div id="farmCross" hidden style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 0 1px rgba(0,0,0,.45)"></div>
@@ -79,7 +81,7 @@ const FARM = (() => {
       <div id="farmFade" style="position:absolute;inset:0;background:#000;opacity:0;pointer-events:none"></div>`;
     document.body.appendChild(hud); screens.farm = hud;
     const q = id => hud.querySelector(id);
-    prompt = q("#farmPrompt"); title = q("#farmTitle"); objEl = q("#farmObj"); cross = q("#farmCross"); fadeEl = q("#farmFade"); pauseEl = q("#farmPause"); panelEl = q("#farmPanel"); skipEl = q("#farmSkip"); hintEl = q("#farmHint");
+    prompt = q("#farmPrompt"); title = q("#farmTitle"); wxEl = q("#farmWx"); objEl = q("#farmObj"); cross = q("#farmCross"); fadeEl = q("#farmFade"); pauseEl = q("#farmPause"); panelEl = q("#farmPanel"); skipEl = q("#farmSkip"); hintEl = q("#farmHint");
     q("#fpResume").onclick = () => setPaused(false); q("#fpHub").onclick = () => { setPaused(false); leaveToCareer(); }; q("#fpMenu").onclick = () => { setPaused(false); SCENES.enter("menu"); };
   }
 
@@ -328,9 +330,41 @@ const FARM = (() => {
   function collide() { resolve(P, PR); }
 
   // ---------------------------------------------------------------- the sun and its shadow follow the walker (snapped to texels: no shimmer)
+  // ---------------------------------------------------------------- time of day and weather (Phase 12)
+  // The farm's own look is "a bright late morning" (mid-morning, clear); every other time of day and kind of weather is that look scaled by the ratio of the atmosphere's numbers
+  // (ATMO), so the original is exactly preserved and the farm shares one description of the day with the race. Which day-part and weather it is: the booked race's own, on race day;
+  // otherwise a seeded draw for the date (the same every time you look).
+  const FARM_BASE = { hor: [0.74, 0.83, 0.90], mid: [0.50, 0.69, 0.89], top: [0.25, 0.46, 0.79], expo: 0.82, fogNear: 80, fogFar: 300 };
+  let farmP = null, farmDay = -1, farmRain = null, REF = null;
+  let atmoOverride = null;
+  function farmAtmo() {
+    if (atmoOverride) return atmoOverride;
+    try {
+      const C = CAREER && CAREER.data; if (!C || typeof ATMO === "undefined") return null;
+      const bk = C.booking && C.cal && C.cal.events.find(x => x.id === C.booking.eid);
+      if (bk && bk.day === C.day && bk.tod) return ATMO.params(bk.tod, bk.forecast && bk.forecast.weather);
+      return ATMO.params(ATMO.dayPart(C.seed, C.day), ATMO.dayWeather(C.seed, C.day, CORE.parts(C.day).m));
+    } catch (e) { return null; }
+  }
+  function applyAtmosphere(force) {
+    if (!world || !world.skyU || typeof ATMO === "undefined") return;
+    REF = REF || ATMO.params("mid_morning", "clear"); const p = farmAtmo() || REF; if (!force && farmP && farmP.tod === p.tod && farmP.wx === p.wx) return; farmP = p;
+    const r3 = (base, a, b) => base.map((v, i) => Math.max(0, Math.min(1.6, v * (a[i] / Math.max(0.001, b[i]))))), U = world.skyU;
+    U.uHor.value.fromArray(r3(FARM_BASE.hor, p.sky.hor, REF.sky.hor)); U.uMid.value.fromArray(r3(FARM_BASE.mid, p.sky.mid, REF.sky.mid)); U.uTop.value.fromArray(r3(FARM_BASE.top, p.sky.zen, REF.sky.zen));
+    U.sunCol.value.fromArray(p.tod === "evening" ? [0.05, 0.06, 0.1] : p.sunColor); U.uGlow.value = p.glow; U.uStars.value = p.tod === "evening" ? 1 : p.tod === "dusk" ? 0.35 * (1 - p.cloud) : 0;
+    const dl = -45.5 * Math.PI / 180, c = Math.cos(dl), s = Math.sin(dl), d = p.lightDir; world.sunDir.set(d[0] * c + d[2] * s, d[1], -d[0] * s + d[2] * c).normalize();
+    const ri = Math.max(0.05, REF.sunI); sunLight.color.setRGB(p.sunLight[0], p.sunLight[1], p.sunLight[2]); sunLight.intensity = 1.75 * p.lightI / ri;
+    hemi.color.setHex(p.hemiSky); hemi.groundColor.setHex(p.hemiGround); hemi.intensity = 0.34 * p.hemiI / REF.hemiI;
+    fscene.fog.color.setRGB(0.74 * p.fogColor[0] / REF.fogColor[0], 0.83 * p.fogColor[1] / REF.fogColor[1], 0.90 * p.fogColor[2] / REF.fogColor[2]).convertSRGBToLinear(); fscene.fog.near = FARM_BASE.fogNear * p.fogMul; fscene.fog.far = FARM_BASE.fogFar * p.fogMul;
+    renderer.toneMappingExposure = FARM_BASE.expo * p.expo / REF.expo;
+    try { fscene.environment = GFX.envFor(p); } catch (e) {}
+    if (!farmRain && p.rain > 0.01) { farmRain = GFX.createRain(); fscene.add(farmRain); } if (farmRain) farmRain.userData.set(p.rain);
+    if (wxEl) wxEl.textContent = (CORE.TOD_LABEL[p.tod] || "") + " · " + (CORE.WX_LABEL[p.wx] || "");
+    if (sunLight && world) sunFollow(P.x, P.z);
+  }
   function sunFollow(cx, cz) {
     const d = world.sunDir, tx = Math.round(cx / 0.04) * 0.04, tz = Math.round(cz / 0.04) * 0.04;
-    sunLight.target.position.set(tx, 0, tz); sunLight.position.set(tx + d.x * 120, d.y * 120, tz + d.z * 120);
+    sunLight.target.position.set(tx, 0, tz); sunLight.position.set(tx + d.x * 120, Math.max(d.y, 0.14) * 120, tz + d.z * 120);
     const want = renderer.shadowMap.enabled && settings.shadows !== false; if (want !== shadowOn) { shadowOn = want; sunLight.castShadow = want; fscene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
   }
   const PRESETS = {
@@ -398,6 +432,7 @@ const FARM = (() => {
     if (showcase && !active) return menuFrame(dt);
     if (!active) return;
     t += dt; dt = Math.min(dt, 0.1);
+    try { const dd = CAREER.data && CAREER.data.day; if (dd !== farmDay) { farmDay = dd; applyAtmosphere(); } } catch (e) {} if (farmRain && farmRain.visible) farmRain.userData.tick(dt);
     stepTrans(dt);
     if (trip) { FARMTRIP.frame(dt); animateNearHorses(dt); renderer.render(fscene, fcam); return; }
     if (FARMDRIVE.on) {                                                // driving the rig: its own camera; the world still updates round the camera
@@ -464,7 +499,7 @@ const FARM = (() => {
     stopShowcase();
     if (built && builtName !== stableName()) dispose(true);             // the stable was renamed: the signs are rebuilt
     build(); active = true; VIEW.on = false; paused = false; panel = null; trans = null; trip = null; place = "out"; fscene.add(fig.root); refreshFigure();
-    person = settings.person === 1 ? 1 : 3; camReady = false;
+    person = settings.person === 1 ? 1 : 3; camReady = false; applyAtmosphere(true);
     const a = P.arrive || [1, -0.5, 0]; P.arrive = null;
     P.x = a[0]; P.z = a[1]; P.y = world.heightAt(P.x, P.z); P.face = a[2]; P.speed = 0; CAM.yaw = a[2]; CAM.pitch = person === 1 ? 0 : -0.22; CAM.dist = 4.6; CAM.cur = 4.6; near = null;
     prompt.hidden = true; title.textContent = builtName.toUpperCase(); pauseEl.hidden = true; panelEl.hidden = true; fadeEl.style.opacity = "0"; skipEl.hidden = true;
@@ -476,7 +511,7 @@ const FARM = (() => {
     }
     resetRig(); stand(); FARMCARE.enter(); FARMLIFE.enter(); FARMDAY.enter(); FARMTRAIN.enter(); busy = false; hideFigure = false; CINE.on = CINE.init = false; guideKey = ""; lastStage = ""; departT = 0; departB = null; bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
   }
-  function leave() { try { FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; }
+  function leave() { try { FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; try { renderer.toneMappingExposure = GFX.atmo ? GFX.atmo.expo : 0.82; } catch (e) {} }
   // where you appear next time: the hardstand by the float, after a race
   function arrive(where) { resume = null; P.arrive = where === "hardstand" ? [31.5, 10.5, Math.PI / 2] : null; }
   function resetRig() { const g = world && world.structures && world.structures.rig; if (g) { g.position.set(FARMWORLD.L.float.x, 0, FARMWORLD.L.float.z); g.rotation.set(0, 0, 0); if (g.userData.ramp) g.userData.ramp.rotation.z = 0.296; } }
@@ -494,6 +529,7 @@ const FARM = (() => {
     if (active && !force) return false;
     if (!built) return true;
     stopShowcase(); active = false; try { FARMCARE.leave(); } catch (e) {} unstand();
+    if (farmRain) { try { farmRain.geometry.dispose(); farmRain.material.dispose(); } catch (e) {} farmRain = null; } farmP = null; farmDay = -1;
     if (guide) { guide.dispose(); guide = null; } try { FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
     if (iworld) { iworld.dispose(); iworld = null; iscene = null; }
     world.dispose(); for (const g of own.geo) g.dispose(); for (const m of own.mat) m.dispose(); own.geo = []; own.mat = [];
@@ -511,5 +547,5 @@ const FARM = (() => {
     stats() { const i = renderer.info; return Object.assign({ calls: i.render.calls, tris: i.render.triangles, geos: i.memory.geometries, tex: i.memory.textures }, world ? world.stats() : {}); },
     info() { return { built, active, showcase, place, person, paused, panel, trip: !!trip, horses: horses.length, plaques: plaques.length, objects: fscene ? fscene.children.length : 0, x: P.x, z: P.z, y: P.y, face: P.face, speed: P.speed, yaw: CAM.yaw, pitch: CAM.pitch, camDist: CAM.cur, cam: fcam ? [fcam.position.x, fcam.position.y, fcam.position.z] : null, figure: fig ? fig.root.visible : false, near: near ? near.id : null, prompt: prompt && !prompt.hidden ? prompt.textContent : "", objective: objEl ? objEl.textContent : "", listeners: listeners.length, buildMs: world ? world.ms : 0, showHorse: !!showHorse }; },
     _test: { step(dt, n) { for (let i = 0; i < (n || 1); i++) frame(dt); }, ctx, setPos(x, z) { P.x = x; P.z = z; P.y = place === "in" ? 0 : (world ? world.heightAt(x, z) : 0); }, settle(x, z) { P.x = x; P.z = z; collide(); return { x: P.x, z: P.z }; }, interact, enterHouse, exitHouse, setPaused, openPanel, closePanel, startTrans, skipFade() { if (trans) { stepTrans(10); stepTrans(10); } }, look, get points() { return cur() ? cur().points : []; }, get TRAVEL() { return world ? world.points.find(p => p.id === "travel") : null; }, get colliders() { return world ? world.colliders : []; }, get segs() { return world ? world.segs : []; }, get stalls() { return world ? world.stalls : []; },
-      keys: fk, presets: Object.keys(PRESETS), world: () => world, house: () => iworld, get horses() { return horses; }, get plaques() { return plaques; }, get figure() { return fig; }, get showHorse() { return showHorse; }, get rig() { return world && world.structures.rig; }, ctx, pointText, blockedAt, placeCamera } };
+      atmo: (tod, wx) => { atmoOverride = tod ? ATMO.params(tod, wx) : null; applyAtmosphere(true); return farmP; }, get atmoNow() { return farmP; }, keys: fk, presets: Object.keys(PRESETS), world: () => world, house: () => iworld, get horses() { return horses; }, get plaques() { return plaques; }, get figure() { return fig; }, get showHorse() { return showHorse; }, get rig() { return world && world.structures.rig; }, ctx, pointText, blockedAt, placeCamera } };
 })();
