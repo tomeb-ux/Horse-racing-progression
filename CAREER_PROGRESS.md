@@ -168,6 +168,38 @@ Failures that happened along the way (all were faults in the new tests, none in 
 
 What the new tests cover: v1, v2 and v3 save fixtures migrated with every horse field, appearance, trophy and the whole championship byte-identical; money (a prize is credited exactly once across replay, reload and a second result call; cash never negative; fuzzed with 6,000 random operations); calendar maths including leap years and the 1 August roll-over; deterministic dated programme (Saturdays, order, evening races only at lit courses, weather fits the going, going unchanged); backups (written, read back, never overwritten, failure reported); export/import (round trip, tampered, cut-off, newer-version and money-inconsistent files refused, current career backed up first); the real browser flow (v1 save → v4, Office, hub, forced win paying $24,000 once and surviving a reload, optional races, season roll-over ageing horses, hidden multiplayer including `?join=` and a stored online session opening no socket).
 
+## Test report — Phase 3 (full suite; every number came from actually running the test on the final code)
+
+| Test | Result | Phase 2 result |
+|---|---|---|
+| `node tests/career-core.js` | PASS 128 / 0 | 128 / 0 |
+| `node tests/season.js` | PASS 64 / 0 | 64 / 0 |
+| `node tests/riding-control.js` | PASS 25 / 0 | 25 / 0 |
+| `node tests/randwick.js 2` | PASS 41 / 0 | 41 / 0 |
+| `node tests/flemington.js` | PASS 46 / 0 | 46 / 0 |
+| `node tests/chaos.js public/sim.js` | PASS 25 / 0 | 25 / 0 |
+| `node tests/avoid.js public/sim.js` | PASS 12 / 0 | 12 / 0 |
+| `node tests/commentary.js 36` | PASS 164 / 0 | 164 / 0 |
+| `node tests/commentary-scenarios.js 160` | PASS 1881 / 0 | 1881 / 0 |
+| `node tests/eleven-plan.js` | PASS 9 / 0 | 9 / 0 |
+| `node tests/career_difficulty.js 100 3` | PASS — output identical to the pre-expansion baseline | identical |
+| `tests/career-browser.js` | PASS 114 / 0 | 114 / 0 |
+| `tests/scenes-browser.js` (new) | **PASS 36 / 0** — run 4 times on the final code, 36 / 0 every time | — |
+| `tests/steering-browser.js` | PASS 70 / 0 | 70 / 0 |
+| `tests/start-browser.js` | first run **7 / 1 failed** ("stage 3: 2 pushes into stride, drive 54%"); rerun alone **8 / 0**; three further runs alone 8 / 0 each | 8 / 0 |
+| `tests/replay-lunge-browser.js` | PASS 9 / 0 | 9 / 0 |
+| `tests/presentation-browser.js` | PASS 11 / 0 | 11 / 0 |
+| `tests/eleven-browser.js` | PASS 12 / 0 | 12 / 0 |
+| `tests/auto-quality-browser.js` | PASS 12 / 0 | 12 / 0 |
+| `tests/longrace-browser.js` | PASS 5 / 0 (1096 s) | 5 / 0 |
+| `node tests/single-browser.js` | PASS 8 / 0 (on the Phase 3 build) | 8 / 0 |
+| `tools/smooth.js` before/after (randwick + flemington × chase/jockey cams × 60/144 Hz, 8 conditions) | motion judder (horse and camera cv, d2) **identical** in all 8; draw calls **identical** (222–270); allocation within noise; update-cost p95 equal or lower; render-cost p95 moves both ways between runs — a focused repeat (randwick/chase/60, old and new code alternately, 3 rounds each) gave old 3.8 / 4.9 / 5.13 ms vs new 5.96 / 4.73 / 4.83 ms (p50 2.45–2.55 vs 2.45–2.67), i.e. overlapping — **no measurable change** | — |
+| `tests/mp-*.js` | **not run — multiplayer disabled by design** | not run |
+
+The one failure: `start-browser` first run, while the CPU-heavy Node regression was running on the same machine (this test taps keys against real frame timing; the code it exercises is untouched by Phase 3). It passed alone on the rerun and on three more runs once the machine was quiet. The baseline `smooth.js` was taken on the untouched code (separate checkout) before any Phase 3 edit.
+
+What `scenes-browser.js` verifies (all in the real game): scenes follow the UI state (menu / stable / office / farm / race) and input contexts switch with them; the loading overlay; the farm shows the career's two real horses in five plaque-labelled boxes; **no race and no race meshes exist on the farm and no frame of the race scene is drawn there (30 farm frames, 0 race frames); the farm is not drawn during a race**; F8 counters and AUTO quality keep running on the farm; W/S/A/D/Shift/←→ movement, stable-block collision and the boundary; **W, Space, P, C, Q, R on the farm change nothing in the riding controls' key map, effort or camera**; the E prompt only near the float, E opens the real next-round event screen with the farm's listeners removed and its horses disposed; Esc returns to the hub; **a key held on the farm is released when a race starts**; riding keys work normally in the race; **leaving a race cancels commentary and nothing more is spoken**; **10 farm ↔ race round trips (identical field): geometries 282 → 282, textures 67 → 67, programs Δ0, JS heap Δ ≈ 0.5 MB; farm back to the same 50 scene objects, 2 horses, 5 plaques; career save data byte-for-byte unchanged**; `FARM.dispose()` frees the static geometry (297 → 272) and the next visit rebuilds it.
+
 ## Known issues / limits (carry into later phases)
 - **Optional races pay nothing and take a day each; cash can't be spent yet.** Prize purses are the race data's face values
   (a Golden Eagle win credits $5.8 M). Phase 7 must rebalance purses, add entry fees/upkeep, and simulate whole careers.
