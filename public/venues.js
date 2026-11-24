@@ -659,13 +659,58 @@ const VENUES = (() => {
     return cr;
   }
 
+
+  /* =====================================================================
+     COUNTRY RACE CLUBS (Phase 11) — two cheap looks for the small regional courses, on the generic course geometry:
+     a short timber or brick stand under a tin roof, a tote building, a modest lawn crowd, gum or poplar trees, low hills, white rails.
+     A fraction of the cost of the two flagships (no parade ring, no glass, no skyline); the town's name goes on the stand.
+     ===================================================================== */
+  function buildCountry(trk, v) {
+    const G = new THREE.Group(); G.name = "venue-country-" + v;
+    const F0 = trk.finishD || 0, tr = { id: "country" + v, W: trk.W, lap: trk.lap, point: (s, off, out) => trk.point(F0 + s, off, out), chutes: {}, marks: {} };
+    const W = tr.W, lap = tr.lap, pt = tr.point, rng = GFX.rand(3100 + v * 17), spots = [], mm = M();
+    const C = course(G, tr, v ? { turfTint: 0xa8bf92, infieldTint: 0xb2c79a, groundTint: 0xa7b283 } : { turfTint: 0xb3c29a, infieldTint: 0xbcc79e, groundTint: 0xbcae80 });
+    finish(G, tr, "COUNTRY RACE CLUB", ["#14331f", "#ffffff"]);
+    // ---- the stand: a short tiered bank of seats under a tin roof, a timber (or brick) back wall, an apron, a tote building beside it
+    const L = v ? 30 : 38, roof = std(0xaeb4b8, 0.5, 0.35), S = place(new THREE.Group(), frameAt(tr, lap - 55, W + 3)); S.name = "country stand";
+    box(S, mm.concrete, 0, 0.05, -5.5, L + 26, 0.1, 10, false);
+    spots.push(...standSpotsToWorld(S, tiers(S, { len: L, z0: -9, y0: 0.5, rows: 5, seat: v ? 0x2c4a6e : 0x6b2a24, occ: 0.72 })));
+    tbox(S, v ? mm.whiteConc : mm.timber, 0, 2.3, -14.2, L, 4.6, 0.5, 3);
+    for (const x of [-L / 2 + 0.5, -L / 6, L / 6, L / 2 - 0.5]) cyl(S, mm.steelWhite, x, 0, -9.4, 0.12, 0.12, 5.4, 8);
+    box(S, roof, 0, 5.6, -11.8, L + 2, 0.22, 9); box(S, mm.steelWhite, 0, 5.45, -7.2, L + 2, 0.4, 0.2);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(14, 2.0, 0.2), new THREE.MeshStandardMaterial({ color: 0x1e3a5f })); board.position.set(0, 6.8, -7.0); S.add(board);
+    tbox(S, v ? mm.timber : mm.whiteConc, L / 2 + 10, 2.0, -9, 12, 4, 7, 3); box(S, roof, L / 2 + 10, 4.2, -9, 13, 0.3, 8); box(S, mm.dark, L / 2 + 10, 1.4, -5.4, 4.2, 2.0, 0.2);
+    batchStatic(S); G.add(S);
+    G.userData.setTown = name => { const m = board.material; if (m.map) m.map.dispose(); m.dispose(); board.material = boardMat(String(name || "Country").toUpperCase() + " RACE CLUB", v ? "#1e3a5f" : "#5a2b1c", "#f4f1ea", 1024, 160, 82); };
+    G.userData.setTown("Country");
+    // ---- spectators: the stand, and a modest crowd along the lawn and the rail
+    spots.push(...lawnSpots(tr, lap - 120, lap - 6, W + 4, W + 15, 0.05, rng, 0.4));
+    spots.push(...lawnSpots(tr, 0, 40, W + 3, W + 10, 0.05, rng, 0.5));
+    // ---- the view: gums (or poplars) round the outside, a few in the infield, low hills on the horizon
+    const trees = [];
+    for (let s = 0; s < lap; s += 16) { if (s > lap - 150 && s < lap - 2) continue; const p = pt(s, W + 24 + rng() * 46, {}); trees.push({ x: p.x, z: p.z, s: 0.8 + rng() * 0.7, sp: v && rng() < 0.55 ? "plane" : "gum" }); }
+    for (let k = 0; k < 400 && trees.length < 150; k++) { const x = C.cx + (rng() - 0.5) * 520, z = C.cz + (rng() - 0.5) * 220; if (!C.inside(x, z)) continue; let ok = true; for (let s = 0; s < lap; s += 20) { const p = pt(s, -22, Q); if ((p.x - x) ** 2 + (p.z - z) ** 2 < 30 * 30) { ok = false; break; } } if (ok && rng() < 0.35) trees.push({ x, z, s: 0.8 + rng() * 0.5, sp: "gum" }); }
+    GFX.plantTrees(G, trees);
+    const hm = lam(v ? 0x7d9a6a : 0x9a9266); for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + rng(), r = 1200 + rng() * 500, h = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), hm); h.scale.set(260 + rng() * 200, 28 + rng() * 40, 220 + rng() * 160); h.position.set(C.cx + Math.cos(a) * r, -6, C.cz + Math.sin(a) * r); G.add(h); }
+    G.userData.crowd = buildCrowd(G, spots, tr, rng, 60 + v, 0);
+    return G;
+  }
+
   // ---------- switching venue ----------
   function use(trk, cfg) {
     if (!BOX) BOX = new THREE.BoxGeometry(1, 1, 1);
     if (!generic) { generic = typeof VENUE_GENERIC !== "undefined" ? VENUE_GENERIC : null; }
     trk = trk || TRACKS.generic;
     if (!FOG0) FOG0 = [scene.fog.near, scene.fog.far];
-    if (trk.analytic) { if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); scene.fog.near = FOG0[0]; scene.fog.far = FOG0[1]; return; }
+    if (trk.analytic) {
+      const vs = cfg && cfg.career && cfg.career.venueStyle;
+      if (vs && vs.style === "country") {                                               // a regional race club: the small country look on the generic course
+        const key = "country" + (vs.variant ? 1 : 0); if (!built[key]) { built[key] = buildCountry(trk, vs.variant ? 1 : 0); world.add(built[key]); }
+        built[key].userData.setTown(vs.town); for (const k in built) built[k].visible = k === key; if (generic) generic.visible = false; current = built[key]; currentId = key;
+        scene.fog.near = FOG0[0]; scene.fog.far = FOG0[1]; const cr = current.userData.crowd, c = cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); return;
+      }
+      if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); scene.fog.near = FOG0[0]; scene.fog.far = FOG0[1]; return;
+    }
     scene.fog.near = 650; scene.fog.far = 5600;                                   // a clear day: the city skyline shows through the haze
     if (!built[trk.id]) { built[trk.id] = trk.id === "flemington" ? buildFlemington(trk) : buildRandwick(trk); world.add(built[trk.id]); }
     for (const k in built) built[k].visible = k === trk.id;

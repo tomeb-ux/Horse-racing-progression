@@ -246,9 +246,11 @@ const CORE = (() => {
       const meta = rounds[i], id = "r" + n + "-" + (i + 1), g = (s.rounds[i] && s.rounds[i].going) || "good";
       events.push(Object.assign({ id, kind: "round", ref: meta.id, season: n, round: i, day: d, venue: meta.venue }, conditions(C.seed, id, d, meta, g)));
     }
+    // the open races are spread evenly through the season (a golden-ratio sequence, so no Saturday is crowded and no month is empty); a race's own meetings are months apart
+    const phase = (hashStr(C.seed + "/optphase/" + n) % 1000) / 1000, PHI = 0.6180339887498949;
     SX.OPTIONAL.forEach((meta, oi) => {
       for (let k = 0; k < OPT_PER_SEASON; k++) {
-        const d = satOnOrBefore(start + 20 + Math.floor((k + 0.5) * 330 / OPT_PER_SEASON) + ((oi * 11) % 21) + Math.round((rng() - 0.5) * 10)), id = "o" + n + "-" + meta.id + "-" + (k + 1);
+        const j = oi * OPT_PER_SEASON + k, frac = (j * PHI + phase) % 1, d = satOnOrBefore(start + 14 + Math.floor(frac * 335) + Math.round((rng() - 0.5) * 2)), id = "o" + n + "-" + meta.id + "-" + (k + 1);
         events.push(Object.assign({ id, kind: "optional", ref: meta.id, season: n, round: -1, day: d, venue: meta.venue }, conditions(C.seed, id, d, meta, "good")));
       }
     });

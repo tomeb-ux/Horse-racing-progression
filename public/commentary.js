@@ -68,7 +68,7 @@ const COMM = (() => {
       this.rivalry = this.meta.rivalry || {}; this.venue = this.venueKey(); this.raceKey = this.raceKeyOf();
       sessionN++;
     }
-    venueKey() { const v = (this.meta.venue || "").toLowerCase(), id = this.race && this.race.trk && this.race.trk.id; return /flemington/.test(v) || id === "flemington" ? "flemington" : /randwick/.test(v) || id === "randwick" ? "randwick" : "generic"; }
+    venueKey() { const v = (this.meta.venue || "").toLowerCase(), id = this.race && this.race.trk && this.race.trk.id; return /flemington/.test(v) || id === "flemington" ? "flemington" : /randwick/.test(v) || id === "randwick" ? "randwick" : v && !/furlong/.test(v) ? "neutral" : "generic"; }       // any other named course (a country track, a provincial meeting) gets the neutral intros — never "Furlong Park"
     raceKeyOf() { const n = (this.meta.name || "").toLowerCase(); return /melbourne cup/.test(n) ? "cup" : /everest/.test(n) ? "everest" : this.meta.major ? "major" : null; }
     player() { const p = this.race.player; return p && (p.isPlayer || this.opts.player === p) ? p : (this.opts.player || null); }
     route() { return this.race.route || this.race.trk || {}; }

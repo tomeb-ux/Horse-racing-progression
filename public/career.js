@@ -783,14 +783,16 @@ const CAREER = (() => {
   // ---------- OPTIONAL RACES ----------
   function openOptional() {
     style(); const el = screen("opt"), h = activeHorse();
-    const rows = SEASON.OPTIONAL.map(r => {
-      const ok = h ? SEASON.eligibility(h, r).ok : false;
+    const row = r => {
+      const ok = h ? SEASON.eligibility(h, r).ok : false, why = h && !ok ? SEASON.eligibility(h, r).reqs.filter(q => !q.ok).map(q => q.label).join(", ") : "";
       return `<div class="car-race${ok ? "" : " locked"}">
-        <div><div class="car-row" style="gap:8px"><span class="gr">${esc(r.grade)}</span></div>
+        <div><div class="car-row" style="gap:8px"><span class="gr">${esc(r.grade)}</span>${r.regional ? `<span class="car-tag">Regional</span>` : ""}</div>
           <b style="font-family:var(--font-d);font-size:16px">${esc(r.name)}</b>
-          <div class="meta">${esc(r.venue)} · ${fmtDist(r.dist)} ${distLbl(r.dist)} · field of ${r.field}${(() => { const e = CORE.nextMeeting(C, r.id); return e ? " · next meeting " + CORE.fmtDate(e.day, { short: true }) : ""; })()}${r.note ? " · " + esc(r.note) : ""}</div></div>
+          <div class="meta">${esc(r.venue)} · ${fmtDist(r.dist)} ${distLbl(r.dist)} · field of ${r.field}${r.prize ? " · " + esc(r.prize) : ""}${(() => { const e = CORE.nextMeeting(C, r.id); return e ? " · next meeting " + CORE.fmtDate(e.day, { short: true }) : ""; })()}${r.note ? " · " + esc(r.note) : ""}${why ? ` · <span style="color:var(--warn)">not eligible: ${esc(why)}</span>` : ""}</div></div>
         <div><button class="btn${ok ? " primary" : ""} small car-btn" data-o="${r.id}">${ok ? "Select" : "Details"}</button></div></div>`;
-    }).join("");
+    };
+    const country = SEASON.OPTIONAL.filter(r => r.tier <= 1), city = SEASON.OPTIONAL.filter(r => r.tier > 1);
+    const rows = `<div class="car-sub">Country and regional meetings — where a young or modest horse learns its trade (maidens, age races and benchmark classes)</div>${country.map(row).join("")}<div class="car-sub" style="margin-top:10px">City races and stakes</div>${city.map(row).join("")}`;
     page(el, `<h2>Optional Races</h2>
       <div class="car-sub">Race whenever you like — develop horses, test distances, chase qualifications. These never award championship points, never advance the season and never count as championship titles.</div>
       <div style="font-size:12.5px;color:var(--fg-dim)">Experience is worth most against a field near your horse's own level: beating a much weaker field earns very little.</div>
@@ -1277,7 +1279,7 @@ const CAREER = (() => {
     pending = { kind: "off", season: s.n, round: idx, hid: h.id, fee: fee.fee };
     const opp = raceDayField(SEASON.runners(C, idx), meta, h, idx === s.rounds.length - 1);
     launch(competitiveCfg(meta, h, opp, s.rounds[idx].going, {
-      career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
+      career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
     }));
     return true;
   }
@@ -1296,7 +1298,7 @@ const CAREER = (() => {
     // the field: persistent rivals of the right grade for this race (the same field the form guide showed)
     const opp = raceDayField(SEASON.optionalField(C, id), meta, h, false);
     pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0, fee: fee.fee };
-    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
+    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
     return true;
   }
   // the race-day field: rivals primed to the player's horse (season.js raceField) — the same field the form guide shows

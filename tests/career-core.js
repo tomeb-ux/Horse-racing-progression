@@ -21,7 +21,7 @@ ok(K.parts(-5).y === 2026 && K.fmtDate(NaN) === 'Sat 1 Aug 2026', 'a bad day num
 // ---------------------------------------------------------------- a new career
 const NC = K.fresh(777); S.migrate(NC); K.migrate(NC, { from: 4 });
 ok(NC.v === 4 && NC.cash === 150000 && NC.ledger.length === 1 && NC.ledger[0].kind === 'start' && NC.ledger[0].bal === 150000, 'a new career starts at v4 with the $150,000 package as one ledger entry');
-ok(NC.day === 0 && NC.season.n === 1 && NC.cal.season === 1 && NC.cal.events.length === 10 + 8 * K.OPT_PER_SEASON, 'new career: day 0, season 1, a dated programme of 10 rounds + optional meetings');
+ok(NC.day === 0 && NC.season.n === 1 && NC.cal.season === 1 && NC.cal.events.length === 10 + require('../public/season.js').OPTIONAL.length * K.OPT_PER_SEASON, 'new career: day 0, season 1, a dated programme of 10 rounds + optional meetings');
 ok(Object.keys(NC.fac).sort().join() === K.FAC_KEYS.slice().sort().join() && K.FAC_KEYS.every(k => NC.fac[k] === 0) && K.STAFF_KEYS.every(k => NC.staff[k] === null), 'facilities start at Basic (0), no staff');
 ok(NC.player.outfit === 'stable' && /^#[0-9a-f]{6}$/.test(NC.player.look.skin) && Array.isArray(NC.hof) && NC.hof.length === 0 && NC.rep === 0 && Array.isArray(NC.market.listings) && NC.farm.state === 'default', 'character appearance, hall of fame, reputation, market and farm state have defaults');
 ok(K.audit(NC).length === 0, 'a new career passes the money audit');
