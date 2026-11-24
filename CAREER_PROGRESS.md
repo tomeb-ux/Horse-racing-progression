@@ -95,9 +95,43 @@ multiplayer flag and one script tag in `index.html`.
    copy to clipboard, import from file or pasted text (shows what's inside and asks first; verified backup of the current
    career before replacing; refused files change nothing), list of backup copies.
 
-## Phase 2 — test results (every number below was produced by actually running the test)
+## Test report — Phase 2 (every number below came from actually running the test on the final code)
 
-See the table in the final section "Test report — Phase 2". Multiplayer tests: **not run — multiplayer disabled by design.**
+Baseline = the same test run on the untouched code (commit `5139a6f`) before any change.
+
+| Test | Result | Baseline |
+|---|---|---|
+| `node tests/career-core.js` (new) | **PASS** 128 / 0 | — |
+| `node tests/season.js` | PASS 64 / 0 | 64 / 0 |
+| `node tests/riding-control.js` | PASS 25 / 0 | 25 / 0 |
+| `node tests/randwick.js 2` | PASS 41 / 0 | 41 / 0 |
+| `node tests/flemington.js` | PASS 46 / 0 | 46 / 0 |
+| `node tests/chaos.js public/sim.js` | PASS 25 / 0 | 25 / 0 |
+| `node tests/avoid.js public/sim.js` | PASS 12 / 0 | 12 / 0 |
+| `node tests/commentary.js 36` | PASS 164 / 0 | 164 / 0 |
+| `node tests/commentary-scenarios.js 160` | PASS 1881 / 0 | 1881 / 0 |
+| `node tests/eleven-plan.js` | PASS 9 / 0 | 9 / 0 |
+| `node tests/career_difficulty.js 100 3` | PASS — output identical to the baseline run (1100 races) | — |
+| `tests/career-browser.js` (extended: +27 Phase 2 checks) | PASS 114 / 0 | 87 / 0 |
+| `tests/steering-browser.js` | PASS 70 / 0 | 70 / 0 |
+| `tests/start-browser.js` | PASS 8 / 0 | 8 / 0 |
+| `tests/replay-lunge-browser.js` | PASS 9 / 0 | 9 / 0 |
+| `tests/presentation-browser.js` | PASS 11 / 0 | 11 / 0 |
+| `tests/eleven-browser.js` | PASS 12 / 0 | 12 / 0 |
+| `tests/longrace-browser.js` | PASS 5 / 0 (1087 s) | not completed (see below) |
+| `tests/auto-quality-browser.js` | PASS 12 / 0 | not completed (see below) |
+| `node tests/single-browser.js` (new; the built single file opened from disk) | PASS 8 / 0, repeated 8 times in a row | — |
+| `tests/mp-*.js` (protocol, e2e, spectate, leader, chaos, career) | **not run — multiplayer disabled by design** | — |
+| `tools/smooth.js` | not run — Phase 2 does not touch the frame loop, graphics or venues (the built file differs from the pre-change build only in the multiplayer flag, the new core and `career.js`) | — |
+| `tests/voice-browser.js` | not run — not in the `CAREER_PLAN.md` §4 list (slow, needs downloaded voice models) | — |
+
+Failures that happened along the way (all were faults in the new tests, none in the game):
+- `career-browser.js` first run on the new code: 113 passed, **1 failed** (a wrong expected string in one of my new checks — `join('')` vs `join()`). Fixed; rerun alone 114 / 0; the final full run also 114 / 0 first time.
+- `single-browser.js`: failed on 4 of 6 early runs because it wrote the test save to `localStorage` and then reloaded a `file://` page, which loses the write in headless Chromium (the game then, correctly, started a fresh career). Reworked to seed storage before the page loads; 8 / 8 runs pass since.
+- The baseline `longrace` and `auto-quality` runs on the old code were stopped before finishing because the machine was busy with other tests (`longrace` takes ~18 minutes here), so no baseline exists for them; both pass on the new code.
+- Mutation check: deliberately removing the duplicate-key guard, the negative-cash guard and the starting-cash step each made `career-core.js` fail (13, 6 and 19 failures), so those tests do detect the faults they are meant to.
+
+What the new tests cover: v1, v2 and v3 save fixtures migrated with every horse field, appearance, trophy and the whole championship byte-identical; money (a prize is credited exactly once across replay, reload and a second result call; cash never negative; fuzzed with 6,000 random operations); calendar maths including leap years and the 1 August roll-over; deterministic dated programme (Saturdays, order, evening races only at lit courses, weather fits the going, going unchanged); backups (written, read back, never overwritten, failure reported); export/import (round trip, tampered, cut-off, newer-version and money-inconsistent files refused, current career backed up first); the real browser flow (v1 save → v4, Office, hub, forced win paying $24,000 once and surviving a reload, optional races, season roll-over ageing horses, hidden multiplayer including `?join=` and a stored online session opening no socket).
 
 ## Known issues / limits (carry into later phases)
 - **Optional races pay nothing and take a day each; cash can't be spent yet.** Prize purses are the race data's face values

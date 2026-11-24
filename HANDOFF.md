@@ -63,8 +63,8 @@ node tools/fetch-voices.js && PORT=8095 node tests/voice-browser.js   # enhanced
 PORT=8095 node tests/presentation-browser.js        # parade ring, barriers, winner presentation
 node tools/shots.js <outDir> [shots.json]           # real in-game screenshots (see the file for options)
 node tests/progression.js 2 24                      # balance + development speed (real engine)
-PORT=8095 node tests/career-browser.js              # 114 checks: v4 migration + backup, hidden multiplayer, prize once, dates, Office, export/import, stable/creator/camera/training/rivals/Randwick/commentary
-node tools/build-single.js && node tests/single-browser.js   # the single-file build opened from disk: inlined core, v3→v4 + backup, Office, multiplayer hidden
+PORT=8095 node tests/career-browser.js              # 114 checks (87 before Phase 2): v4 migration + backup, hidden multiplayer, prize once, dates, Office, export/import, stable/creator/camera/training/rivals/Randwick/commentary
+node tools/build-single.js && node tests/single-browser.js   # the single-file build opened from disk: inlined core, v3→v4 + backup, newer-version save backed up, Office, multiplayer hidden (8 checks)
 node tests/field.js public/sim.js 112 ; node tests/chaos.js public/sim.js ; node tests/avoid.js public/sim.js
 node tests/pileup.js public/sim.js full 60 ; node tests/pushfall.js public/sim.js
 # multiplayer tests (NOT run while multiplayer is disabled): node tests/mp-protocol.js ; PORT=8095 node tests/mp-e2e.js ; node tests/mp-spectate.js ; node tests/mp-leader.js ; node tests/mp-chaos.js
