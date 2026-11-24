@@ -192,17 +192,18 @@ const FARM = (() => {
   // ---------------------------------------------------------------- panels (calendar / wardrobe, drawn by farm-ui.js), fade and transitions
   const ctx = {                                                      // what farm-ui.js and farm-trip.js are given
     get panelEl() { return panelEl; }, get hud() { return hud; }, get scene() { return fscene; }, get world() { return world; }, get cam() { return fcam; }, get fig() { return fig; }, get P() { return P; }, get CAM() { return CAM; },
-    get horses() { return horses; }, get sunLight() { return sunLight; }, sunFollow: (x, z) => sunFollow(x, z), mkHorse, fade: a => { if (fadeEl) fadeEl.style.opacity = a; },
+    get horses() { return horses; }, get sunLight() { return sunLight; }, sunFollow: (x, z) => sunFollow(x, z), departGate: go => departGate(go), mkHorse, fade: a => { if (fadeEl) fadeEl.style.opacity = a; },
     closePanel: () => closePanel(), refreshBoard: () => refreshBoard(), refreshFigure: () => refreshFigure(), setPrompt: txt => { prompt.hidden = !txt; prompt.textContent = txt || ""; }, skipHint: on => { skipEl.hidden = !on; },
     endTrip: () => { trip = null; if (hud) hud.querySelector("#farmInfo").style.visibility = ""; }, setPlace: v => { place = v; }, objective: () => objective(), heightAt: (x, z) => world.heightAt(x, z),
     keys: fk, resolve: (q, r, o) => resolve(q, r, o), toast: (m, k, d) => { try { toast(m, k, d); } catch (e) {} }, setBusy: v => { busy = !!v; if (v) { for (const k in fk) if (!(FARMDRIVE.on)) fk[k] = false; prompt.hidden = true; near = null; } }, faceCam: yaw => { CAM.yaw = yaw; camReady = false; },
     cineCam: { set(pos, look, fov, k) { CINE.tp.set(pos[0], pos[1], pos[2]); CINE.tl.set(look[0], look[1], look[2]); CINE.fov = fov || 56; CINE.k = k || 6; CINE.on = true; if (!CINE.init) { CINE.init = true; CINE.cp.copy(fcam.position); const d = new THREE.Vector3(); fcam.getWorldDirection(d); CINE.cl.copy(fcam.position).addScaledVector(d, 10); } }, clear() { CINE.on = false; CINE.init = false; camReady = false; } },
     blockedAt: (x, y, z) => blockedAt(x, y, z), place: () => place, quickGo: () => { if (place === "in") exitHouse(() => FARMDAY.quickLeave()); else FARMDAY.quickLeave(); }, refreshObjective: () => { try { FARMDAY.changedQuiet(); } catch (e) {} objective(); }, hideFig: v => { hideFigure = !!v; if (v && fig) fig.root.visible = false; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
   };
-  function openPanel(name) {
-    if (panel || trip) return; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
+  let openArg = null;
+  function openPanel(name, arg) {
+    if (panel || trip) return; openArg = arg || null; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
     hud.querySelector("#farmInfo").style.visibility = "hidden";
-    if (name === "calendar") FARMUI.openCalendar(ctx); else if (name === "wardrobe") FARMUI.openWardrobe(ctx);
+    if (name === "calendar") FARMUI.openCalendar(ctx); else if (name === "wardrobe") FARMUI.openWardrobe(ctx); else if (name === "depart") FARMUI.openDeparture(ctx, openArg.sum, openArg.go);
   }
   function closePanel() { if (!panel) return; panel = null; hud.querySelector("#farmInfo").style.visibility = ""; panelEl.hidden = true; panelEl.innerHTML = ""; if (typeof FARMUI !== "undefined" && FARMUI.onClose) FARMUI.onClose(); refreshBoard(); objective(); if (cross) cross.hidden = person !== 1; }
   function refreshBoard() { if (iworld) { try { iworld.refresh(CAREER.boardInfo(), (CAREER.data && CAREER.data.trophies || []).length); } catch (e) {} } }
@@ -269,6 +270,11 @@ const FARM = (() => {
       if (!r || !r.ok) { FARMTRIP.abort(); try { toast("That race couldn't be started — check the calendar", "warn", 3); } catch (e) {} }
     });
     return true;
+  }
+  // leaving for the races: the preparation summary, then the atomic save, then the horse travels (Phase 13). `go` runs only after the save is confirmed.
+  function departGate(go) {
+    let sum = null; try { sum = hasCareer() ? CAREER.travel.summary() : null; } catch (e) { console.error(e); }
+    if (!sum) { go(); return true; } openPanel("depart", { sum, go }); return true;
   }
   function skipPrep() { let b = null; try { b = hasCareer() ? CAREER.booking() : null; } catch (e) {} if (!b || place !== "out" || busy) return false; return FARMDAY.quickLeave(); }
   // the drive ended at the gate: the booking is consumed once and the race starts through the normal entry
@@ -501,8 +507,10 @@ const FARM = (() => {
     build(); active = true; VIEW.on = false; paused = false; panel = null; trans = null; trip = null; place = "out"; fscene.add(fig.root); refreshFigure();
     person = settings.person === 1 ? 1 : 3; camReady = false; applyAtmosphere(true);
     const a = P.arrive || [1, -0.5, 0]; P.arrive = null;
+    const home = !!P.arriveHome; P.arriveHome = false;
     P.x = a[0]; P.z = a[1]; P.y = world.heightAt(P.x, P.z); P.face = a[2]; P.speed = 0; CAM.yaw = a[2]; CAM.pitch = person === 1 ? 0 : -0.22; CAM.dist = 4.6; CAM.cur = 4.6; near = null;
     prompt.hidden = true; title.textContent = builtName.toUpperCase(); pauseEl.hidden = true; panelEl.hidden = true; fadeEl.style.opacity = "0"; skipEl.hidden = true;
+    if (home) { fadeEl.style.transition = "none"; fadeEl.style.opacity = "1"; requestAnimationFrame(() => { fadeEl.style.transition = "opacity .9s ease"; fadeEl.style.opacity = "0"; setTimeout(() => { if (fadeEl) fadeEl.style.transition = ""; }, 1000); }); try { setTimeout(() => toast("Welcome home — your horse is back in its box", "good", 3.2), 600); } catch (e) {} }
     fcam.aspect = innerWidth / innerHeight; fcam.fov = FOV[person]; fcam.updateProjectionMatrix(); shadowOn = !(renderer.shadowMap.enabled && settings.shadows !== false);
     if (resume) {                                                       // back from the ledger or the trophy cabinet: inside the farmhouse, where you stood
       const r = resume; resume = null;
@@ -513,7 +521,7 @@ const FARM = (() => {
   }
   function leave() { try { FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; try { renderer.toneMappingExposure = GFX.atmo ? GFX.atmo.expo : 0.82; } catch (e) {} }
   // where you appear next time: the hardstand by the float, after a race
-  function arrive(where) { resume = null; P.arrive = where === "hardstand" ? [31.5, 10.5, Math.PI / 2] : null; }
+  function arrive(where) { resume = null; P.arrive = where === "hardstand" ? [31.5, 10.5, Math.PI / 2] : null; P.arriveHome = where === "hardstand"; }
   function resetRig() { const g = world && world.structures && world.structures.rig; if (g) { g.position.set(FARMWORLD.L.float.x, 0, FARMWORLD.L.float.z); g.rotation.set(0, 0, 0); if (g.userData.ramp) g.userData.ramp.rotation.z = 0.296; } }
 
   // ---------------------------------------------------------------- the main-menu background

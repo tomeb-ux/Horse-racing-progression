@@ -206,6 +206,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'round' && e.round === 0); CAREER.book(ev.id, 'h2'); }); await frames(p, 4);
   s = await I(p); ok(/Quick departure for Maiden Plate/.test(s.prompt), `with a race booked: "${s.prompt}"`);
   await p.keyboard.press('e'); await frames(p, 3);
+  ok(await p.evaluate(() => FARM.info().panel === 'depart' && /Ready to go/i.test(document.getElementById('farmPanel').innerText)), 'E at the float shows the preparation summary first (Phase 13)'); await p.evaluate(() => document.getElementById('fuLeave').click()); await frames(p, 3);
   s = await p.evaluate(() => ({ i: FARM.info(), ph: FARMTRIP.phase, boxHidden: FARM._test.horses.filter(g => !g.visible).length, hs: FARM._test.ctx.scene.children.length }));
   ok(s.i.trip && s.ph === 'fadeIn' && s.boxHidden === 1, 'E at the float starts the loading sequence (the horse leaves its box)');
   // run the whole sequence in simulated time (no rendering) and record what happens
@@ -227,7 +228,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   ok(/calendar/i.test(s.i.objective) && s.i.horses === 3, 'the objective is back to "check the calendar" and all three horses are in their boxes');
   // skip: Space jumps to the end of the sequence
   await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'round' && e.round === 1); CAREER.book(ev.id, 'h0'); const T = FARM._test.TRAVEL; FARM._test.setPos(T.x, T.z); }); await frames(p, 4);
-  await p.keyboard.press('e'); await frames(p, 3); ok((await I(p)).trip, 'a second booking (round 2) can be made and the sequence started');
+  await p.keyboard.press('e'); await frames(p, 3); await p.evaluate(() => { const l = document.getElementById('fuLeave'); if (l) l.click(); }); await frames(p, 3); ok((await I(p)).trip, 'a second booking (round 2) can be made and the sequence started');
   await p.keyboard.press('Space'); await frames(p, 2); ok(await p.evaluate(() => FARMTRIP.phase === 'out'), 'Space skips straight to the end of the sequence');
   await p.evaluate(() => { for (let k = 0; k < 200 && FARMTRIP.on; k++) FARMTRIP.frame(0.05); }); await p.waitForFunction(() => ui.state === 'racing', null, { timeout: 60000 }); ok(await p.evaluate(() => race.cfg.career.round === 2 && race.player.def.name === 'Bay Majesty'), 'and the booked round-2 race starts with its horse');
   await p.evaluate(() => { race = null; clearRaceMeshes(); SCENES.enter('menu', { instant: true }); }); await frames(p, 3);

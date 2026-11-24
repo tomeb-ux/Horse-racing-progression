@@ -12,6 +12,7 @@
 const FARMUI = (() => {
   let css = false, F = null, st = null;
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const money = n => (n < 0 ? "−$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-AU");
   function style() {
     if (css) return; css = true; const el = document.createElement("style"); el.id = "farmUiCss";
     el.textContent = `
@@ -138,6 +139,28 @@ const FARMUI = (() => {
     qa("[data-trousers]").forEach(e => e.onclick = () => set({ colours: { trousers: e.getAttribute("data-trousers") } }));
     qa("[data-boots]").forEach(e => e.onclick = () => set({ colours: { boots: e.getAttribute("data-boots") } }));
   }
+  // ================================================================ leaving for the races (Phase 13): the preparation summary
+  function openDeparture(ctx, sum, go) {
+    style(); F = ctx; st = { kind: "depart", sum, go, msg: "" }; drawDeparture();
+  }
+  function drawDeparture() {
+    const s = st.sum, h = s.horse, bar = (v, c) => `<div style="height:7px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden"><i style="display:block;height:100%;width:${Math.max(2, Math.min(100, v))}%;background:${c}"></i></div>`;
+    frame(`<div class="fu" style="max-width:640px"><div class="top"><div><h2>Ready to go?</h2><div class="sub">${esc(s.name)} · ${esc(s.venue)} · ${esc(s.date)}${s.daysAway ? ` (${s.daysAway} day${s.daysAway === 1 ? "" : "s"} away)` : " (today)"}</div></div></div>
+      <div class="card"><div class="lab" style="font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9">Your runner</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:19px">${esc(h.name)}</b><span class="sub">rating ${h.rating}${h.form && h.form !== "—" ? " · form " + esc(h.form) : ""}</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px"><div><div class="sub">Fitness ${h.fitness}</div>${bar(h.fitness, h.fitness >= 85 ? "#7bd88f" : h.fitness >= 70 ? "#e8c35a" : "#e25b4a")}</div><div><div class="sub">Composure ${h.composure}</div>${bar(h.composure, "#7cc6e8")}</div><div><div class="sub">Readiness ${h.readiness}</div>${bar(h.readiness, "#e8c35a")}</div></div>
+        <div class="sub" style="margin-top:6px">${h.peak ? `<span style="color:#8fd18f">Peaking — fresh and fit for a small lift on the day.</span>` : h.pen ? `<span style="color:#e8a35a">Tired: will race about ${Math.round(h.pen * 1000) / 10}% below his ratings.</span>` : "In good racing condition."}</div></div>
+      <div class="card" style="margin-top:10px"><div class="lab" style="font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9">The race</div>
+        <div class="kv" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px"><span><b>${s.dist.toLocaleString("en-AU")} m</b></span><span>${esc(s.grade)}</span>${s.tod ? `<span>${esc(s.tod)}</span>` : ""}${s.weather ? `<span>Forecast <b>${esc(s.weather)}</b></span>` : ""}${s.going ? `<span>Going <b>${esc(s.going)}</b></span>` : ""}${s.prize ? `<span>Prize ${esc(s.prize)}</span>` : ""}</div>
+        <div class="sub" style="margin-top:6px">Entry fee <b>${money(s.fee)}</b> — charged on arrival · cash ${money(s.cash)}</div></div>
+      ${s.warnings.length ? `<div class="card" style="margin-top:10px;border-color:rgba(226,91,74,.6)">${s.warnings.map(w => `<div style="color:#f1b3a8;font-size:13px">⚠ ${esc(w)}</div>`).join("")}</div>` : ""}
+      ${st.msg ? `<div class="card" style="margin-top:10px;border-color:rgba(226,91,74,.7);color:#f1b3a8">${st.msg}</div>` : ""}
+      <div style="display:flex;gap:10px;margin-top:14px"><button class="btn pri" id="fuLeave" ${s.afford ? "" : "disabled"}>${s.afford ? "Leave now (Enter)" : "Can't afford the entry"}</button><button class="btn" id="fuStay">Not yet (Esc)</button></div>
+      <div class="sub" style="margin-top:8px">Your career is saved before you travel; if it can't be saved, you stay home.</div></div>`, true);
+    const lv = q("#fuLeave"), stay = q("#fuStay");
+    if (stay) stay.onclick = () => F.closePanel();
+    if (lv) lv.onclick = () => { const r = CAREER.travel.commit(); if (!r.ok) { st.msg = r.reason === "save" ? "<b>Your career couldn't be saved</b> — browser storage is full or blocked, so the horse stays home rather than risk losing the result. Download a copy from the Office → Save &amp; backups, then try again." : "That booking is gone."; return drawDeparture(); } const go = st.go; F.closePanel(); if (go) go(); };
+  }
   function onClose() { st = null; if (root()) root().style.background = ""; }
-  return { openCalendar, openWardrobe, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
+  return { openCalendar, openWardrobe, openDeparture, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
 })();

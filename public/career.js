@@ -1491,12 +1491,35 @@ const CAREER = (() => {
   function startBooked() {
     const b = booking(); if (!b) return { ok: false, error: "Nothing is booked." };
     hidePanel(); race = null; let ok = false;
-    if (b.kind === "round") ok = enterOfficial(b.round, b.hi);
-    else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); ok = enterOptional(b.ref, b.hi); }
-    if (!ok) return { ok: false, error: "The entry could not be made (entry fee or eligibility)." };
+    const snap = JSON.stringify(C);                           // all or nothing (Phase 13): if the entry can't be made, the calendar, cash and bills are put back exactly as they were
+    try {
+      if (b.kind === "round") ok = enterOfficial(b.round, b.hi);
+      else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); ok = enterOptional(b.ref, b.hi); }
+    } catch (err) { console.error(err); ok = false; }
+    if (!ok) { restoreCareer(snap); return { ok: false, error: "The entry could not be made (entry fee or eligibility)." }; }
     delete C.booking; save();                                // consumed exactly once, only when the race really started
     return { ok: true };
   }
+  // put the live career back to a snapshot without changing the object everyone else holds
+  function restoreCareer(snap) { const o = JSON.parse(snap); for (const k of Object.keys(C)) delete C[k]; Object.assign(C, o); pending = null; save(); }
+  // ---------- the departure (Phase 13): a preparation summary, then an atomic save before the horse travels ----------
+  // saveVerified: write the career and read it straight back; true only if what is stored is exactly what is in memory
+  function saveVerified() { if (!C) load(); const text = JSON.stringify(C); try { localStorage.setItem("ff_career", text); return localStorage.getItem("ff_career") === text; } catch (e) { return false; } }
+  const travel = {
+    summary() {
+      if (!C) load(); const b = booking(); if (!b) return null; const h = C.horses.find(x => x.id === b.hid), e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid), meta = BY_ID[b.ref] || (b.kind === "round" ? SEASON.roundDef(S(), b.round) : null);
+      if (!h || !e || !meta) return null;
+      const ra = CORE.raceAttrs(C, h), dv = CORE.devRec(C, h), fee = CORE.entryFee(meta), going = (GOING[e.forecast && e.forecast.going] || {}).label || (e.forecast && e.forecast.going) || "", warn = [];
+      if (h.fitness < 70) warn.push(h.name + " is only " + (h.fitness < 50 ? "half" : "partly") + " fit — he will race about " + Math.round(ra.pen * 1000) / 10 + "% below his ratings");
+      if (dv.sore > 0) warn.push(h.name + " is sore — he should rest before racing");
+      if (C.cash < fee) warn.push("The entry fee is " + money(fee) + " and the stable has " + money(C.cash));
+      return { eid: b.eid, name: b.name, venue: b.venue, grade: meta.grade, dist: meta.dist, date: CORE.fmtDate(e.day), daysAway: Math.max(0, e.day - C.day), tod: CORE.TOD_LABEL[e.tod] || "", weather: CORE.WX_LABEL[e.forecast && e.forecast.weather] || "", going, prize: meta.prize || "", fee, cash: C.cash, afford: C.cash >= fee,
+        horse: { name: h.name, fitness: h.fitness, composure: h.composure, readiness: CORE.readiness(C, h), pen: ra.pen, peak: !!ra.peak, sore: dv.sore, rating: rating(h), form: formStr(h, 5) }, warnings: warn };
+    },
+    // the save-then-travel gate: refuses (changing nothing) if the career can't be stored; the farm only lets the horse leave when this says ok
+    commit() { const b = booking(); if (!b) return { ok: false, reason: "nobooking" }; if (!saveVerified()) return { ok: false, reason: "save" }; return { ok: true, booking: b }; },
+    saveVerified,
+  };
   // ---------- stable care and hands-on training (Phase 6): the rules live in career-core.js (CORE.groom / feed / prepare / drillReward / restDay) ----------
   const careSave = r => { if (r && r.ok) save(); return r; };
   const horseById = hid => { if (!C) load(); return C.horses.find(x => x.id === hid) || null; };
@@ -1548,6 +1571,6 @@ const CAREER = (() => {
     offer: (id, price) => { const r = CORE.marketOffer(C, id, price, { slots: slots() }); save(); return r; }, buy: (id, price) => { const r = CORE.marketBuy(C, id, price, { slots: slots() }); if (r.ok) save(); return r; },
     quote: hid => CORE.sellQuote(C, hid), sell: hid => { const r = CORE.sellHorse(C, hid); if (r.ok) save(); return r; }, fee: () => CORE.createFee(C), slots: () => slots(),
   };
-  return { open, begin, openScreen, onResult, market: marketApi, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, plans: CORE.PLANS, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
+  return { open, begin, openScreen, onResult, market: marketApi, travel, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, plans: CORE.PLANS, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

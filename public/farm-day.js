@@ -78,7 +78,7 @@ const FARMDAY = (() => {
       if (!nearRamp()) { F.toast("Bring " + b.horse + " right up to the ramp first", "info", 2.4); return true; }
       startLoad(b); return true;
     }
-    if (p.id === "cab") { if (stage() === "vehicle") startBoard(b); return true; }
+    if (p.id === "cab") { if (stage() === "vehicle") F.departGate(() => startBoard(b)); return true; }
     return false;
   }
 
@@ -142,7 +142,7 @@ const FARMDAY = (() => {
   // ---------------------------------------------------------------- the quick departure (the owner's shortcut): put everything back and use the cutscene
   function quickLeave() {
     invalidate(); const b = booking(); if (!b || D.departed || D.driving || D.cine) return false;
-    reset(true); F.quickTrip(b); return true;
+    F.departGate(() => { invalidate(); if (!booking()) return; reset(true); F.quickTrip(b); }); return true;
   }
 
   // ---------------------------------------------------------------- reset: everything back to the start of the sequence, horse in its box
