@@ -33,9 +33,9 @@ Implementation plan (approved): `CAREER_PLAN.md`.
 |---|---|
 | 1 — Existing project audit | **Done.** Findings are in `CAREER_PLAN.md` §1 |
 | 2 — Career data architecture + save migration | **Done and approved by the owner** (on `main`, published) |
-| 3 — Scene separation | **Done — awaiting the owner's review** (details below) |
-| 4 — Farm environment | **Next.** Not started — do not begin until Phase 3 is approved |
-| 5 — Third-person character | Not started |
+| 3 — Scene separation | **Done and approved by the owner** (on `main`, published) |
+| 4 — Farm environment | **Done — awaiting the owner's visual review** (screenshots delivered; details below) |
+| 5 — Third-person character | **Next.** Not started — do not begin until Phase 4 is approved |
 | 6 — Farm interactions | Not started |
 | 7 — Finances | Not started |
 | 8 — Staff and facilities | Not started |
@@ -248,26 +248,43 @@ The race itself is untouched: no change to `sim.js`, the race loop's simulation/
 5. **`career.js`:** a **Farm (preview)** button on the Career hub; `CAREER.farmStalls()` and `CAREER.travelToNextRace()`.
 6. **`tools/build-single.js`** inlines `scenes.js` and `farm.js`; both have `<script>` tags before `career-core.js`.
 
-## Exactly what Phase 4 requires (from `CAREER_PLAN.md` §3 and `CAREER_EXPANSION_SPEC.md` §4, §6.3, §25–26; do not start until the owner approves Phase 3)
-**Visual quality is a hard requirement (see Decisions on record): polished, realistic, immersive; courtyard, stalls, fencing, paths, paddocks, vegetation and layout get the most care; screenshots from several angles are a Phase 4 deliverable.** Replace the placeholder in `public/farm.js` with the real medium-sized Australian thoroughbred training property (≈ 220 × 160 m walkable,
-laid out round a central courtyard). **Keep the lifecycle** (build once, per-visit horses disposed on leave, listeners attached on enter,
-`SCENES` hooks) and keep every Phase 3 test green.
-1. **Buildings and areas:** farmhouse / career office (exterior + an entry trigger only — the office stays a UI, not a modelled interior);
-   main stable block with **five stalls**, name plaques and the **correct saved horses** via `buildHorse(toDef(h))` (same coat, markings,
-   build, mane and tail as in races; vacant stalls visibly vacant, with age/condition/form/next-race on the plaque where known);
-   grooming/wash bay; feed and equipment shed; training area (400–600 m exercise lane or small oval + gate-practice area); **three
-   paddocks**; vet/care bay; horse transport float/truck and departure area; marked **facility upgrade slots** (modest add-on props later).
-2. **Australian look:** eucalypts (reuse `GFX.plantTrees`), timber/steel sheds, post-and-rail fences, paddock gates, troughs,
-   gravel/concrete paths, natural grass; no European-mansion or fantasy look. A **farm lighting preset** on the same `GFX` pipeline
-   (sky, one shadow-casting sun whose shadow frustum follows the player, hemi fill).
-3. **Horses behave naturally:** the existing idle path plus grazing / ear / tail variations; **distance- and frustum-gated** — nothing
-   animates for horses that can't be seen (≤ 5 player horses + ≤ 3 staff figures later).
-4. **Performance budget (measure, don't assume):** ≤ ~250 draw calls and ≤ ~500k triangles at High; static meshes merged per material
-   (`GFX.merge`), instanced fences/trees/tufts; report draw calls, triangles and frame time from the F8 overlay on the farm; AUTO
-   quality must work there. Run `tools/smooth.js` before/after and the 10-trip leak test again (the farm is now much bigger).
-5. **Keep working:** the travel-to-race interaction, Esc back to the hub, collision (replace the placeholder AABB list with the new
-   buildings, fences and horses), the farm HUD.
-6. **Tests:** new `tests/farm-browser.js` (spawn, walk the whole property, collide with every building/fence, each interaction point
-   reachable, the five stalls show the right horses with the right plaques, vacant stalls vacant, draw-call/triangle budget, idle
-   animation gated by distance) + `scenes-browser.js` + the full regression list. Screenshots for the owner's review.
-7. When done: update this file and HANDOFF.md, commit, build, publish to the existing artifact, then STOP.
+## Phase 4 — what was implemented (the farm environment)
+
+The race, physics, graphics, horses, AI and commentary are untouched. `index.html` only gained script tags. All new code is in new files:
+
+| File | Role |
+|---|---|
+| `public/farm-world.js` | **the kit**: the layout (single source of truth, `FARMWORLD.L`), terrain height function, procedurally generated textures *with* normal maps (weathered boards, wood grain, weatherboard, corrugated iron, gravel, dirt, sand, straw, concrete), materials, and `Batch` — merges boxes / quads / cylinders / beams per material and ~48 m cell with metre-based UVs |
+| `public/farm-build.js` | **structures**: stable block, farmhouse, feed shed, vet bay, float + ute, oval rails/gates/timing hut, paddock fences/gates/troughs/shelter, courtyard furniture + sign arch, boundary + entrance |
+| `public/farm-trees.js` | **trees**: gum, Moreton Bay fig, cypress — tapering vertex-coloured trunks and limbs plus crossed leaf-spray cards carrying a generated leaf texture (alpha-tested, canopy-centred normals, mip-safe edges), 2 gum shapes × 2 levels of detail |
+| `public/farm-ground.js` | **land and plants**: rolling terrain (fine mesh round the property + coarse mesh out to the hills) on the racecourse turf shader extended with a painted **splat map** (paths / courtyard / worn dirt / oval sand, noisy broken edges, no extra geometry), sky dome + fog, instanced shrubs / boulders / grass tufts / trees with distance LOD and per-cell frustum culling, and `assemble()` |
+| `public/farm.js` | **scene lifecycle**: build once, per-visit horses and plaques, own listeners, third-person walker, collision (boxes + capsules + boundary), sun + shadow that follow the player, interaction points, view presets for screenshots |
+| `tools/farm-shots.js` | real in-game screenshots from the preset angles |
+
+**The property** (220 × 160 m walkable, metres, x east / z south, courtyard at the origin): central crushed-granite **courtyard** (fig tree in a sleeper-edged bed with benches, water trough, hitching rails, lamp posts, mounting block, barrow and bales, timber **sign arch** carrying the stable's name); north, the **stable block** — five loose boxes 4 m wide under a 29 m verandah (concrete apron with expansion joints and kerb, posts with brackets, gutter and downpipes, corrugated roof with ridge cap, three roof vents, soffit lining, weatherboard gables), each box with a timber front, steel-bar flanks, a Dutch door (lower leaf shut with strap hinges and latch, upper leaf standing open), solid-board/steel-bar partitions, lintel, straw bed banked at the walls and a rubber mat, hay net, water bucket, feed bin and a plaque on the left flank (name · age · condition · rating · recent form · next race for the active horse); a **tack room** and an open **wash bay** (sloped slab, drain, hose reel, wash rail) at the ends; west, the **farmhouse** (weatherboard on brick piers, hipped iron roof, chimney, front verandah with decking, balustrade, steps, shuttered windows, front door, rainwater tank, white picket garden fence, shrubs, palms, cypress screen); east, the **feed & equipment shed** (steel-clad, roller door, lean-to with ~100 hay bales, silo, tank, feed bins), the **vet bay** (concrete slab, timber walls, iron roof, steel crush, table, cabinet) and the **horse float + ute** on a hardstand; south, the **exercise oval** (381 m round the middle of the track, ~9 m wide sand, white post-and-rail on both sides with a gap at the gate, striped furlong poles, a four-stall **starting-gate practice** unit, timing hut and bench); three **paddocks** (post-and-rail with galvanised gates, concrete troughs, steel hay-feeder rings, a timber-and-iron shelter, shade trees, grass tufts, boulders, worn dirt at the gates); post-and-wire **boundary**, brick-pillared **entrance gate** with name board and letterbox, a gravel drive lined with gums, eucalypt windbreaks, rolling hills fading into haze.
+
+**Interaction points:** the float ("E — Travel to next race", as in Phase 3) and the farmhouse door ("E — Enter the farmhouse office" → the Office screen; Back returns to the hub).
+**Walking:** collision against 35 buildings/props and 276 fence/rail sections plus the boundary; the walker follows the terrain; the camera never goes under the ground.
+**Not walkable by design:** inside buildings, inside the paddocks (closed gates) and the oval's infield (no gap in the inner rail) — verified by a reachability search in the test.
+
+## Test report — Phase 4 (risk-based; farm-only change — see "Testing policy")
+
+__P4_REPORT__
+
+## Known issues / limits after Phase 4
+- **The walker is still a stand-in figure** (Phase 5 builds the real character, appearance and outfits). The camera is simple (no obstacle pull-in yet).
+- **Paddocks are fenced scenery only** — no horses graze in them yet; horses stay in their boxes (the spec's per-box display). The paddock gates are closed.
+- **No interaction yet with the horses, the stalls, the vet bay, the training area or the gate practice** (Phase 6 / 9). Their areas exist and are reachable.
+- **Time of day and weather are not applied** to the farm (fixed warm late-morning light; Phase 12).
+- **The oval is ~381 m (middle of the track)**, a little under the plan's 400–600 m; its rails are 353 m and 410 m.
+- **First entry builds the property** (~1 s of geometry + texture generation on a fast machine, ~3 s on this software renderer) behind the loading overlay; later visits are instant.
+- Software-GL screenshots show the farm without antialiasing at 1600 × 900; the real game uses the renderer's normal settings.
+
+## Exactly what Phase 5 requires (from `CAREER_PLAN.md` §3 and `CAREER_EXPANSION_SPEC.md` §5; do not start until the owner approves Phase 4)
+Replace the stand-in figure in `public/farm.js` with the real third-person character:
+1. **Character** (rigid-part, low-poly but believable human; pattern of `presentation.js makeStrapper`, upgraded): head / hair / skin / build options and **three outfits** — stable, training (riding gear), race-day (with helmet); saved in `C.player` (already in the v4 save: `look{head,hair,hairCol,skin,build}`, `outfit`, `colours`). Procedural walk and jog cycle.
+2. **Movement:** WASD relative to the camera, Shift = jog, smooth turning and stopping, XZ collision (already in place against the new colliders), terrain height (already in place).
+3. **Camera:** behind and above, mouse/drag orbit with a sensitivity setting, **occlusion pull-in** (raycast against the collider proxies) so walls/trees never block the view, no shake.
+4. **Appearance editor** in the Office (a screen over the farm or a Career screen) writing `C.player`.
+5. **Tests (Tier 2):** `tests/farm-browser.js` + `tests/scenes-browser.js` still green, new checks for the character (appearance saved/reloaded, three outfits, walk-cycle animates only when moving, camera never inside a collider, sensitivity setting), short racing smoke; performance budget re-measured with the character (≤ 250 draw calls, ≤ 500k triangles).
+6. When done: update this file and HANDOFF.md, commit, build, publish to the existing artifact, **give the owner screenshots of the character and outfits**, then STOP.

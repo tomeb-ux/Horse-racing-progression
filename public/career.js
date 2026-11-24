@@ -1283,9 +1283,16 @@ const CAREER = (() => {
   // ---------- the farm scene (farm.js): what it shows, and the way out to a race ----------
   function farmStalls() {
     if (!C) load();
-    const L = C.horses.slice(0, 5).map(h => ({ def: toDef(h), name: h.name, sub: rating(h) + " · age " + h.age }));
+    const act = activeHorse(), s = S(), ev = !SEASON.done(s) ? CORE.roundEvent(C, s.cur) : null, nxt = ev ? SEASON.roundDef(s, s.cur).name + " · " + CORE.fmtDate(ev.day, { short: true }) : "Season complete";
+    const L = C.horses.slice(0, 5).map(h => {
+      const cond = h.fitness >= 85 ? "Fit" : h.fitness >= 70 ? "Fresh" : h.fitness >= 50 ? "Tired" : "Needs a spell";
+      const form = (h.history || []).slice(-5).map(e => e.dnf || !e.place ? "F" : e.place).join("-");
+      return { def: toDef(h), name: h.name, sub: rating(h) + " · age " + h.age, line2: `${h.age}yo · ${cond} · Rtg ${rating(h)}`, line3: form ? "Form " + form : "Unraced", line4: h === act ? "Next: " + nxt : "" };
+    });
     L.slots = slots(); return L;
   }
+  // the farmhouse door: the Office screen (its Back button returns to the Career hub)
+  function enterOffice() { if (!C) load(); race = null; hidePanel(); openOffice(); }
   // "travel to race": the usual event screen for the next championship round (choose the horse there)
   function travelToNextRace() {
     if (!C) load(); race = null; hidePanel();
@@ -1305,6 +1312,6 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace,
+  return { open, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice,
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

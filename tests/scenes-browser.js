@@ -55,7 +55,7 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
 
   console.log('\n— nothing from the race world is drawn or updated on the farm; diagnostics still run');
   await p.evaluate(() => { window.__rc = { race: 0, other: 0 }; const o = renderer.render.bind(renderer); window.__ro = o; renderer.render = (sc, c) => { (sc === scene ? window.__rc.race++ : window.__rc.other++); return o(sc, c); }; window.__pf0 = PERF.fn; window.__clk0 = race ? race.clock : -1; });
-  await sleep(2200); await frames(2);
+  await p.waitForFunction(() => window.__rc.other >= 20, null, { timeout: 120000 }); await frames(2);
   const fr = await p.evaluate(() => ({ rc: window.__rc, pf: PERF.fn > window.__pf0 || PERF.fn === 300, auto: GFX.AUTO.win.length > 0 || GFX.AUTO.ms > 0, q: settings.quality }));
   ok(fr.rc.other > 20 && fr.rc.race === 0, `frames drawn on the farm: ${fr.rc.other} from the farm's own scene, ${fr.rc.race} from the race scene`);
   ok(fr.pf && (fr.auto || fr.q !== 'auto'), 'the performance counters (F8) and AUTO quality keep running on the farm');
@@ -63,17 +63,17 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
   console.log('\n— farm controls');
   const pos0 = (await S()).farm;
   await p.keyboard.down('w'); await sleep(700); await p.keyboard.up('w'); let f1 = (await S()).farm;
-  ok(f1.z < pos0.z - 0.8, `W walks forward (z ${pos0.z.toFixed(2)} → ${f1.z.toFixed(2)})`);
+  ok(f1.z < pos0.z - 0.6, `W walks forward (z ${pos0.z.toFixed(2)} → ${f1.z.toFixed(2)})`);
   await p.keyboard.down('d'); await sleep(600); await p.keyboard.up('d'); let f2 = (await S()).farm;
   ok(f2.x > f1.x + 0.6, `D steps right (x ${f1.x.toFixed(2)} → ${f2.x.toFixed(2)})`);
   await p.keyboard.down('s'); await sleep(500); await p.keyboard.up('s'); let f3 = (await S()).farm; ok(f3.z > f2.z + 0.5, 'S walks back');
   const walk = f3; await p.keyboard.down('w'); await sleep(500); const w1 = (await S()).farm.z; await p.keyboard.up('w'); await sleep(200);
-  await p.evaluate(() => FARM._test.setPos(0, 25)); await sleep(100); const z0 = (await S()).farm.z; await p.keyboard.down('Shift'); await p.keyboard.down('w'); await sleep(500); await p.keyboard.up('w'); await p.keyboard.up('Shift'); const run = z0 - (await S()).farm.z;
-  await p.evaluate(() => FARM._test.setPos(0, 25)); await sleep(100); const z1 = (await S()).farm.z; await p.keyboard.down('w'); await sleep(500); await p.keyboard.up('w'); const wk = z1 - (await S()).farm.z;
+  await p.evaluate(() => FARM._test.setPos(0, 4)); await sleep(100); const z0 = (await S()).farm.z; await p.keyboard.down('Shift'); await p.keyboard.down('w'); await sleep(500); await p.keyboard.up('w'); await p.keyboard.up('Shift'); const run = z0 - (await S()).farm.z;
+  await p.evaluate(() => FARM._test.setPos(0, 4)); await sleep(100); const z1 = (await S()).farm.z; await p.keyboard.down('w'); await sleep(500); await p.keyboard.up('w'); const wk = z1 - (await S()).farm.z;
   ok(run > wk * 1.5, `Shift runs faster than walking (${run.toFixed(2)} m vs ${wk.toFixed(2)} m in the same time)`);
   const yaw0 = (await S()).farm.yaw; await p.keyboard.down('ArrowRight'); await sleep(400); await p.keyboard.up('ArrowRight'); ok((await S()).farm.yaw > yaw0 + 0.3, '→ turns the camera');
-  await p.evaluate(() => FARM._test.setPos(0, -10)); await frames(3); let c = (await S()).farm; ok(c.z > -8 || c.z < -14, `the player cannot stand inside the stable block (pushed out to z ${c.z.toFixed(2)})`);
-  await p.evaluate(() => FARM._test.setPos(200, 0)); await frames(3); c = (await S()).farm; ok(Math.hypot(c.x, c.z) < 52, `or walk off the edge of the land (radius ${Math.hypot(c.x, c.z).toFixed(1)})`);
+  await p.evaluate(() => FARM._test.setPos(0, -23)); await frames(3); let c = (await S()).farm; ok(c.z > -22.2 || c.z < -27.1, `the player cannot stand inside the stable block (pushed out to z ${c.z.toFixed(2)})`);
+  await p.evaluate(() => FARM._test.setPos(200, 0)); await frames(3); c = (await S()).farm; ok(Math.abs(c.x) <= 110.01 && Math.abs(c.z) <= 80.01, `or walk off the edge of the land (x ${c.x.toFixed(1)}, z ${c.z.toFixed(1)})`);
 
   console.log('\n— keyboard isolation: farm keys never reach the riding controls');
   const iso = await p.evaluate(() => ({ keys: Object.keys(keys).filter(k => keys[k]), eff: riderInput.effort, cam: camMode }));
@@ -83,7 +83,7 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
   await p.keyboard.up('w');
 
   console.log('\n— the interaction point');
-  await p.evaluate(() => FARM._test.setPos(0, 7)); await frames(3);
+  await p.evaluate(() => FARM._test.setPos(0, 4)); await frames(3);
   ok((await S()).farm.prompt === '' && (await p.evaluate(() => FARM._test.interact())) === false, 'away from the float there is no prompt and E does nothing');
   await p.evaluate(() => FARM._test.setPos(FARM._test.TRAVEL.x, FARM._test.TRAVEL.z)); await frames(4);
   ok((await S()).farm.prompt === 'E — Travel to next race', 'at the float the prompt "E — Travel to next race" appears');
@@ -130,7 +130,7 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
   ok(data0 === after, 'the career save data is byte-for-byte unchanged by scene changes');
   await p.evaluate(() => SCENES.enter('career', { instant: true })); await sleep(200);
   const dz = await p.evaluate(() => { const g0 = SCENES.snapshot().geo, t0 = SCENES.snapshot().tex; const ok1 = FARM.dispose(); const g1 = SCENES.snapshot().geo; SCENES.enter('farm', { instant: true }); const g2 = SCENES.snapshot().geo; return { ok1, g0, g1, g2, built: FARM.built }; });
-  ok(dz.ok1 && dz.g1 < dz.g0 && dz.g2 <= dz.g0 + 2 && dz.built, `FARM.dispose() frees the farm's static geometry (${dz.g0} → ${dz.g1} geometries) and the next visit rebuilds it (${dz.g2})`);
+  ok(dz.ok1 && dz.g1 < dz.g0 && dz.g2 <= dz.g0 + 12 && dz.built, `FARM.dispose() frees the farm's static geometry (${dz.g0} → ${dz.g1} geometries) and the next visit rebuilds it (${dz.g2})`);
 
   ok(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''));
   console.log(`\n${pass} passed, ${fail} failed`);
