@@ -12,6 +12,14 @@ Implementation plan (approved): `CAREER_PLAN.md`.
   approval.
 - The first build phase was the spec's **Phase 2: career data architecture + save migration**.
 - Multiplayer is hidden and disabled during the expansion, with its code kept. **Done in Phase 2.**
+- **Phase 4 visual-quality requirement (owner, added during Phase 3):** the Australian training property must feel **visually polished,
+  realistic and immersive — not a basic collection of low-poly buildings on flat green terrain.** Particular attention to: the central stable
+  courtyard; the proportions and materials of the five horse stalls; realistic fencing; natural paths; paddock detail; appropriate Australian
+  vegetation; the overall layout. Use the existing detailed horse models. It should be somewhere the owner would genuinely enjoy walking
+  around between races. Keep the performance budgets, but get there with efficient modelling, instancing and sensible detail allocation
+  (detail where the player looks, cheap further out) — not by making everything visually simplistic. **At the end of Phase 4 provide
+  screenshots from several angles — especially the main stable courtyard, the farmhouse, the paddocks and the training area — so the owner
+  can review the visual quality before Phase 5.**
 - Development runs one approved phase at a time. After each phase: tests, a git commit, a playable build (artifact +
   GitHub zip) and an update of this file.
 - Prize money for optional races stays at nothing (as before); championship rounds pay places 1–5. Real purse and
@@ -182,7 +190,7 @@ The race itself is untouched: no change to `sim.js`, the race loop's simulation/
 6. **`tools/build-single.js`** inlines `scenes.js` and `farm.js`; both have `<script>` tags before `career-core.js`.
 
 ## Exactly what Phase 4 requires (from `CAREER_PLAN.md` §3 and `CAREER_EXPANSION_SPEC.md` §4, §6.3, §25–26; do not start until the owner approves Phase 3)
-Replace the placeholder in `public/farm.js` with the real medium-sized Australian thoroughbred training property (≈ 220 × 160 m walkable,
+**Visual quality is a hard requirement (see Decisions on record): polished, realistic, immersive; courtyard, stalls, fencing, paths, paddocks, vegetation and layout get the most care; screenshots from several angles are a Phase 4 deliverable.** Replace the placeholder in `public/farm.js` with the real medium-sized Australian thoroughbred training property (≈ 220 × 160 m walkable,
 laid out round a central courtyard). **Keep the lifecycle** (build once, per-visit horses disposed on leave, listeners attached on enter,
 `SCENES` hooks) and keep every Phase 3 test green.
 1. **Buildings and areas:** farmhouse / career office (exterior + an entry trigger only — the office stays a UI, not a modelled interior);
