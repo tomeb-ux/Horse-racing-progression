@@ -328,6 +328,24 @@ Policy applied: **Tier 2 — farm-only change** (new farm files, `career.js` gai
 
 **Not changed:** race physics, timing, starting, horse attributes, results, commentary, Quick Race rules and the save format (the only data added is `C.booking`, which older builds ignore; `C.player` already existed).
 
+## Test report — Phase 5 (risk-based; touches the menu, the frame loop, the results bridge and career entry — NOT race physics; every number came from running the test on the final code)
+
+**Executed (Tier 1 + Tier 2 + the shared screens Phase 5 touched):**
+| Test | Result |
+|---|---|
+| `node tests/career-core.js` | 128 / 128 |
+| `tests/farm-flow-browser.js` (new) | **73 / 73** — menu over the property (no save created), Quick Race horse on show, Settings controls, Quick Race still works and releases the farm, first career creates a horse then lands on the farm, existing career lands on the farm, W/Shift movement, V first/third person (eye 1.62 m, fov 72, saved), mouse look + sensitivity ×2 + drag, pitch limits, camera pull-in never inside solid geometry, pause menu (Resume / Main menu / Career hub), farmhouse in/out, walls + furniture solid, ledger and trophy cabinet and Back (return to the same spot), calendar panel, booking (only the open round bookable; refused cases), cancel, wardrobe saved to the career, geometry stable over 4 more house visits, float prompt (nothing booked / booked), the whole load-up → drive-off sequence in order and the booked race starting with the right horse, Return to the Farm after the race (round recorded), Space skips, character persists after reload, no page errors |
+| `tests/farm-browser.js` | **34 / 34** (was 33; the interaction-point checks were updated for the house door/desk; budget measured **249 draw calls** at the whole-property overview, budget 250, and 261k triangles, budget 500k) |
+| `tests/scenes-browser.js` | **38 / 38** (updated: the farm is the menu background, Esc pauses, E at the float needs a booking, 9 farm listeners instead of 7) |
+| `tests/career-browser.js` | **114 / 114** (Career Mode now lands on the farm, so the three places that clicked the menu button to reach the hub now open the hub with `CAREER.open()`; every hub assertion unchanged) |
+| `tests/single-browser.js` (single-file build) | 8 / 8 |
+| Racing smoke: `steering-browser` 70/70 · `start-browser` 8/8 · `replay-lunge-browser` 9/9 | all pass |
+| `tests/presentation-browser.js` | 11 / 11 |
+
+**Failures along the way, all fixed and re-run:** farm budget measured 263 then 251 draw calls (the float rig was split into its own group; rebuilt in one batch cell and with fewer materials → 249); scenes test expected exactly 7 farm listeners (now 9 by design). The final runs above are after those fixes.
+
+**Deferred (not run, with reason):** the full racing regression suite (`field`, `chaos`, `avoid`, `pileup`, `pushfall`, `riding`, `randwick`, `flemington`, `season_balance`, `progression`, `longrace-browser`, `auto-quality-browser`, voice/eleven tests) — race physics, timing, starting, horse attributes and results logic were **not changed**, and the racing smoke tests above passed. `tests/mp-*.js` — not run, multiplayer disabled by design.
+
 ## Known issues / limits after Phase 5
 - **The drive-off is a cutscene**, not interactive (by design for this phase): you do not lead the horse out of its box yourself yet, and the race venue is not shown arriving. Phases 6 and 13 deepen it.
 - **No horse leaves the box visually in the menu showcase** and the paddocks are still empty (Phase 6).
