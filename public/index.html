@@ -435,6 +435,7 @@ body.touch #touchUI{display:flex;}
         <div class="opt-label">Farm: default view</div><div class="opt-row" id="optPerson"></div>
         <div class="opt-label">Farm: mouse look sensitivity</div><div class="opt-row" id="optLook"></div>
         <div class="opt-label">Farm: click to capture the mouse</div><div class="opt-row" id="optLock"></div>
+        <div class="opt-label">Farm: guidance lines (the glowing route to your next objective)</div><div class="opt-row" id="optGuide"></div>
         <div class="opt-label">Race commentary voice</div><div class="opt-row" id="optComm" style="flex-wrap:wrap;justify-content:center"></div>
         <div id="optElevenStatus" style="font-size:12px;color:var(--fg-dim);max-width:480px;text-align:center;line-height:1.45"></div>
         <div class="opt-row" id="optElevenOpts" style="flex-wrap:wrap;justify-content:center"></div>
@@ -670,6 +671,7 @@ const settings = {
   person: store.get("person", 3) === 1 ? 1 : 3,
   lookSens: [0.5, 0.75, 1, 1.5, 2].includes(store.get("lookSens", 1)) ? store.get("lookSens", 1) : 1,
   lockMouse: store.get("lockMouse", true) !== false,
+  guide: ["full", "subtle", "off"].includes(store.get("guide", "full")) ? store.get("guide", "full") : "full",
   assist: store.get("assist", false),
   steer: store.get("steer", "assisted"),
   autoReplay: store.get("autoReplay", true),
@@ -3696,6 +3698,7 @@ function buildSettings() {
   chipRow($("optPerson"), [3, 1], settings.person, v => { settings.person = v; store.set("person", v); }, v => v === 1 ? "First person" : "Third person");
   chipRow($("optLook"), [0.5, 0.75, 1, 1.5, 2], settings.lookSens, v => { settings.lookSens = v; store.set("lookSens", v); }, v => ({ 0.5: "Slow", 0.75: "Gentle", 1: "Normal", 1.5: "Quick", 2: "Fast" })[v]);
   chipRow($("optLock"), [true, false], settings.lockMouse, v => { settings.lockMouse = v; store.set("lockMouse", v); }, v => v ? "On (Esc releases it)" : "Off (drag to look)");
+  chipRow($("optGuide"), ["full", "subtle", "off"], settings.guide, v => { settings.guide = v; store.set("guide", v); }, v => ({ full: "Full route", subtle: "Subtle (nearby only)", off: "Off" })[v]);
   chipRow($("optReplay"), [true, false], settings.autoReplay, v => { settings.autoReplay = v; store.set("autoReplay", v); }, v => v ? "On" : "Off");
   buildCommSettings();
 }
@@ -4564,6 +4567,11 @@ else boot();
 <script src="farm-house.js"></script>
 <script src="farm-ui.js"></script>
 <script src="farm-trip.js"></script>
+<script src="farm-nav.js"></script>
+<script src="farm-care.js"></script>
+<script src="farm-drive.js"></script>
+<script src="farm-train.js"></script>
+<script src="farm-day.js"></script>
 <script src="farm.js"></script>
 <script src="career-core.js"></script>
 <script src="career.js"></script>

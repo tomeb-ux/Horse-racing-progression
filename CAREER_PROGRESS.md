@@ -43,8 +43,8 @@ Implementation plan (approved): `CAREER_PLAN.md`.
 | 2 — Career data architecture + save migration | **Done and approved by the owner** (on `main`, published) |
 | 3 — Scene separation | **Done and approved by the owner** (on `main`, published) |
 | 4 — Farm environment | **Done and approved by the owner** ("it's really good") |
-| 5 — Character, house, calendar booking, first/third person, menu over the property, trailer departure | **Done — awaiting the owner's review** (details below) |
-| 6 — Farm interactions | Not started |
+| 5 — Character, house, calendar booking, first/third person, menu over the property, trailer departure | **Done** (on branch `claude/amazing-clarke-jzpr1x`; `main` has NOT been updated since before Phase 2 — see "Git state") |
+| 6 — Horse and farm interactions (+ guided race day, playable transport, character rebuild, interactive training) | **In progress** (see "Exactly what Phase 6 requires") |
 | 7 — Finances | Not started |
 | 8 — Staff and facilities | Not started |
 | 9 — Long-term horse development | Not started |
@@ -53,6 +53,30 @@ Implementation plan (approved): `CAREER_PLAN.md`.
 | 12 — Time of day and weather | Not started |
 | 13 — Transport transitions | Not started |
 | 14 — Balance and full testing | Not started |
+
+## Git state (found at the start of Phase 6)
+`main` (5139a6f) does **not** contain Phases 2–5; they live only on the dev branch `claude/amazing-clarke-jzpr1x` (HEAD bc5b8d7 at the start of Phase 6, 18 commits ahead). Owner's decision (Phase 6 kickoff): **push to the dev branch only; leave `main` untouched until the owner has reviewed the game.**
+
+## Owner decisions for Phase 6 (answers to the kickoff questions)
+1. Dev branch only — no push to `main` until reviewed.
+2. Care (grooming/feeding) affects **non-race stats only** (recovery, composure/readiness, training-reward bonus). It never changes `toDef`, so racing is byte-identical and the Tier 3 suite is not needed for it.
+3. Training drills run **inside the farm scene** on the farm's facilities (oval, gate-practice unit); add a facility if one is needed. (Implemented by running the real `sim.js` `Race` headless for the physics and start mechanics and drawing the horse on the oval.)
+4. Add **"Rest a day"** at the farmhouse (advances one day through `CORE.advance`, with the missed-race warning). Rewarded care and drills are capped at one reward per horse per calendar day.
+
+## Exactly what Phase 6 requires (owner's brief, recorded so later sessions don't lose it)
+Phase 6 = "Horse and farm interactions", expanded by the owner with these requirements:
+1. **Better player character** — believable proportions, face, hair, clothing; walking, running, turning and idle animation; keep customisation and first/third person; efficient to render.
+2. **Physical horse interactions** — approach, inspect, groom, feed, prepare for training/racing, lead out of the stall; visible animations (not just menus); real saved horses and career data; modest, balanced, non-compulsory benefits.
+3. **Guided race-day preparation** — book (calendar) → objective to visit the horse's stable → walk to the correct stall and prepare → lead the horse out → walk with it to the float → load it (animation) → enter the vehicle → drive down the driveway → transition into the racecourse at the exit. Uses the existing booking, saving and scene-loading systems. **Optional shortcut to skip routine preparation.**
+4. **Navigation lines / objectives** — subtle ground guidance (stall → float → vehicle → exit) following walkable paths (not through buildings/fences); upper-left objective panel updates per stage; guidance reducible/disabled in Settings.
+5. **Playable transport** — W/S accelerate/brake, A/D steer, smooth follow camera, believable acceleration, basic collision, a clear route out; short and enjoyable; farm unloads and racecourse loads at the exit; no unnecessary overhead.
+6. **Interactive training** — existing training facilities usable via E; a few genuinely playable drills (starting-gate practice, acceleration, settling, sprint rhythm); reuse the existing horse controls and data; balanced rewards, no repeat exploits; deeper long-term progression stays in Phase 9.
+Constraints: preserve racing/physics/graphics/horses/jockeys/controls/AI/commentary/career/farm scenery/saves; keep farm and race scenes separate; multiplayer hidden (code kept, `mp-*` tests "not run — multiplayer disabled by design"); five-horse maximum; single-file build works; no unrelated refactoring; do **not** begin Phase 7.
+Tests required: character/animation, horse interaction, scene transition, single-player regression (risk-based), and specifically booking → preparation → loading → driving → racecourse loading → return to the farm; wrong horse cannot be loaded; cannot depart without a valid booking; no duplicate rewards; no stuck invalid preparation state.
+
+## Requirements carried forward (owner, recorded during Phase 6 — DO NOT LOSE)
+- **Phase 11 (racing calendar expansion):** additional, smaller **Australian regional and grassroots racecourses**, so horses progress through country racing before the major metropolitan races.
+- **Phase 12 (time of day and weather):** races at different times of day — **morning, midday, late afternoon and golden-hour sunset** (plus the plan's other presets) — with appropriate weather and track conditions.
 
 ## Testing policy for the remaining phases (owner's instruction, given during Phase 3) — risk-based, nothing weakened or deleted
 

@@ -27,6 +27,8 @@ const FARM = (() => {
   let resume = null, place = "out", person = 3, paused = false, panel = null, trans = null, trip = null, wantLock = false, ownUnlock = false;
   const fk = {};                                                     // the farm's own key map — never shared with the riding controls
   let listeners = [], dragging = null, near = null, t = 0, shadowOn = false, camReady = false;
+  let busy = false, guide = null, guideKey = "", guideT = 0, guideFrom = null, hideFigure = false, departT = 0, departB = null, lastStage = "", syncT = 0, turnRate = 0, lastFace = 0;
+  const CINE = { on: false, init: false, tp: new THREE.Vector3(), tl: new THREE.Vector3(), cp: new THREE.Vector3(), cl: new THREE.Vector3(), fov: 56, k: 6 };
   const WALK = { x: 110, z: 80 }, PR = 0.45;                         // walkable half-extents, the walker's radius
   const EYE = 1.62, FOV = { 1: 72, 3: 58 }, clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -47,11 +49,13 @@ const FARM = (() => {
     Object.assign(sunLight.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 260 }); fscene.add(sunLight, sunLight.target);
     fig = FARMPEOPLE.make(appearance()); fig.root.visible = false; fscene.add(fig.root); fig.root.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     buildHud();
+    FARMCARE.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
   }
   function ensureHouse() {
     if (iworld) return;
     iworld = FARMHOUSE.build(); iscene = iworld.scene;
     iworld.points.push({ id: "door", x: iworld.bounds.x1 - 0.2, z: 0, r: 1.3, text: "E — Go outside" });
+    iworld.points.push({ id: "rest", x: 1.3, z: 2.5, r: 2.1, text: "E — Rest until tomorrow (advance one day)" });
   }
 
   const BTN = "pointer-events:auto;cursor:pointer;font:700 14px var(--font-d,system-ui);letter-spacing:.06em;text-transform:uppercase;padding:12px 18px;border-radius:10px;border:1px solid rgba(232,195,90,.6);background:rgba(18,28,22,.92);color:#f2efe6";
@@ -125,8 +129,8 @@ const FARM = (() => {
   }
 
   // ---------------------------------------------------------------- input (the farm's own; attached on enter, removed on leave)
-  const MOVE = { w: 1, a: 1, s: 1, d: 1, shift: 1, arrowleft: 1, arrowright: 1, arrowup: 1, arrowdown: 1, e: 1, v: 1 };
-  const blocked = () => paused || !!panel || !!trans || !!trip;
+  const MOVE = { w: 1, a: 1, s: 1, d: 1, shift: 1, arrowleft: 1, arrowright: 1, arrowup: 1, arrowdown: 1, e: 1, v: 1, k: 1, r: 1 };
+  const blocked = () => paused || !!panel || !!trans || !!trip || busy || FARMDRIVE.on || FARMTRAIN.on;
   function onKeyDown(e) {
     if (!active) return;
     if (e.ctrlKey || e.metaKey || e.altKey || /^F\d+$/.test(e.key)) return;            // browser shortcuts and the F-key diagnostics stay available
@@ -135,12 +139,16 @@ const FARM = (() => {
     e.stopImmediatePropagation(); if (k === " " || k in MOVE || k === "tab" || k === "escape") e.preventDefault();   // nothing reaches the riding controls
     if (k === "escape") { if (!e.repeat) escape(); return; }
     if (trip) { if (!e.repeat && (k === " " || k === "enter" || k === "e")) FARMTRIP.skip(); return; }
+    if (FARMDRIVE.on) { fk[k] = true; return; }                                  // driving: the keys go to the vehicle
+    if (FARMTRAIN.on || FARMTRAIN.menuOpen) { if (!e.repeat) FARMTRAIN.key(k, true, e); return; }   // a drill or its menu
+    if (FARMCARE.menuOpen) { if (!e.repeat) FARMCARE.key(k); return; }
     if (blocked()) return;
+    if (k === "k" && !e.repeat) { skipPrep(); return; }
     if (k === "e" && !e.repeat && fk.e !== true) { fk.e = true; interact(); return; }
     if (k === "v" && !e.repeat) { setPerson(person === 1 ? 3 : 1); return; }
     fk[k] = true;
   }
-  function onKeyUp(e) { if (!active) return; const k = e.key.toLowerCase(); fk[k] = false; if (!(e.ctrlKey || e.metaKey) && !(e.target && /^(input|textarea|select)$/i.test(e.target.tagName))) e.stopImmediatePropagation(); }
+  function onKeyUp(e) { if (!active) return; const k = e.key.toLowerCase(); fk[k] = false; if (FARMTRAIN.on) FARMTRAIN.key(k, false, e); if (!(e.ctrlKey || e.metaKey) && !(e.target && /^(input|textarea|select)$/i.test(e.target.tagName))) e.stopImmediatePropagation(); }
   function onBlur() { for (const k in fk) fk[k] = false; dragging = null; }
   function look(dx, dy, k) { const s = (settings.lookSens || 1) * k; CAM.yaw += dx * s; CAM.pitch = clampN(CAM.pitch - dy * s, person === 1 ? -1.35 : -1.1, person === 1 ? 1.35 : 0.5); VIEW.on = false; }
   function onPointerDown(e) { if (!active || e.button !== 0 || blocked()) return; dragging = { x: e.clientX, y: e.clientY, moved: 0 }; }
@@ -167,6 +175,8 @@ const FARM = (() => {
   function unbind() { for (const [t2, ev, fn, cap] of listeners) t2.removeEventListener(ev, fn, !!cap); listeners = []; for (const k in fk) delete fk[k]; dragging = null; unlock(); }
   function escape() {
     if (trip) return FARMTRIP.skip();
+    if (FARMTRAIN.on || FARMTRAIN.menuOpen) return FARMTRAIN.key("escape", true);
+    if (FARMCARE.menuOpen && !FARMCARE.busy) return FARMCARE.key("escape");
     if (panel) return closePanel();
     setPaused(!paused);
   }
@@ -183,6 +193,9 @@ const FARM = (() => {
     get horses() { return horses; }, get sunLight() { return sunLight; }, sunFollow: (x, z) => sunFollow(x, z), mkHorse, fade: a => { if (fadeEl) fadeEl.style.opacity = a; },
     closePanel: () => closePanel(), refreshBoard: () => refreshBoard(), refreshFigure: () => refreshFigure(), setPrompt: txt => { prompt.hidden = !txt; prompt.textContent = txt || ""; }, skipHint: on => { skipEl.hidden = !on; },
     endTrip: () => { trip = null; if (hud) hud.querySelector("#farmInfo").style.visibility = ""; }, setPlace: v => { place = v; }, objective: () => objective(), heightAt: (x, z) => world.heightAt(x, z),
+    keys: fk, resolve: (q, r, o) => resolve(q, r, o), toast: (m, k, d) => { try { toast(m, k, d); } catch (e) {} }, setBusy: v => { busy = !!v; if (v) { for (const k in fk) if (!(FARMDRIVE.on)) fk[k] = false; prompt.hidden = true; near = null; } }, faceCam: yaw => { CAM.yaw = yaw; camReady = false; },
+    cineCam: { set(pos, look, fov, k) { CINE.tp.set(pos[0], pos[1], pos[2]); CINE.tl.set(look[0], look[1], look[2]); CINE.fov = fov || 56; CINE.k = k || 6; CINE.on = true; if (!CINE.init) { CINE.init = true; CINE.cp.copy(fcam.position); const d = new THREE.Vector3(); fcam.getWorldDirection(d); CINE.cl.copy(fcam.position).addScaledVector(d, 10); } }, clear() { CINE.on = false; CINE.init = false; camReady = false; } },
+    blockedAt: (x, y, z) => blockedAt(x, y, z), refreshObjective: () => { objective(); }, hideFig: v => { hideFigure = !!v; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
   };
   function openPanel(name) {
     if (panel || trip) return; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
@@ -193,12 +206,15 @@ const FARM = (() => {
   function refreshBoard() { if (iworld) { try { iworld.refresh(CAREER.boardInfo(), (CAREER.data && CAREER.data.trophies || []).length); } catch (e) {} } }
   function refreshFigure() { if (fig) fig.apply(appearance()); }
   function objective() {
-    if (!objEl) return; let txt = "";
+    if (!objEl) return; let txt = "", sub = "";
     try {
-      if (hasCareer()) { const b = CAREER.booking(); txt = b ? `Booked: ${b.name} — take ${b.horse} to the horse float` : "Check the race calendar in the farmhouse to book your next race"; }
-      else txt = "Create your first horse from the Career hub";
-    } catch (e) {}
-    objEl.textContent = txt;
+      if (hasCareer()) {
+        const b = CAREER.booking();
+        if (b) { const o = FARMDAY.objective(); txt = o.main || `Booked: ${b.name} — take ${b.horse} to the horse float`; sub = o.step ? `Race day · step ${o.step} of ${o.of} · ${b.name}` : `Booked: ${b.name}`; if (o.skippable) sub += " · K to skip the routine and go now"; }
+        else txt = "Check the race calendar in the farmhouse to book your next race";
+      } else txt = "Create your first horse from the Career hub";
+    } catch (e) { console.error(e); }
+    objEl.innerHTML = (sub ? `<div style="font-weight:600;font-size:11.5px;color:#c8d2c8;letter-spacing:.03em">${sub}</div>` : "") + `<div>${txt.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</div>`;
   }
   // a fade to black and back, with `mid` run when it is fully dark (swapping the place); progress is driven by frame time
   function startTrans(dur, mid, done) { if (trans || trip) return false; trans = { t: 0, dur: dur || 0.4, mid, done, swapped: false }; return true; }
@@ -212,28 +228,37 @@ const FARM = (() => {
   // ---------------------------------------------------------------- interaction points
   function pointText(p) {
     if (p.id === "travel") {
-      try { const b = hasCareer() ? CAREER.booking() : null; if (b) return `E — Load ${b.horse} and leave for ${b.name}`; } catch (e) {}
+      try { const b = hasCareer() ? CAREER.booking() : null; if (b) return `E — Quick departure for ${b.name} (skips the preparation; or lead ${b.horse} here)`; } catch (e) {}
       return "E — Horse float (book a race on the farmhouse calendar first)";
     }
     return p.text;
   }
-  function nearest() { const w = cur(); if (!w) return null; let best = null, bd = 1e9; for (const p of w.points) { const d = Math.hypot(p.x - P.x, p.z - P.z); if (d <= p.r && d < bd) { best = p; bd = d; } } return best; }
+  function allPoints() { const w = cur(); if (!w) return []; if (place === "in") return w.points; return w.points.concat(FARMCARE.points(), FARMDAY.points(), typeof FARMTRAIN !== "undefined" ? FARMTRAIN.points() : []); }
+  function nearest() { const w = cur(); if (!w) return null; let best = null, bd = 1e9; for (const p of allPoints()) { if (!p.text && p.id !== "stall") continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d <= p.r && d < bd) { best = p; bd = d; } } return best; }
   function interact() {
     const p = nearest(); if (!p) return false;
     if (p.id === "office") { enterHouse(); return true; }
     if (p.id === "door") { exitHouse(); return true; }
     if (p.id === "board") { openPanel("calendar"); return true; }
     if (p.id === "mirror") { openPanel("wardrobe"); return true; }
+    if (p.id === "rest") return restDay();
     if (p.id === "ledger" || p.id === "cabinet") {                     // career screens: you come back to exactly where you stood
       if (typeof CAREER === "undefined" || !CAREER.openScreen) return false;
       resume = { place, x: P.x, z: P.z, face: P.face, yaw: CAM.yaw, pitch: CAM.pitch }; CAREER.openScreen(p.id === "ledger" ? "office" : "trophies"); return true;
     }
     if (p.id === "travel") return floatInteract();
+    if (p.id === "stall") return FARMCARE.openMenu(p.i);
+    if (p.id === "ramp" || p.id === "cab") return FARMDAY.interact(p);
+    if (typeof FARMTRAIN !== "undefined" && FARMTRAIN.interact(p)) return true;
     return false;
   }
   function floatInteract() {
     let b = null; try { b = hasCareer() ? CAREER.booking() : null; } catch (e) {}
     if (!b) { try { toast("Book a race on the farmhouse calendar first", "info", 2.6); } catch (e) {} return true; }
+    return FARMDAY.quickLeave();
+  }
+  // the quick departure: the Phase 5 load-up and drive-off cutscene (the owner's shortcut around the routine)
+  function startTrip(b) {
     trip = true; hud.querySelector("#farmInfo").style.visibility = "hidden"; unlock(); prompt.hidden = true; near = null; if (cross) cross.hidden = true;
     FARMTRIP.start(ctx, b, () => {
       let r; try { r = CAREER.startBooked(); } catch (e) { console.error(e); r = { ok: false }; }
@@ -241,7 +266,24 @@ const FARM = (() => {
     });
     return true;
   }
+  function skipPrep() { let b = null; try { b = hasCareer() ? CAREER.booking() : null; } catch (e) {} if (!b || place !== "out" || busy) return false; return FARMDAY.quickLeave(); }
+  // the drive ended at the gate: the booking is consumed once and the race starts through the normal entry
+  function depart(b) {
+    hud.querySelector("#farmInfo").style.visibility = "hidden"; prompt.hidden = false; prompt.textContent = "Travelling to " + (b.venue || "the races") + "…"; fadeEl.style.opacity = "1"; departB = b; departT = 0.12;
+  }
+  function runDepart() {
+    const b = departB; departB = null; let r; try { r = CAREER.startBooked(); } catch (e) { console.error(e); r = { ok: false }; }
+    if (!r || !r.ok) { FARMDRIVE.stop(); fadeEl.style.opacity = "0"; prompt.hidden = true; hud.querySelector("#farmInfo").style.visibility = ""; FARMDAY.reset(); try { toast("That race couldn't be started — check the calendar", "warn", 3); } catch (e) {} }
+  }
+  // "Rest a day": one calendar day through the career core (horses recover; daily care and drills reset; never past a race that is today)
+  function restDay() {
+    let r; try { r = CAREER.care.rest(); } catch (e) { console.error(e); r = { ok: false }; }
+    if (!r.ok) { const m = r.reason === "booked-today" ? "Your race is today — head out to the float" : r.reason === "round-today" ? "A championship round is on today — enter it or skip it from the calendar first" : "Can't rest right now"; try { toast(m, "info", 3); } catch (e) {} return true; }
+    startTrans(1.1, () => { refreshBoard(); if (fadeEl) fadeEl.style.opacity = "1"; }, () => { try { toast("A good night's rest — it is now " + CAREER.care.today, "good", 3); } catch (e) {} objective(); });
+    return true;
+  }
   function enterHouse() {
+    if (FARMCARE.led) { const g = FARMCARE.ledMesh(); FARMCARE.release(); try { toast("The horse was put back in its box before you went inside", "info", 2.6); } catch (e) {} FARMDAY.changed(); }
     ensureHouse();
     startTrans(0.5, () => {
       place = "in"; iscene.add(fig.root); const s = iworld.spawn; P.x = s.x; P.z = s.z; P.y = 0; P.face = s.yaw; CAM.yaw = s.yaw; CAM.pitch = person === 1 ? 0 : -0.18; camReady = false; refreshBoard(); sunFollow(0, 0);
@@ -259,23 +301,27 @@ const FARM = (() => {
   function leaveToCareer() { SCENES.enter("career"); }
 
   // ---------------------------------------------------------------- walking: circle against boxes and fence capsules, boundary
-  function collide() {
+  // push a circle {x, z} of radius R out of every building, prop, rail and gate (and keep it in the room / on the property unless o.noBounds)
+  function resolve(q, R, o) {
     const w = cur(), inside = place === "in";
     for (let pass = 0; pass < 2; pass++) {
       for (const c of w.colliders) {
-        if (P.x < c.x0 - PR || P.x > c.x1 + PR || P.z < c.z0 - PR || P.z > c.z1 + PR) continue;
-        const cx = Math.max(c.x0, Math.min(P.x, c.x1)), cz = Math.max(c.z0, Math.min(P.z, c.z1)), dx = P.x - cx, dz = P.z - cz, d = Math.hypot(dx, dz);
-        if (d < PR) { if (d > 1e-4) { P.x = cx + dx / d * PR; P.z = cz + dz / d * PR; } else { const l = P.x - c.x0, r = c.x1 - P.x, u = P.z - c.z0, dn = c.z1 - P.z, m = Math.min(l, r, u, dn); if (m === l) P.x = c.x0 - PR; else if (m === r) P.x = c.x1 + PR; else if (m === u) P.z = c.z0 - PR; else P.z = c.z1 + PR; } }
+        if (q.x < c.x0 - R || q.x > c.x1 + R || q.z < c.z0 - R || q.z > c.z1 + R) continue;
+        const cx = Math.max(c.x0, Math.min(q.x, c.x1)), cz = Math.max(c.z0, Math.min(q.z, c.z1)), dx = q.x - cx, dz = q.z - cz, d = Math.hypot(dx, dz);
+        if (d < R) { if (d > 1e-4) { q.x = cx + dx / d * R; q.z = cz + dz / d * R; } else { const l = q.x - c.x0, r = c.x1 - q.x, u = q.z - c.z0, dn = c.z1 - q.z, m = Math.min(l, r, u, dn); if (m === l) q.x = c.x0 - R; else if (m === r) q.x = c.x1 + R; else if (m === u) q.z = c.z0 - R; else q.z = c.z1 + R; } }
       }
       if (!inside) for (const s of w.segs) {
-        const lo = Math.min(s.x0, s.x1) - s.r - PR, hi = Math.max(s.x0, s.x1) + s.r + PR, zl = Math.min(s.z0, s.z1) - s.r - PR, zh = Math.max(s.z0, s.z1) + s.r + PR; if (P.x < lo || P.x > hi || P.z < zl || P.z > zh) continue;
-        const dx = s.x1 - s.x0, dz = s.z1 - s.z0, l2 = dx * dx + dz * dz || 1e-6, tt = Math.max(0, Math.min(1, ((P.x - s.x0) * dx + (P.z - s.z0) * dz) / l2)), qx = s.x0 + dx * tt, qz = s.z0 + dz * tt, ex = P.x - qx, ez = P.z - qz, d = Math.hypot(ex, ez), R = s.r + PR;
-        if (d < R) { if (d > 1e-4) { P.x = qx + ex / d * R; P.z = qz + ez / d * R; } else { P.x += -dz / Math.sqrt(l2) * R; P.z += dx / Math.sqrt(l2) * R; } }
+        const lo = Math.min(s.x0, s.x1) - s.r - R, hi = Math.max(s.x0, s.x1) + s.r + R, zl = Math.min(s.z0, s.z1) - s.r - R, zh = Math.max(s.z0, s.z1) + s.r + R; if (q.x < lo || q.x > hi || q.z < zl || q.z > zh) continue;
+        const dx = s.x1 - s.x0, dz = s.z1 - s.z0, l2 = dx * dx + dz * dz || 1e-6, tt = Math.max(0, Math.min(1, ((q.x - s.x0) * dx + (q.z - s.z0) * dz) / l2)), qx = s.x0 + dx * tt, qz = s.z0 + dz * tt, ex = q.x - qx, ez = q.z - qz, d = Math.hypot(ex, ez), RR = s.r + R;
+        if (d < RR) { if (d > 1e-4) { q.x = qx + ex / d * RR; q.z = qz + ez / d * RR; } else { q.x += -dz / Math.sqrt(l2) * RR; q.z += dx / Math.sqrt(l2) * RR; } }
       }
     }
-    if (inside) { const b = iworld.bounds; P.x = Math.max(b.x0, Math.min(b.x1, P.x)); P.z = Math.max(b.z0, Math.min(b.z1, P.z)); }
-    else { P.x = Math.max(-WALK.x, Math.min(WALK.x, P.x)); P.z = Math.max(-WALK.z, Math.min(WALK.z, P.z)); }
+    if (o && o.noBounds) return q;
+    if (inside) { const b = iworld.bounds; q.x = Math.max(b.x0, Math.min(b.x1, q.x)); q.z = Math.max(b.z0, Math.min(b.z1, q.z)); }
+    else { q.x = Math.max(-WALK.x, Math.min(WALK.x, q.x)); q.z = Math.max(-WALK.z, Math.min(WALK.z, q.z)); }
+    return q;
   }
+  function collide() { resolve(P, PR); }
 
   // ---------------------------------------------------------------- the sun and its shadow follow the walker (snapped to texels: no shimmer)
   function sunFollow(cx, cz) {
@@ -326,7 +372,23 @@ const FARM = (() => {
   }
 
   // ---------------------------------------------------------------- per frame
-  function animateNearHorses(dt) { for (const g of horses) { const d = Math.hypot(g.position.x - fcam.position.x, g.position.z - fcam.position.z); if (d < 38) animateHorse(g, 0, 0, 0, 0, 0, 0, dt, null); } }   // idle animation only for horses near the camera
+  function animateNearHorses(dt) { FARMCARE.animateHorses(dt); }   // idle animation only for horses near the camera (and the ones being worked with)
+  // the glowing ground line: recomputed when the objective changes or you stray from it, drawn by FARMNAV
+  function stepGuide(dt, px, pz, driving) {
+    if (!guide) return; const mode = settings.guide || "full";
+    let want = null, key = "";
+    if (mode !== "off" && place === "out") {
+      if (driving) { want = FARMDRIVE.route(); key = "drive"; }
+      else { const tg = FARMDAY.target(); if (tg) { want = tg; key = FARMDAY.stage() + ":" + Math.round(tg.x) + ":" + Math.round(tg.z); } }
+    }
+    if (!want) { if (guideKey) { guide.setPath(null); guideKey = ""; } guide.update(dt, px, pz, "off"); return; }
+    guideT -= dt; const strayed = guideFrom && !driving && Math.hypot(px - guideFrom[0], pz - guideFrom[1]) > 3.2;
+    if (key !== guideKey || strayed || (driving && guideT <= 0)) {
+      guideKey = key; guideFrom = [px, pz]; guideT = 0.6;
+      if (driving) guide.setPath(want, { width: 1.1, lift: 0.1 }); else guide.setPath(FARMNAV.find(world, [px, pz], [want.x, want.z]), { width: 0.34 });
+    }
+    guide.update(dt, px, pz, mode);
+  }
   function frame(dt) {
     if (!built) return;
     if (showcase && !active) return menuFrame(dt);
@@ -334,11 +396,17 @@ const FARM = (() => {
     t += dt; dt = Math.min(dt, 0.1);
     stepTrans(dt);
     if (trip) { FARMTRIP.frame(dt); animateNearHorses(dt); renderer.render(fscene, fcam); return; }
+    if (FARMDRIVE.on) {                                                // driving the rig: its own camera; the world still updates round the camera
+      if (!paused) FARMDRIVE.frame(dt); const st = FARMDRIVE.state; if (st) stepGuide(dt, st.x + Math.cos(st.ang) * 9, st.z - Math.sin(st.ang) * 9, true);
+      world.update(dt, fcam); animateNearHorses(dt); renderer.render(fscene, fcam); if (departT > 0) { departT -= dt; if (departT <= 0) runDepart(); } return;
+    }
+    if (FARMTRAIN.on) { if (!paused) FARMTRAIN.frame(dt); world.update(dt, fcam); animateNearHorses(dt); renderer.render(fscene, fcam); return; }
+    syncT -= dt; if (syncT <= 0) { syncT = 0.5; FARMDAY.sync(); const stg = FARMDAY.stage(); if (stg !== lastStage) { lastStage = stg; objective(); } }
     const frozen = blocked();
     if (!frozen) {
       if (fk.arrowleft) CAM.yaw -= 1.8 * dt; if (fk.arrowright) CAM.yaw += 1.8 * dt;
       let fx = (fk.w || fk.arrowup ? 1 : 0) - (fk.s || fk.arrowdown ? 1 : 0), sx = (fk.d ? 1 : 0) - (fk.a ? 1 : 0);
-      const mag = Math.hypot(fx, sx), target = mag > 0 ? (fk.shift ? 5.2 : 2.4) : 0;
+      const mag = Math.hypot(fx, sx), target = mag > 0 ? (fk.shift ? (FARMCARE.led ? 3.1 : 5.2) : 2.4) : 0;
       if (mag > 0 && VIEW.on) VIEW.on = false;
       P.speed += (target - P.speed) * Math.min(1, dt * 9); P.moving = P.speed > 0.15;
       if (mag > 0) {
@@ -349,19 +417,26 @@ const FARM = (() => {
       } else if (person === 1) P.face = CAM.yaw;
     } else { P.speed += (0 - P.speed) * Math.min(1, dt * 9); P.moving = false; }
     collide(); const gy = place === "in" ? 0 : world.heightAt(P.x, P.z); P.y += (gy - P.y) * Math.min(1, dt * 14); if (Math.abs(gy - P.y) > 1) P.y = gy;
-    FARMPEOPLE.pose(fig, dt, P.speed);
-    fig.root.visible = !VIEW.on && person === 3 && !(CAM.cur < 1.0 && camReady); fig.root.position.set(P.x, P.y, P.z); fig.root.rotation.y = Math.PI - P.face;
+    if (!paused) { FARMCARE.frame(dt); FARMDAY.frame(dt); }
+    { let df = P.face - lastFace; df = Math.atan2(Math.sin(df), Math.cos(df)); lastFace = P.face; turnRate += (df / Math.max(dt, 1e-3) - turnRate) * Math.min(1, dt * 10); }
+    const wantAct = FARMCARE.led && !busy ? "lead" : null; if (!busy && (fig.action ? fig.action.name : null) !== wantAct && !FARMCARE.busy) FARMPEOPLE.act(fig, wantAct);
+    if (!FARMCARE.busy && !FARMDAY.active) FARMPEOPLE.pose(fig, dt, P.speed, turnRate);
+    fig.root.visible = !hideFigure && (CINE.on || (!VIEW.on && person === 3 && !(CAM.cur < 1.0 && camReady))); fig.root.position.set(P.x, P.y, P.z); fig.root.rotation.y = Math.PI - P.face;
     if (cross) cross.hidden = !(person === 1 && !frozen && !VIEW.on);
     if (panel === "wardrobe" && place === "in") {                      // the wardrobe: the camera swings round to show the character
       const fx = Math.sin(P.face), fz = -Math.cos(P.face), cx = P.x - fx * 2.5 + fz * 0.7, cz = P.z - fz * 2.5 - fx * 0.7, k = Math.min(1, dt * 5);
       fig.root.visible = true; fig.root.rotation.y = Math.PI - Math.atan2(cx - P.x, -(cz - P.z)); camReady = false;
       if (!ctx._pv) { ctx._pv = new THREE.Vector3(cx, 1.5, cz); } ctx._pv.x += (cx - ctx._pv.x) * k; ctx._pv.z += (cz - ctx._pv.z) * k;
       fcam.position.set(ctx._pv.x, P.y + 1.45, ctx._pv.z); fcam.lookAt(P.x, P.y + 1.12, P.z); if (Math.abs(fcam.fov - 46) > 0.01) { fcam.fov = 46; fcam.updateProjectionMatrix(); }
+    } else if (CINE.on) {
+      const k = Math.min(1, dt * CINE.k); CINE.cp.lerp(CINE.tp, k); CINE.cl.lerp(CINE.tl, k); fcam.position.copy(CINE.cp); fcam.lookAt(CINE.cl); if (Math.abs(fcam.fov - CINE.fov) > 0.05) { fcam.fov += (CINE.fov - fcam.fov) * Math.min(1, dt * 4); fcam.updateProjectionMatrix(); }
+      if (place === "out") sunFollow(P.x, P.z); camReady = false;
     } else if (!VIEW.on) {
       ctx._pv = null; placeCamera(dt);
       if (place === "out") sunFollow(P.x, P.z);
     }
-    const n = frozen ? null : nearest(); if (n !== near || (n && prompt.hidden)) { near = n; prompt.hidden = !n; } if (n) { const tx = pointText(n); if (prompt.textContent !== tx) prompt.textContent = tx; }
+    if (place === "out") stepGuide(dt, P.x, P.z, false);
+    const n = frozen || FARMCARE.menuOpen || FARMTRAIN.menuOpen ? null : nearest(); if (n !== near || (n && prompt.hidden)) { near = n; prompt.hidden = !n; } if (n) { const tx = pointText(n); if (prompt.textContent !== tx) prompt.textContent = tx; }
     if (place === "out") { world.update(dt, fcam); animateNearHorses(dt); }
     renderer.render(place === "in" ? iscene : fscene, fcam);
   }
@@ -394,9 +469,9 @@ const FARM = (() => {
       if (r.place === "in") { ensureHouse(); place = "in"; iscene.add(fig.root); refreshBoard(); title.textContent = (builtName + " · farmhouse").toUpperCase(); }
       P.x = r.x; P.z = r.z; P.y = r.place === "in" ? 0 : world.heightAt(r.x, r.z); P.face = r.face; CAM.yaw = r.yaw; CAM.pitch = r.pitch;
     }
-    resetRig(); stand(); bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
+    resetRig(); stand(); FARMCARE.enter(); FARMDAY.enter(); FARMTRAIN.enter(); busy = false; hideFigure = false; CINE.on = CINE.init = false; guideKey = ""; lastStage = ""; departT = 0; departB = null; bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
   }
-  function leave() { active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; }
+  function leave() { try { FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; }
   // where you appear next time: the hardstand by the float, after a race
   function arrive(where) { resume = null; P.arrive = where === "hardstand" ? [31.5, 10.5, Math.PI / 2] : null; }
   function resetRig() { const g = world && world.structures && world.structures.rig; if (g) { g.position.set(FARMWORLD.L.float.x, 0, FARMWORLD.L.float.z); g.rotation.set(0, 0, 0); if (g.userData.ramp) g.userData.ramp.rotation.z = 0.296; } }
@@ -413,7 +488,8 @@ const FARM = (() => {
   function dispose(force) {
     if (active && !force) return false;
     if (!built) return true;
-    stopShowcase(); active = false; unstand();
+    stopShowcase(); active = false; try { FARMCARE.leave(); } catch (e) {} unstand();
+    if (guide) { guide.dispose(); guide = null; } try { FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
     if (iworld) { iworld.dispose(); iworld = null; iscene = null; }
     world.dispose(); for (const g of own.geo) g.dispose(); for (const m of own.mat) m.dispose(); own.geo = []; own.mat = [];
     if (fig) { FARMPEOPLE.dispose(fig); fig = null; }
@@ -429,6 +505,6 @@ const FARM = (() => {
   return { frame, dispose, enter, leave, view, arrive, setShowHorse, startShowcase, stopShowcase, setPerson, get person() { return person; }, get active() { return active; }, get showcase() { return showcase; }, get live() { return active || showcase; }, get built() { return built; }, get place() { return place; }, get paused() { return paused; }, get panel() { return panel; }, get tripOn() { return !!trip; },
     stats() { const i = renderer.info; return Object.assign({ calls: i.render.calls, tris: i.render.triangles, geos: i.memory.geometries, tex: i.memory.textures }, world ? world.stats() : {}); },
     info() { return { built, active, showcase, place, person, paused, panel, trip: !!trip, horses: horses.length, plaques: plaques.length, objects: fscene ? fscene.children.length : 0, x: P.x, z: P.z, y: P.y, face: P.face, speed: P.speed, yaw: CAM.yaw, pitch: CAM.pitch, camDist: CAM.cur, cam: fcam ? [fcam.position.x, fcam.position.y, fcam.position.z] : null, figure: fig ? fig.root.visible : false, near: near ? near.id : null, prompt: prompt && !prompt.hidden ? prompt.textContent : "", objective: objEl ? objEl.textContent : "", listeners: listeners.length, buildMs: world ? world.ms : 0, showHorse: !!showHorse }; },
-    _test: { setPos(x, z) { P.x = x; P.z = z; P.y = place === "in" ? 0 : (world ? world.heightAt(x, z) : 0); }, settle(x, z) { P.x = x; P.z = z; collide(); return { x: P.x, z: P.z }; }, interact, enterHouse, exitHouse, setPaused, openPanel, closePanel, startTrans, skipFade() { if (trans) { stepTrans(10); stepTrans(10); } }, look, get points() { return cur() ? cur().points : []; }, get TRAVEL() { return world ? world.points.find(p => p.id === "travel") : null; }, get colliders() { return world ? world.colliders : []; }, get segs() { return world ? world.segs : []; }, get stalls() { return world ? world.stalls : []; },
+    _test: { step(dt, n) { for (let i = 0; i < (n || 1); i++) frame(dt); }, ctx, setPos(x, z) { P.x = x; P.z = z; P.y = place === "in" ? 0 : (world ? world.heightAt(x, z) : 0); }, settle(x, z) { P.x = x; P.z = z; collide(); return { x: P.x, z: P.z }; }, interact, enterHouse, exitHouse, setPaused, openPanel, closePanel, startTrans, skipFade() { if (trans) { stepTrans(10); stepTrans(10); } }, look, get points() { return cur() ? cur().points : []; }, get TRAVEL() { return world ? world.points.find(p => p.id === "travel") : null; }, get colliders() { return world ? world.colliders : []; }, get segs() { return world ? world.segs : []; }, get stalls() { return world ? world.stalls : []; },
       keys: fk, presets: Object.keys(PRESETS), world: () => world, house: () => iworld, get horses() { return horses; }, get plaques() { return plaques; }, get figure() { return fig; }, get showHorse() { return showHorse; }, get rig() { return world && world.structures.rig; }, ctx, pointText, blockedAt, placeCamera } };
 })();

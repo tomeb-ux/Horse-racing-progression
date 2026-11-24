@@ -1368,6 +1368,24 @@ const CAREER = (() => {
     else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); enterOptional(b.ref, b.hi); }
     return { ok: true };
   }
+  // ---------- stable care and hands-on training (Phase 6): the rules live in career-core.js (CORE.groom / feed / prepare / drillReward / restDay) ----------
+  const careSave = r => { if (r && r.ok) save(); return r; };
+  const horseById = hid => { if (!C) load(); return C.horses.find(x => x.id === hid) || null; };
+  const care = {
+    status(hid) { const h = horseById(hid); return h ? Object.assign(CORE.careStatus(C, h), { readiness: CORE.readiness(C, h), fitness: h.fitness, composure: h.composure, cash: C.cash }) : null; },
+    groom: hid => { horseById(hid); return careSave(CORE.groom(C, hid)); }, feed: (hid, tier) => { horseById(hid); return careSave(CORE.feed(C, hid, tier)); },
+    prepare: hid => { horseById(hid); return careSave(CORE.prepare(C, hid)); }, unprepare: hid => { horseById(hid); return careSave(CORE.unprepare(C, hid)); },
+    drill: (hid, id, grade) => { horseById(hid); return careSave(CORE.drillReward(C, hid, id, grade)); },
+    rest() { if (!C) load(); const r = CORE.restDay(C); if (r.ok) { save(); } return r; },
+    get cash() { if (!C) load(); return C.cash; }, get day() { if (!C) load(); return C.day; }, get today() { if (!C) load(); return CORE.fmtDate(C.day); },
+  };
+  // what the inspect card shows for a horse
+  function horseInfo(hid) {
+    const h = horseById(hid); if (!h) return null; const s = S(), st = detectStyle(h.attrs), form = (h.history || []).slice(-5).map(e => e.dnf || !e.place ? "F" : e.place).join("-");
+    const pot = h.pot || null;
+    return { id: h.id, name: h.name, age: h.age, rating: rating(h), style: st.label, pref: st.dist, fitness: h.fitness, composure: h.composure, cond: h.fitness >= 85 ? "Fit" : h.fitness >= 70 ? "Fresh" : h.fitness >= 50 ? "Tired" : "Needs a spell",
+      attrs: ATTRS.map(([k, lab]) => ({ k, lab, v: h.attrs[k], p: pot ? pot[k] : h.attrs[k] })), races: h.races | 0, wins: h.wins | 0, places: h.places | 0, form, trainPts: h.trainPts | 0, prize: h.prize | 0, status: care.status(hid) };
+  }
   // the player's character (Phase 5): saved as the changes are made in the wardrobe
   function setPlayer(p) { if (!C) load(); const cur = C.player || {}; C.player = CORE.cleanPlayer({ look: Object.assign({}, cur.look, p.look), colours: Object.assign({}, cur.colours, p.colours), outfit: p.outfit || cur.outfit }); save(); return C.player; }
   // is there a stored career? (the main-menu background shows your horses only if so; it never creates a save by itself)
@@ -1393,6 +1411,6 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, setPlayer, hasSave,
+  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, setPlayer, hasSave, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

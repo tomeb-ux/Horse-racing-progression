@@ -407,7 +407,61 @@ const CORE = (() => {
     return { ok: true, career, from: career.v | 0 };
   }
 
-  return { V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
+  // ---------------------------------------------------------------- stable care and hands-on training (Phase 6)
+  // Modest, non-race benefits only: nothing here touches a horse's attributes' effect on racing (toDef is unchanged). Every reward is DATED, so it
+  // can only be earned once per horse per calendar day, and drill points are also capped per week — you cannot farm it by re-entering a screen
+  // or by advancing days. State lives in C.farm.care[horseId].
+  const CARE = { FEED_COST: 250, GROOM_COMPOSURE: 4, FEED_COMPOSURE: [1, 3], FEED_FITNESS: [0, 2], DRILL_MIN_FITNESS: 55, DRILL_FITNESS_COST: 3, DRILL_PTS_MIN: 0.15, DRILL_PTS_MAX: 0.5, DRILL_WEEK_CAP: 1.0 };
+  function careRec(C, h) {
+    if (!isObj(C.farm)) C.farm = { state: "default" }; if (!isObj(C.farm.care)) C.farm.care = {};
+    let r = C.farm.care[h.id]; if (!isObj(r)) r = C.farm.care[h.id] = {};
+    for (const k of ["groomDay", "fedDay", "prepDay", "drillDay"]) if (!finite(r[k])) r[k] = -1;
+    if (!finite(r.fedTier)) r.fedTier = 0; if (!finite(r.wk)) r.wk = -1; if (!finite(r.wkPts)) r.wkPts = 0; if (!isObj(r.best)) r.best = {};
+    return r;
+  }
+  const horseOf = (C, id) => (C.horses || []).find(h => h && h.id === id);
+  function careStatus(C, h) { const r = careRec(C, h), d = dayInt(C.day); return { groomed: r.groomDay === d, fed: r.fedDay === d, tier: r.fedDay === d ? r.fedTier : 0, prepared: r.prepDay === d, drilled: r.drillDay === d, best: Object.assign({}, r.best) }; }
+  // readiness 0–100 (shown on the plaque / inspect card; it has no effect on racing in Phase 6)
+  function readiness(C, h) { const s = careStatus(C, h); return clampN(Math.round(0.6 * (finite(h.fitness) ? h.fitness : 80) + 0.3 * (finite(h.composure) ? h.composure : 70) + (s.groomed ? 4 : 0) + (s.fed ? 3 : 0) + (s.prepared ? 3 : 0)), 0, 100); }
+  function groom(C, id) {
+    const h = horseOf(C, id); if (!h) return { ok: false, reason: "no-horse" }; const r = careRec(C, h), d = dayInt(C.day);
+    if (r.groomDay === d) return { ok: true, already: true, gain: 0, composure: h.composure };
+    const before = finite(h.composure) ? h.composure : 70; h.composure = clampN(before + CARE.GROOM_COMPOSURE, 0, 100); r.groomDay = d; return { ok: true, already: false, gain: h.composure - before, composure: h.composure };
+  }
+  // tier 0 = the stable's feed (free); tier 1 = quality feed (a ledger expense, once per horse per day)
+  function feed(C, id, tier) {
+    const h = horseOf(C, id); if (!h) return { ok: false, reason: "no-horse" }; const r = careRec(C, h), d = dayInt(C.day); tier = tier === 1 ? 1 : 0;
+    if (r.fedDay === d) return { ok: true, already: true, tier: r.fedTier, gain: 0 };
+    if (tier === 1) { const t = apply(C, "feed:d" + d + ":" + h.id, -CARE.FEED_COST, "care", "Quality feed for " + h.name); if (!t.ok) return { ok: false, reason: t.reason === "insufficient" ? "cash" : "ledger", short: t.short || 0 }; }
+    const c0 = finite(h.composure) ? h.composure : 70, f0 = finite(h.fitness) ? h.fitness : 80;
+    h.composure = clampN(c0 + CARE.FEED_COMPOSURE[tier], 0, 100); h.fitness = clampN(f0 + CARE.FEED_FITNESS[tier], 0, 100); r.fedDay = d; r.fedTier = tier;
+    return { ok: true, already: false, tier, composure: h.composure - c0, fitness: h.fitness - f0 };
+  }
+  function prepare(C, id) { const h = horseOf(C, id); if (!h) return { ok: false, reason: "no-horse" }; const r = careRec(C, h); r.prepDay = dayInt(C.day); return { ok: true }; }
+  function unprepare(C, id) { const h = horseOf(C, id); if (!h) return { ok: false }; careRec(C, h).prepDay = -1; return { ok: true }; }
+  // a finished hands-on drill; grade 0..1. Returns what was earned (nothing when the daily/weekly cap or tiredness applies — the drill still counted as practice).
+  function drillReward(C, id, drill, grade) {
+    const h = horseOf(C, id); if (!h) return { ok: false, reason: "no-horse" }; const r = careRec(C, h), d = dayInt(C.day), wk = Math.floor(d / 7);
+    grade = clampN(+grade || 0, 0, 1); if (typeof drill === "string" && drill.length < 24) r.best[drill] = Math.max(r.best[drill] || 0, Math.round(grade * 100));
+    if ((finite(h.fitness) ? h.fitness : 80) < CARE.DRILL_MIN_FITNESS) return { ok: true, pts: 0, reason: "tired" };
+    if (r.drillDay === d) return { ok: true, pts: 0, reason: "today" };
+    if (r.wk !== wk) { r.wk = wk; r.wkPts = 0; }
+    const room = Math.max(0, CARE.DRILL_WEEK_CAP - r.wkPts); if (room < 0.05) return { ok: true, pts: 0, reason: "week" };
+    const pts = Math.round(Math.min(room, CARE.DRILL_PTS_MIN + (CARE.DRILL_PTS_MAX - CARE.DRILL_PTS_MIN) * grade) * 100) / 100;
+    r.drillDay = d; r.wkPts = Math.round((r.wkPts + pts) * 100) / 100;
+    h.xpFrac = (+h.xpFrac || 0) + pts; const tp = Math.floor(h.xpFrac + 1e-9); h.xpFrac = Math.round((h.xpFrac - tp) * 1000) / 1000; h.trainPts = (h.trainPts | 0) + tp;
+    h.fitness = clampN((finite(h.fitness) ? h.fitness : 80) - CARE.DRILL_FITNESS_COST, 0, 100);
+    return { ok: true, pts, trainPts: tp, reason: "" };
+  }
+  // "Rest a day": one calendar day (through advance, so horses recover and the clock stays consistent). Never skips a race that is today.
+  function restDay(C) {
+    if (C.booking && dayInt(C.booking.day) <= dayInt(C.day)) return { ok: false, reason: "booked-today" };
+    const res = advance(C, 1, {}); if (res.ok) return { ok: true, from: res.from, to: res.to };
+    if (res.needsConfirm) return { ok: false, reason: "round-today", skips: res.skips };
+    return { ok: false, reason: "error" };
+  }
+
+  return { CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
     cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,

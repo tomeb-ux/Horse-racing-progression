@@ -221,7 +221,8 @@ Australian look: eucalypts (reuse `GFX.plantTrees`), timber/steel sheds, post-an
 - Camera: behind and above the player, mouse/drag orbit with sensitivity setting, occlusion pull-in via a raycast against the collider proxies, no shake.
 - Appearance editor in the office; saved in `C.player`.
 
-### Phase 6 — Farm interactions
+### Phase 6 — Farm interactions (EXPANDED by the owner at the Phase 6 kickoff; see CAREER_PROGRESS.md "Exactly what Phase 6 requires")
+**Brought forward into Phase 6 from later phases:** the interactive load-up and playable drive (the Phase 13 transport flow, driving part), guided race-day preparation with ground navigation lines, a rebuilt character, in-farm training drills (the playable layer only; long-term progression stays Phase 9), and a small 'Rest a day' calendar advance. Phase 13 keeps: the atomic save-then-travel flow, the post-result return flow and any arrival cinematic. **Phase 11 must add smaller Australian regional/grassroots racecourses; Phase 12 must add morning / midday / late-afternoon / golden-hour sunset races with matching weather and going.**
 - Interaction system: proximity + facing + line-of-sight check against the collider proxies, `E` prompt, subtle highlight.
 - Actions:
   - horse: inspect (opens existing profile/records), groom (short brush animation, small temporary readiness), feed (tiers), prepare, assign schedule, lead to activity;
