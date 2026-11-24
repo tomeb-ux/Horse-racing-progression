@@ -28,7 +28,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
 
   console.log('\n— training plan and development card');
   await toStall(0); await key('e', 3);
-  await key('1', 2); s = await ev(() => document.body.innerText); ok(/Development:/.test(s) && /Training load/.test(s) && /of potential/.test(s), 'Inspect shows the development card (percent of potential, headroom, plan) and the training-load bar'); await key('Escape', 2);
+  await key('1', 40); s = await ev(() => document.body.innerText); ok(/Development:/.test(s) && /Training load/.test(s) && /of potential/.test(s), 'Inspect shows the development card (percent of potential, headroom, plan) and the training-load bar'); await key('Escape', 2);
   s = await ev(() => document.body.innerText); ok(/Training plan/.test(s), 'the horse menu offers a Training plan (key 6)');
   await key('6', 3); s = await ev(() => document.body.innerText); ok(/Weekly training plan/.test(s) && /All-round/.test(s) && /Speed/.test(s) && /Stamina/.test(s) && /Rest/.test(s) && /Light/.test(s) && /Hard/.test(s), 'key 6 opens the weekly plan menu: all-round, speed, stamina, … rest, and light / normal / hard');
   await key('2', 3); await key('h', 3); s = await dev('h0'); ok(s.plan === 'speed' && s.int === 3, `choosing 2 then H sets the plan to Speed, hard (${s.plan}, ${s.int})`);
