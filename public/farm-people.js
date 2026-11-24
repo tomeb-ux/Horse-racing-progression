@@ -105,6 +105,9 @@ const FARMPEOPLE = (() => {
       putL("thigh" + sd, loft([[0.05, 0.088, 0.094, 0, 0], [-0.1, 0.086, 0.09, 0, 0.004], [-0.28, 0.07, 0.074, 0, 0.004], [-0.44, 0.056, 0.06, 0, 0]], 14), trouHex);
       putL("shin" + sd, loft([[0.02, 0.058, 0.062, 0, 0], [-0.12, 0.058, 0.064, 0, -0.006], [-0.3, 0.048, 0.052, 0, 0], [-0.4, 0.046, 0.05, 0, 0]], 14), tall ? bootHex : trouHex);
       putL("foot" + sd, loft([[0.04, 0.046, 0.05, 0, 0], [-0.06, 0.05, 0.056, 0, 0]], 12), bootHex);
+      put("thigh" + sd, sphere(), trouHex, 0, 0, 0, 0.082, 0.082, 0.088); put("thigh" + sd, sphere(), trouHex, 0, -0.44, 0, 0.052, 0.052, 0.056);          // hip, knee (top of the shin)
+      put("shin" + sd, sphere(), tall ? bootHex : trouHex, 0, 0, 0, 0.054, 0.054, 0.058); put("shin" + sd, sphere(), tall ? bootHex : trouHex, 0, -0.4, 0, 0.042, 0.042, 0.046);   // knee, ankle
+      put("foot" + sd, sphere(), bootHex, 0, 0, 0, 0.042, 0.042, 0.046);
       put("foot" + sd, sphere(), bootHex, 0, -0.045, 0.08, 0.05, 0.034, 0.12); put("foot" + sd, box1(), "#1c1a16", 0, -0.068, 0.05, 0.095, 0.014, 0.25);
     }
     // ---- pelvis and torso: plain smooth shapes
@@ -121,6 +124,8 @@ const FARMPEOPLE = (() => {
       putL("uarm" + sd, loft([[0.05, 0.056, 0.056, 0, 0], [-0.1, 0.052, 0.054, 0, 0], [-0.29, 0.043, 0.045, 0, 0]], 12), sleeve);
       putL("farm" + sd, loft([[0.0, 0.043, 0.045, 0, 0], [-0.12, 0.04, 0.043, 0, 0.002], [-0.27, 0.03, 0.034, 0, 0]], 12), long ? sleeve : skin);
       put("farm" + sd, sphere(), hand, 0, -0.31, 0.004, 0.034, 0.05, 0.026);
+      put("uarm" + sd, sphere(), sleeve, 0, 0, 0, 0.052, 0.052, 0.052); put("uarm" + sd, sphere(), sleeve, 0, -0.29, 0, 0.039, 0.039, 0.041); put("farm" + sd, sphere(), long ? sleeve : skin, 0, 0, 0, 0.039, 0.039, 0.041);   // shoulder, elbow
+      put("farm" + sd, sphere(), long ? sleeve : skin, 0, -0.27, 0, 0.027, 0.027, 0.031);                                                                                   // wrist
     }
     // ---- head: a simple egg with eyes and a nose
     const hv = (L.head | 0) % 5, jaw = [1.0, 0.9, 1.14, 0.84, 1.08][hv], len = [1.0, 1.06, 0.97, 1.1, 0.98][hv], wd = [1.0, 0.95, 1.05, 0.91, 1.08][hv];
@@ -174,24 +179,24 @@ const FARMPEOPLE = (() => {
     const I = o.idle; let gv = 0;
     if (!moving && !pivot && !act) {                                                      // idle: breathing, and now and then a look round, a weight shift or a hand on the hip
       if (I.mode) { I.gt += dt; if (I.gt >= I.dur) { I.mode = ""; I.t = 4 + Math.random() * 5; } else gv = Math.sin(Math.PI * I.gt / I.dur); }
-      else { I.t -= dt; if (I.t <= 0) { I.mode = ["look", "shift", "hip", "look", "shift"][(Math.random() * 5) | 0]; I.gt = 0; I.dur = 2.4 + Math.random() * 1.6; I.dir = Math.random() < 0.5 ? -1 : 1; } }
+      else { I.t -= dt; if (I.t <= 0) { I.mode = ["look", "hip", "look", "hip"][(Math.random() * 4) | 0]; I.gt = 0; I.dur = 2.4 + Math.random() * 1.6; I.dir = Math.random() < 0.5 ? -1 : 1; } }
     } else if (I.mode) { I.mode = ""; I.t = 3 + Math.random() * 3; }
     const g = (a, t, r) => a + (t - a) * Math.min(1, dt * r);
     // targets
     let shL = 0, shR = 0, elL = -0.1, elR = -0.1, torX = 0, torY = 0, torZ = 0, pelY = 0, pelZ = 0, pelX = 0, headX = 0, headY = 0, headZ = 0, hipLx = 0, hipRx = 0, kneeL = 0, kneeR = 0, ankL = 0, ankR = 0, bob = 0, hipDrop = 0;
-    const lean = o.lean; o.lean += (clampN(-o.turn * Math.min(1, sp / 3) * 0.1, -0.16, 0.16) - lean) * Math.min(1, dt * 6);
+    const lean = o.lean; o.lean = 0;
     if (moving || pivot) {
-      const stride = pivot ? 0.26 : eff < 3.4 ? 0.5 : 0.82, kb = 0.5 + 0.75 * run;
+      const stride = pivot ? 0.26 : eff < 3.4 ? 0.52 : 0.78, kb = 0.5 + 0.7 * run;
       hipLx = s * stride * k; hipRx = -s * stride * k;
       kneeL = (Math.max(0, -c) * kb + 0.1 * Math.max(0, s) * (1 - run)) * k; kneeR = (Math.max(0, c) * kb + 0.1 * Math.max(0, -s) * (1 - run)) * k;
       ankL = clampN(-(hipLx + kneeL), -0.9, 0.9) * 0.9 + (c > 0 ? 0 : 0.0) + 0.25 * Math.max(0, s) * k; ankR = clampN(-(hipRx + kneeR), -0.9, 0.9) * 0.9 + 0.25 * Math.max(0, -s) * k;     // flat foot while it carries weight, toe-off at the back
-      shL = -s * stride * 0.85 * k; shR = s * stride * 0.85 * k; elL = -(0.2 + 0.9 * run) * k - 0.1 * (1 - k); elR = elL;
-      torY = s * (0.14 + 0.1 * run) * k; torX = 0.04 + 0.2 * run; torZ = c * 0.025 * k; pelY = -s * 0.09 * k; pelZ = c * 0.04 * k; pelX = c * 0.012 * k; bob = Math.abs(Math.sin(o.phase)) * (0.02 + 0.04 * run) * k;
-      headY = -torY * 0.6 - pelY * 0.3; headX = -torX * 0.6;
+      shL = -s * stride * 0.8 * k; shR = s * stride * 0.8 * k; elL = -(0.15 + 0.7 * run) * k - 0.1 * (1 - k); elR = elL;
+      torY = s * 0.12 * k; torX = 0.05 + 0.12 * run; torZ = 0; pelY = -s * 0.06 * k; pelZ = 0; pelX = 0; bob = Math.abs(c) * (0.025 + 0.03 * run) * k;
+      headY = -s * 0.04 * k; headX = 0;
     } else {
       const b = Math.sin(o.idleT * 1.5), look = I.mode === "look" ? 1 : 0, shift = I.mode === "shift" ? 1 : 0, hip = I.mode === "hip" ? 1 : 0;
-      shL = 0.03 * b; shR = -0.03 * b; elL = -0.1 + 0.02 * b; elR = elL; torX = 0.012 * b; pelX = shift * gv * 0.03 * I.dir; pelZ = shift * gv * 0.035 * I.dir; headY = Math.sin(o.idleT * 0.45) * 0.1 + look * gv * 0.7 * I.dir; headX = look * gv * -0.1 + 0.02 * b;
-      torY = look * gv * 0.18 * I.dir; kneeL = shift * gv * (I.dir > 0 ? 0.1 : 0) ; kneeR = shift * gv * (I.dir < 0 ? 0.1 : 0);
+      shL = 0.03 * b; shR = -0.03 * b; elL = -0.1 + 0.02 * b; elR = elL; torX = 0.012 * b; headY = Math.sin(o.idleT * 0.45) * 0.1 + look * gv * 0.7 * I.dir; headX = look * gv * -0.1 + 0.02 * b;
+      torY = look * gv * 0.18 * I.dir;
       if (hip) { if (I.dir > 0) { shR = -0.2 * gv; elR = -0.2 - 1.1 * gv; } else { shL = -0.2 * gv; elL = -0.2 - 1.1 * gv; } }
     }
     // ---- actions override the arms, the torso and the head
@@ -216,7 +221,7 @@ const FARMPEOPLE = (() => {
     P.armL.sh.rotation.z = g(P.armL.sh.rotation.z, 0.04 + 0.1 * run * k, 8); P.armR.sh.rotation.z = g(P.armR.sh.rotation.z, -0.04 - 0.1 * run * k, 8);
     P.torsoG.rotation.x = g(P.torsoG.rotation.x, torX, 10); P.torsoG.rotation.y = g(P.torsoG.rotation.y, torY, 10); P.torsoG.rotation.z = g(P.torsoG.rotation.z, torZ, 10);
     P.pelvis.rotation.y = g(P.pelvis.rotation.y, pelY, 10); P.pelvis.rotation.z = g(P.pelvis.rotation.z, pelZ, 10); P.pelvis.position.x = g(P.pelvis.position.x, pelX, 10); P.pelvis.position.y = o.hip + bob - (act === "brush" || act === "feed" ? 0.01 : 0);
-    P.headG.rotation.x = g(P.headG.rotation.x, headX, 10); P.headG.rotation.y = g(P.headG.rotation.y, headY, 8); P.headG.rotation.z = g(P.headG.rotation.z, -torZ * 0.5, 8);
+    P.headG.rotation.x = g(P.headG.rotation.x, headX, 10); P.headG.rotation.y = g(P.headG.rotation.y, headY, 8); P.headG.rotation.z = 0;
     o.body.rotation.z = o.lean;
   }
   function dispose(o) { if (!o) return; for (const g of o.dressedGeos || []) g.dispose(); for (const g of o.geos) g.dispose(); o.mat.dispose(); o.mats.length = 0; if (o.root.parent) o.root.parent.remove(o.root); }
