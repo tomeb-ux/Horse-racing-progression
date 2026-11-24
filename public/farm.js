@@ -109,7 +109,7 @@ const FARM = (() => {
   function stand() {
     const list = stallList();
     world.stalls.forEach((spot, i) => {
-      const it = list[i] || null; plaque(it, spot, [it ? "" : "Vacant", list.slots != null && i >= list.slots ? "Win more races to unlock" : "Empty box — create a horse"]);
+      const it = list[i] || null; plaque(it, spot, [it ? "" : "Vacant", list.slots != null && i >= list.slots ? "Win more races to unlock" : "Empty box — horse market"]);
       if (!it) return;
       const g = mkHorse(it.def); g.position.set(spot.x + (i % 2 ? 0.1 : -0.1), 0.15, spot.z + 0.55); g.rotation.y = -Math.PI / 2 + (i % 2 ? 0.1 : -0.08); g.userData.idleT = i * 1.7; g.userData.stallI = i; g.userData.hid = it.def && it.def._hid; fscene.add(g); horses.push(g);
     });

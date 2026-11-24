@@ -601,6 +601,66 @@ const CAREER = (() => {
       ${prizes.length ? `<div class="car-sub" style="margin-top:8px">Recent prize money</div><table class="car-tbl">${prizes.map(x => `<tr><td>${CORE.fmtDate(x.day, { short: true })}</td><td>${esc(x.note)}</td><td style="text-align:right;color:var(--good)">+${money(x.amount)}</td></tr>`).join("")}</table>` : ""}
       <div class="car-row" style="margin-top:8px"><button class="btn small" id="ofClub" ${club.ok ? "" : "disabled"}>Stable club advance ${money(CORE.ECON.CLUB.AMOUNT)}</button><span style="font-size:12px;color:var(--fg-dim)">${club.ok ? "Available now: your cash is under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season, repaid from prize money)." : club.reason === "used" ? "Already used this season." : "Available when cash falls under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season)."}</span></div></div>`;
   }
+  // ---------- the horse market (Phase 10): buy (browse, bid, buy), sell, or pay for a custom horse ----------
+  let mk = { tab: "buy", sel: null, msg: "", confirm: null, from: "office" };
+  const mkSwatch = L => `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;background:${esc(L.coat)};border:1px solid rgba(255,255,255,.35)"></span>`;
+  const faceName = f => (FACES.find(x => x[0] === f) || ["", "plain face"])[1].toLowerCase();
+  const AT_LAB = { top: "Top speed", acc: "Acceleration", end: "Endurance", spr: "Sprint", rec: "Recovery", tem: "Temperament", agi: "Agility", sta: "Start" };
+  function mkCard(V, Lraw) {
+    const sel = mk.sel === V.id, free = C.horses.length < slots(), canAsk = free && !V.closed, pref = bestDistances(Lraw.attrs).text, rn = Math.round(avgA(Lraw.attrs));
+    const hist = V.hist.map(h => `<div style="font-size:12px;color:var(--fg-dim)">Round ${h.r}: you offered ${money(h.offer)} — ${h.res === "counter" ? "they'd take " + money(h.counter) : "far too low"}</div>`).join("");
+    const offer = sel ? `<div class="car-row" style="margin-top:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px">Your offer</span><input type="number" id="mkOffer" class="car-in" style="width:130px" step="50" min="500" value="${V.counter || Math.round(V.ask * 0.9 / 50) * 50}">
+        <button class="btn small primary" data-mkoffer="${V.id}">Submit offer</button>${V.counter ? `<button class="btn small" data-mkbuy="${V.id}:${V.counter}">Accept their ${money(V.counter)}</button>` : ""}
+        <span style="font-size:12px;color:var(--fg-dim)">${V.roundsLeft} round${V.roundsLeft === 1 ? "" : "s"} left</span></div>${hist}` : hist;
+    return `<div class="car-panel" data-card="${V.id}">
+      <div class="car-row" style="justify-content:space-between;align-items:baseline"><div><b style="font-size:17px">${esc(V.name)}</b> <span class="car-tag">${esc(V.catLabel)}</span>${V.closed ? ` <span class="car-tag car-bad">Seller walked away</span>` : ""}</div><div style="font-size:18px"><b>${money(V.ask)}</b></div></div>
+      <div style="font-size:13px;margin:4px 0">${mkSwatch(V.look)}${V.age}yo · ${esc(V.look.type)}${V.look.face !== "none" ? " with a " + faceName(V.look.face) : ""} · ${esc(V.growth === "late" ? "late developer" : V.growth === "early" ? "early developer" : "average developer")}</div>
+      <div class="car-kv" style="margin:6px 0"><span>Ability now <b>${V.ability[0]}–${V.ability[1]}</b></span><span>Potential <b>${V.potential[0]}–${V.potential[1]}</b></span><span>Suits <b>${pref}</b></span><span>Temperament <b>${V.temperament}</b></span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0">${Object.keys(V.bands).map(k => `<span class="car-tag">${AT_LAB[k]}: ${V.bands[k]}</span>`).join("")}</div>
+      <div style="font-size:12.5px;color:var(--fg-dim)">${esc(V.record)} · ${esc(V.health)} · closes in ${V.daysLeft} day${V.daysLeft === 1 ? "" : "s"}${V.scouted ? "" : " · a trainer would narrow the ranges"}</div>
+      <div class="car-row" style="margin-top:8px"><button class="btn small" data-mkask="${V.id}" ${canAsk ? "" : "disabled"}>${sel ? "Hide offer" : "Make an offer"}</button><button class="btn small primary" data-mkbuy="${V.id}:${V.ask}" ${free && C.cash >= V.ask ? "" : "disabled"}>Buy at ${money(V.ask)}</button>${!free ? `<span style="font-size:12px;color:var(--warn)">No free box</span>` : C.cash < V.ask ? `<span style="font-size:12px;color:var(--fg-dim)">Short of cash</span>` : ""}</div>
+      ${offer}</div>`;
+  }
+  function openMarket(tab, from) {
+    style(); CORE.syncCalendar(C); CORE.marketSync(C); const prevTop = mk.keep ? screen("market").scrollTop : 0; mk.keep = false; if (from) mk.from = from; if (tab) mk.tab = tab; if (mk.tab !== "buy") mk.sel = null;
+    const el = screen("market"), L = C.market.listings, free = C.horses.length < slots();
+    const tabs = [["buy", "Buy"], ["sell", "Sell"], ["create", "Create your own"]].map(([k, n]) => `<button class="btn small ${mk.tab === k ? "primary" : ""}" data-mktab="${k}">${n}</button>`).join(" ");
+    let body = "";
+    if (mk.tab === "buy") body = `<div class="car-panel" style="font-size:12.5px;color:var(--fg-dim);margin:4px 0 8px">Horses change every week — some are sold to other buyers, others close. The ranges are a scout's estimate${CORE.staffOf(C, "trainer") ? " (your trainer narrows them)" : ""}; you only see the true figures after you own the horse. Make an offer (up to ${CORE.MKT.ROUNDS} rounds) or pay the asking price. ${free ? "" : "<b>You have no free box</b> — sell a horse or win more races to unlock one."}</div>
+      <div class="car-grid" style="grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">${L.length ? L.map(l => mkCard(CORE.marketView(C, l), l)).join("") : `<div class="car-panel">No horses are on offer this week.</div>`}</div>`;
+    else if (mk.tab === "sell") body = `<div class="car-panel" style="font-size:12.5px;color:var(--fg-dim);margin:4px 0 8px">A sale is the horse's valuation (ability, potential, age, record, condition) less the agent's ${Math.round(CORE.MKT.COMMISSION * 100)}%, moved by this week's market. You can't sell your last horse or one that is booked into a race.</div>
+      <div class="car-panel"><table class="car-tbl"><tr><th>Horse</th><th>Age</th><th>Rating</th><th class="hide-s">Record</th><th style="text-align:right">Offer</th><th></th></tr>
+      ${C.horses.map(h => { const q = CORE.sellQuote(C, h.id), c = mk.confirm === h.id; return `<tr><td><b>${esc(h.name)}</b></td><td>${h.age}</td><td>${q.rating} → ${potRating(h)}</td><td class="hide-s">${h.races} start${h.races === 1 ? "" : "s"} · ${h.wins} win${h.wins === 1 ? "" : "s"}</td><td style="text-align:right"><b>${money(q.price)}</b></td>
+        <td style="text-align:right">${q.blocked ? `<span style="font-size:12px;color:var(--fg-dim)">${q.blocked === "last" ? "your last horse" : "booked in a race"}</span>` : c ? `<button class="btn small primary" data-mksell="${h.id}">Confirm sale</button> <button class="btn small" data-mkcancel="1">Cancel</button>` : `<button class="btn small" data-mkconfirm="${h.id}">Sell…</button>`}</td></tr>`; }).join("")}</table></div>`;
+    else body = `<div class="car-panel"><div class="car-sub">Create your own thoroughbred</div><div style="font-size:13px;margin:4px 0 8px">Design the look, silks, ability and potential yourself in the five-step creator. ${CORE.createFee(C) ? `A custom horse costs <b>${money(CORE.createFee(C))}</b>, and the fee grows with every horse in your stable.` : "Your first horse is free."}</div>
+      <button class="btn primary" id="mkCreate" ${free && C.cash >= CORE.createFee(C) ? "" : "disabled"}>Open the creator (${CORE.createFee(C) ? money(CORE.createFee(C)) : "free"})</button> <span style="font-size:12px;color:var(--fg-dim)">${!free ? "No free box." : C.cash < CORE.createFee(C) ? "Short of cash." : ""}</span></div>`;
+    page(el, `<h2>Horse Market</h2><div class="car-sub">${esc(C.stable)} · ${CORE.fmtDate(C.day)} · ${C.horses.length} of ${slots()} boxes in use</div>
+      <div class="car-panel car-row" style="justify-content:space-between;align-items:center"><div><div class="car-sub">Cash</div><div class="car-big" style="font-size:28px;color:var(--good)">${money(C.cash)}</div></div><div class="car-row">${tabs}</div></div>
+      ${mk.msg ? `<div class="car-panel" style="border-color:var(--accent)">${mk.msg}</div>` : ""}${body}
+      <div class="car-row"><button class="btn" id="mkBack">Back</button></div>`);
+    el.scrollTop = prevTop; const q = id => el.querySelector(id), again = () => { mk.keep = true; openMarket(); };
+    q("#mkBack").onclick = () => { mk.msg = ""; mk.sel = null; mk.confirm = null; mk.from === "office" ? openOffice() : home(); };
+    el.querySelectorAll("[data-mktab]").forEach(b => b.onclick = () => { mk.tab = b.dataset.mktab; mk.msg = ""; mk.sel = null; mk.confirm = null; again(); });
+    el.querySelectorAll("[data-mkask]").forEach(b => b.onclick = () => { mk.sel = mk.sel === b.dataset.mkask ? null : b.dataset.mkask; again(); });
+    el.querySelectorAll("[data-mkoffer]").forEach(b => b.onclick = () => {
+      const price = +q("#mkOffer").value, r = CORE.marketOffer(C, b.dataset.mkoffer, price, { slots: slots() }), name = (C.market.listings.find(l => l.id === b.dataset.mkoffer) || {}).name || "the seller";
+      if (!r.ok) { mk.msg = r.reason === "cash" ? "You don't have " + money(price) + "." : r.reason === "box" ? "You have no free box." : r.reason === "closed" ? "That seller has walked away." : "That offer isn't valid."; save(); return again(); }
+      if (r.outcome === "accepted") { const bb = CORE.marketBuy(C, b.dataset.mkoffer, r.price, { slots: slots() }); if (bb.ok) { save(); mk.sel = null; mk.msg = `<b>Deal!</b> ${esc(bb.horse.name)} is yours for ${money(bb.price)} and goes to your box.`; toast(esc(bb.horse.name) + " has joined your stable (−" + money(bb.price) + ")", "good", 3); return again(); } }
+      mk.msg = r.outcome === "counter" ? `${esc(name)}'s owner will take <b>${money(r.counter)}</b> — accept it, or make another offer (${r.roundsLeft} round${r.roundsLeft === 1 ? "" : "s"} left).` : r.outcome === "walked" ? `The owner of ${esc(name)} has had enough and walked away.` : `That is far below what they want${r.roundsLeft ? " — try higher (" + r.roundsLeft + " round" + (r.roundsLeft === 1 ? "" : "s") + " left)" : ""}.`;
+      save(); again(); });
+    el.querySelectorAll("[data-mkbuy]").forEach(b => b.onclick = () => { const [id, price] = b.dataset.mkbuy.split(":"), bb = CORE.marketBuy(C, id, +price, { slots: slots() });
+      if (bb.ok) { save(); mk.sel = null; mk.msg = `<b>Bought!</b> ${esc(bb.horse.name)} is in your stable for ${money(bb.price)} — find it in its box on the farm.`; toast(esc(bb.horse.name) + " has joined your stable (−" + money(bb.price) + ")", "good", 3); }
+      else mk.msg = bb.reason === "cash" ? "Not enough cash." : bb.reason === "box" ? "You have no free box." : bb.reason === "gone" ? "That horse has just been sold." : "That price isn't accepted.";
+      again(); });
+    el.querySelectorAll("[data-mkconfirm]").forEach(b => b.onclick = () => { mk.confirm = b.dataset.mkconfirm; again(); });
+    el.querySelectorAll("[data-mkcancel]").forEach(b => b.onclick = () => { mk.confirm = null; again(); });
+    el.querySelectorAll("[data-mksell]").forEach(b => b.onclick = () => { const r = CORE.sellHorse(C, b.dataset.mksell); mk.confirm = null;
+      if (r.ok) { save(); mk.msg = `<b>Sold.</b> ${esc(r.name)} went for ${money(r.price)}.`; toast(esc(r.name) + " sold for " + money(r.price), "good", 3); } else mk.msg = r.reason === "last" ? "You can't sell your last horse." : r.reason === "booked" ? "That horse is booked into a race." : "The sale could not be made.";
+      again(); });
+    const mc = q("#mkCreate"); if (mc) mc.onclick = () => { createFromFarm = mk.from === "farm"; fromFarm = mk.from === "farm"; hidePanel(); openCreate(); };
+    show("c_market");
+  }
   function openOffice() {
     style(); CORE.syncCalendar(C);
     const el = screen("office"), s = S();
@@ -618,6 +678,7 @@ const CAREER = (() => {
         <div class="car-kv"><span>This season: income <b>${money(fin.in)}</b></span><span>spending <b>${money(fin.out)}</b></span><span>net <b>${money(fin.in - fin.out)}</b></span></div>
       </div>
       ${financeHtml(fin)}
+      <div class="car-panel car-row" style="justify-content:space-between;align-items:center"><div><div class="car-sub">Horse market</div><div style="font-size:13px">Buy a new horse, sell one, or pay for a custom one. ${C.horses.length} of ${slots()} boxes in use.</div></div><button class="btn primary" id="ofMarket">Open the horse market</button></div>
       ${facilitiesHtml()}
       <div class="car-panel"><div class="car-sub">Ledger — most recent first</div>
         ${ledger.length ? `<table class="car-tbl"><tr><th>Date</th><th>Item</th><th style="text-align:right">Amount</th><th style="text-align:right" class="hide-s">Balance</th></tr>
@@ -644,6 +705,7 @@ const CAREER = (() => {
       <div class="car-row"><button class="btn" id="ofBack">Back</button></div>`);
     const q = id => el.querySelector(id), msg = (t, bad) => { q("#ofMsg").innerHTML = t; q("#ofMsg").style.color = bad ? "var(--bad)" : "var(--fg)"; };
     q("#ofBack").onclick = () => home();
+    q("#ofMarket").onclick = () => openMarket("buy", "office");
     el.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => { const r = CORE.buyFacility(C, b.dataset.buy); if (r.ok) { save(); toast(CORE.FACILITIES[b.dataset.buy].name + " is now level " + r.level + " (−" + money(r.cost) + ")", "good", 3); openOffice(); } else toast(r.reason === "cash" ? "Not enough cash — " + money(r.short) + " short" : "Can't buy that", "warn", 3); });
     el.querySelectorAll("[data-hire]").forEach(b => b.onclick = () => { const [role, tier] = b.dataset.hire.split(":"), sp = el.querySelector(`[data-spec="${role}"]`), r = CORE.hireStaff(C, role, +tier, sp && sp.value); if (r.ok) { save(); toast(r.staff.name + " joins as your " + CORE.STAFFROLES[role].name.toLowerCase() + " (−" + money(r.fee) + ")", "good", 3); openOffice(); } else toast(r.reason === "cash" ? "Not enough cash for the recruitment fee" : "That role is already filled", "warn", 3); });
     el.querySelectorAll("[data-fire]").forEach(b => b.onclick = () => { CORE.fireStaff(C, b.dataset.fire); save(); toast("They have left the stable", "info", 2.4); openOffice(); });
@@ -1036,6 +1098,7 @@ const CAREER = (() => {
   function openCreate(editId) {
     style();
     if (!editId && C.horses.length >= slots()) { toast(C.horses.length >= 5 ? "All five boxes are full" : "Win more races to unlock another box", "warn", 2); return openStable(); }
+    if (!editId && CORE.createFee(C) > C.cash) { toast("A custom horse costs " + money(CORE.createFee(C)) + " — you have " + money(C.cash), "warn", 2.6); createFromFarm = false; return fromFarm ? home() : openStable(); }
     draft = editId ? draftFromHorse(C.horses.find(h => h.id === editId)) : newDraft();
     stage("full", { shift: true });
     schedulePreview(true);
@@ -1089,11 +1152,12 @@ const CAREER = (() => {
           Best now at <b>${bestDistances(d.attrs).text}</b>; developing into a <b>${pst.label.toLowerCase()}</b> best at <b>${bestDistances(p).text}</b>.</div>
         <div class="car-prof">${profileLines(p).map(t => `<span>${esc(t)}</span>`).join("")}</div>
         <div class="sd-sec"><div class="car-sub">Attributes now → potential</div>${ATTRS.map(([k, lab]) => `<div class="car-attr"><div class="nm">${lab}</div><div class="vals">${d.attrs[k]} <span style="color:var(--fg-dim);font-size:12px">→ ${p[k]}</span></div><div class="car-bar"><u style="width:${p[k]}%"></u><i style="width:${d.attrs[k]}%"></i></div></div>`).join("")}</div>
+        ${CORE.createFee(C) ? `<div class="car-panel">A custom horse costs <b>${money(CORE.createFee(C))}</b> (the fee grows with every horse in the stable). You have ${money(C.cash)}. Horses at the market cost less than a fully-tailored one.</div>` : ""}
         ${START_POOL - startSpent() > 0 ? `<div class="car-panel car-warn">You still have ${START_POOL - startSpent()} development points unspent (step 3).</div>` : ""}
         ${POT_POOL - potSpent() > 0 ? `<div class="car-panel car-warn">You still have ${POT_POOL - potSpent()} potential points unassigned (step 4).</div>` : ""}`;
     }
     const last = edit ? 2 : 5;
-    const foot = `<button class="btn" id="cBack">${step === 1 ? "Cancel" : "◀ Back"}</button>${step < last ? `<button class="btn primary" id="cNext">Next: ${steps[step]} ▶</button>` : `<button class="btn primary" id="cDone">${edit ? "Save appearance" : "Confirm & add to stable"}</button>`}`;
+    const foot = `<button class="btn" id="cBack">${step === 1 ? "Cancel" : "◀ Back"}</button>${step < last ? `<button class="btn primary" id="cNext">Next: ${steps[step]} ▶</button>` : `<button class="btn primary" id="cDone">${edit ? "Save appearance" : CORE.createFee(C) ? "Confirm & pay " + money(CORE.createFee(C)) : "Confirm & add to stable"}</button>`}`;
     sidePage(el, { hint: `<b>${esc(draft.name || "New horse")}</b>${step === 2 ? "Your jockey shows off the silks" : "Drag to walk round your horse · scroll to zoom"}`, cam: camBar(step === 2 ? `<button data-cam="silks">Silks</button>` : ""), head, body, foot });
     const scrollY = drawCreate.keepScroll || 0; drawCreate.keepScroll = 0; el.querySelector(".sd-body").scrollTop = scrollY;
     const redraw = () => { drawCreate.keepScroll = el.querySelector(".sd-body").scrollTop; drawCreate(); };
@@ -1170,8 +1234,10 @@ const CAREER = (() => {
     const h = sanHorse({ name, say: draft.say, look: d.look, silk: d.silk, silk2: d.silk2, silkPat: d.silkPat, attrs: Object.assign({}, draft.attrs), pot: potOf(draft), potSet: true, born: S().n,
       xp: 0, trainPts: 0, lvl: 1, races: 0, wins: 0, places: 0, podiums: 0, history: [] });
     CORE.fillHorse(h, C, { how: "created", age: 3, fitness: 100 });
+    const fee = CORE.createFee(C);
+    if (fee) { if (fee > C.cash) { toast("A custom horse costs " + money(fee) + " — you have " + money(C.cash), "warn", 2.6); return; } const pr = CORE.apply(C, "create:" + h.id, -fee, "horse", "Custom horse: " + h.name); if (!pr.ok) { toast("The fee could not be paid", "warn", 2); return; } }
     C.horses.push(h); C.active = C.horses.length - 1; save(); draft = null;
-    toast(esc(h.name) + " moves into box " + C.horses.length + "!", "good", 2);
+    toast(esc(h.name) + " moves into box " + C.horses.length + (fee ? " (−" + money(fee) + ")" : "") + "!", "good", 2);
     if (firstRun || createFromFarm) { firstRun = false; createFromFarm = false; hidePanel(); SCENES.enter("farm"); return; }       // your first horse, or one made from an empty box on the farm: straight back out to the property
     openProfile(C.active);
   }
@@ -1357,7 +1423,7 @@ const CAREER = (() => {
   // E at an empty box on the farm opens the horse creator (the same 5-step creator as before); Back or Create returns you to the property
   function createForFarm() {
     if (!C) load(); if (C.horses.length >= slots()) { toast("Win more races to unlock another box", "info", 2.4); return false; }
-    race = null; hidePanel(); createFromFarm = true; fromFarm = false; openCreate(); return true;
+    race = null; hidePanel(); fromFarm = true; openMarket("buy", "farm"); return true;
   }
   // the board's month (and the booking screen's): races on the calendar, today, what is booked
   const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -1467,6 +1533,12 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, plans: CORE.PLANS, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
+  // the market through the public API (used by the tests and the farm)
+  const marketApi = {
+    open: (tab) => { if (!C) load(); fromFarm = false; openMarket(tab || "buy", "office"); }, sync: () => { if (!C) load(); CORE.marketSync(C); return C.market.listings.map(l => CORE.marketView(C, l)); },
+    offer: (id, price) => { const r = CORE.marketOffer(C, id, price, { slots: slots() }); save(); return r; }, buy: (id, price) => { const r = CORE.marketBuy(C, id, price, { slots: slots() }); if (r.ok) save(); return r; },
+    quote: hid => CORE.sellQuote(C, hid), sell: hid => { const r = CORE.sellHorse(C, hid); if (r.ok) save(); return r; }, fee: () => CORE.createFee(C), slots: () => slots(),
+  };
+  return { open, begin, openScreen, onResult, market: marketApi, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, plans: CORE.PLANS, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

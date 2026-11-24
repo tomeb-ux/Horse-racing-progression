@@ -303,6 +303,7 @@ const CORE = (() => {
     for (const h of C.horses || []) { const a = ageOf(h, to); if (a !== h.age) { if (rolled) aged.push({ name: h.name, age: a }); h.age = a; } }
     if (rolled) for (const h of C.horses || []) { const g = h.growth, dr = g ? declineRate(g, h.age) : 0; if (dr > 0) for (const k of ["top", "acc", "spr", "end"]) if (hashStr(h.id + "/decl/" + h.age + k) % 100 < dr * 30 && h.attrs[k] > 40) h.attrs[k]--; }
     for (const h of C.horses || []) { if (h.trainDay != null && h.trainDay < to) h.trainedToday = 0; }
+    try { marketSync(C); } catch (e) { /* the market never blocks the calendar */ }
     return { ok: true, from, to, days: to - from, skips, rolled, aged, bills };
   }
   // entering (or skipping) a championship round: the date becomes the round's scheduled day (never earlier than today)
@@ -359,7 +360,7 @@ const CORE = (() => {
     C.staff = cleanStaff(C.staff);
     C.player = cleanPlayer(C.player);
     const M = isObj(C.market) ? C.market : {};
-    C.market = { seed: finite(M.seed) ? M.seed >>> 0 : hashStr(C.seed + "/market"), listings: Array.isArray(M.listings) ? M.listings.filter(isObj).slice(0, 30) : [], refreshDay: dayInt(M.refreshDay) };
+    C.market = { seed: finite(M.seed) ? M.seed >>> 0 : hashStr(C.seed + "/market"), listings: Array.isArray(M.listings) ? M.listings.filter(isObj).slice(0, 30) : [], refreshDay: dayInt(M.refreshDay), wk: finite(M.wk) ? M.wk | 0 : undefined };
     C.hof = Array.isArray(C.hof) ? C.hof.filter(isObj) : [];
     C.rep = finite(C.rep) ? clampN(Math.round(C.rep), 0, 100000) : 0;
     C.entries = Array.isArray(C.entries) ? C.entries.filter(isObj).slice(0, 20) : [];
@@ -679,7 +680,141 @@ const CORE = (() => {
     return { attrs: a, pen, peak: pk > 1 };
   }
 
-  return { DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
+  // ---------- the horse market (Phase 10): rotating seeded listings, a capped bidding model, selling at a valuation, a paid custom-horse fee ----------
+  // Everything here is deterministic from the career seed and the week, so the same listings appear after a reload; money moves only through apply() (idempotent keys),
+  // cash can never go negative, and the five-horse maximum is enforced by every way a horse can arrive.
+  const MKT = { MAX_HORSES: 5, LISTINGS: 6, ROUNDS: 3, COMMISSION: 0.10, CREATE_FEE: [0, 14000, 26000, 42000, 64000] };
+  const MCATS = {
+    prospect:    { label: "Young prospect", age: [2, 3], start: [0.50, 0.78], pot: [0.88, 1.0], cap: 90, starts: [0, 1], growth: "early" },
+    developing:  { label: "Developing", age: [3, 4], start: [0.78, 1.0], pot: [0.78, 0.95], cap: 92, starts: [2, 8] },
+    raceready:   { label: "Race-ready", age: [4, 6], start: [1.08, 1.32], pot: [0.18, 0.40], cap: 94, starts: [8, 26] },
+    late:        { label: "Late bloomer", age: [3, 5], start: [0.58, 0.84], pot: [0.90, 1.0], cap: 90, starts: [1, 9], growth: "late" },
+    established: { label: "Established", age: [5, 8], start: [1.45, 1.8], pot: [0.06, 0.20], cap: 96, starts: [20, 52] },
+  };
+  const MCAT_ORDER = ["prospect", "developing", "raceready", "late", "established"];
+  const MCOATS = [["bay", "#7a4a28"], ["bay", "#4a2c1a"], ["chestnut", "#93502a"], ["chestnut", "#5e3220"], ["black", "#211915"], ["grey", "#b7b2a9"], ["brown", "#5b3a24"], ["flaxen", "#c99a52"]];
+  const MFACES = ["none", "star", "stripe", "blaze", "snip", "starsnip"];
+  const rateOf = a => Math.round(AK.reduce((s, k) => s + a[k], 0) / AK.length);
+  const rateF = a => AK.reduce((s, k) => s + a[k], 0) / AK.length;
+  const AGE_VAL = age => age <= 4 ? 1 : age === 5 ? 0.97 : age === 6 ? 0.9 : age === 7 ? 0.8 : 0.65;
+  const YOUTH = age => age <= 3 ? 1 : age === 4 ? 0.6 : age === 5 ? 0.35 : 0.15;
+  // what a horse is worth: ability (steeply), potential (for the young), age, record and condition
+  function valueOf(h) {
+    if (!h || !h.attrs) return 0;
+    const r = rateF(h.attrs), pa = rateF(h.pot || h.attrs), age = finite(h.age) ? h.age : 4, H = Math.max(0, pa - r);
+    let v = 3000 * Math.exp((r - 60) / 5.2) * AGE_VAL(age) + 250 * Math.pow(H, 1.3) * YOUTH(age);
+    v += Math.min(30, h.wins | 0) * 700 + Math.min(40, h.places | 0) * 120;
+    const fit = finite(h.fitness) ? h.fitness : 90; v *= fit >= 70 ? 1 : 0.92;
+    return Math.max(1500, Math.round(v / 50) * 50);
+  }
+  function marketName(C, rng) {
+    const taken = new Set((C.horses || []).map(h => h.name)); for (const l of (C.market && C.market.listings) || []) taken.add(l.name); for (const r of Object.values(C.rivals || {})) if (r && r.name) taken.add(r.name);
+    for (const pool of [SX.PLAYER_NAMES || [], SX.HORSE_NAMES || []]) { const free = pool.filter(n => !taken.has(n)); if (free.length) return free[(rng() * free.length) | 0]; }
+    for (let i = 0; i < 100; i++) { const n = "Runner " + (100 + ((rng() * 900) | 0)); if (!taken.has(n)) return n; } return "Runner " + Date.now() % 1000;
+  }
+  // a listing: the true horse (hidden fields stay in the save but the view hides them), priced from its value
+  function marketGen(C, week, idx, cat) {
+    const K = MCATS[cat], id = "m" + week + "-" + idx + cat[0], rng = rngOf(hashStr(C.seed + "/market/" + id)), pick = (a, b) => a + (b - a) * rng();
+    const age = Math.round(pick(K.age[0], K.age[1])), startPts = Math.round(136 * pick(K.start[0], K.start[1])), potPts = Math.round(168 * pick(K.pot[0], K.pot[1]));
+    const arche = rng(), W = {}; for (const k of AK) W[k] = 0.5 + rng();
+    if (arche < 0.3) { W.top *= 1.5; W.acc *= 1.5; W.spr *= 1.5; W.end *= 0.7; } else if (arche < 0.55) { W.end *= 1.6; W.rec *= 1.5; W.tem *= 1.2; W.spr *= 0.7; } else if (arche < 0.7) { W.sta *= 1.5; W.acc *= 1.4; W.agi *= 1.3; }
+    const a = {}, pot = {}; let left = startPts; const sw = AK.reduce((s, k) => s + W[k], 0);
+    for (const k of AK) { const v = Math.min(K.cap - 54, Math.floor(startPts * W[k] / sw)); a[k] = 54 + v; left -= v; }
+    for (let g = 0; left > 0 && g < 400; g++) { const k = AK[g % 8]; if (a[k] < K.cap) { a[k]++; left--; } }
+    let pl = potPts; const pw = AK.reduce((s, k) => s + (W[k] + 0.3), 0); for (const k of AK) { const hr = Math.min(98 - a[k], Math.floor(potPts * (W[k] + 0.3) / pw)); pot[k] = a[k] + hr; pl -= hr; }
+    for (let g = 0; pl > 0 && g < 400; g++) { const k = AK[(g * 3) % 8]; if (pot[k] < 98) { pot[k]++; pl--; } }
+    const coat = MCOATS[(rng() * MCOATS.length) | 0], look = { type: coat[0], coat: coat[1], face: MFACES[(rng() * MFACES.length) | 0], socks: [0, 1, 2, 3].map(() => (rng() < 0.35 ? 1 + ((rng() * 3) | 0) : 0)) };
+    const name = marketName(C, rng), gp = growthProfile(id);
+    if (K.growth) { const b = GROWTH_BASE[K.growth]; gp.type = K.growth; gp.peak = b.peak; gp.from = Math.max(b.peak + 2, b.from); }
+    const starts = Math.round(pick(K.starts[0], K.starts[1])), wr = clampN(0.04 + (rateF(a) - 60) * 0.012 + rng() * 0.06, 0, 0.5), wins = Math.round(starts * wr), places = Math.min(starts - wins, Math.round(starts * (0.12 + rng() * 0.2)));
+    const h = { attrs: a, pot, age, wins, places, fitness: 74 + Math.round(rng() * 24) }, value = valueOf(h), health = rng() < 0.12 ? "tender" : "sound";
+    const ask = Math.max(2000, Math.round(value * (1.08 + rng() * 0.14) / 50) * 50), reserve = Math.round(value * (0.90 + rng() * 0.10) / 50) * 50, heat = Math.round(rng() * 100) / 100;
+    return { id, cat, name, age, look, attrs: a, pot, growth: gp, fitness: h.fitness, health, starts, wins, places, value, ask, reserve, heat, week, exp: week * 7 + 14 + Math.floor(rng() * 14), seen: 0,
+      scout: Math.round((rng() - 0.5) * 100) / 100, bid: { round: 0, hist: [], closed: false } };
+  }
+  function marketSync(C) {
+    if (!isObj(C.market)) C.market = { seed: hashStr(C.seed + "/market"), listings: [], refreshDay: 0 };
+    const M = C.market, wk = weekOf(C.day); if (!Array.isArray(M.listings)) M.listings = [];
+    if (!finite(M.wk)) { M.wk = wk - 1; }
+    let guard = 0; const first = Math.max(M.wk + 1, wk - 5);
+    for (let w = first; w <= wk && guard < 8; w++, guard++) {
+      M.listings = M.listings.filter(l => isObj(l) && l.exp > w * 7 && !(l.bid && l.bid.closed && l.bid.closedWeek != null && w - l.bid.closedWeek >= 1) && hashStr(l.id + "/sold/" + w) % 100 >= (w === (l.week | 0) ? 0 : 14));
+      const have = new Set(M.listings.map(l => l.cat));
+      const want = []; for (let i = 0; i < MCAT_ORDER.length; i++) { const c = MCAT_ORDER[(i + w) % MCAT_ORDER.length]; if (!have.has(c)) { want.push(c); have.add(c); } }
+      for (let i = 0; M.listings.length + want.length < MKT.LISTINGS && i < 6; i++) want.push(MCAT_ORDER[(hashStr(C.seed + "/mix/" + w + "/" + i) % MCAT_ORDER.length)]);
+      let idx = 0; for (const c of want) { if (M.listings.length >= MKT.LISTINGS) break; M.listings.push(marketGen(C, w, idx++, c)); }
+    }
+    M.wk = wk; M.refreshDay = wk * 7; return M;
+  }
+  // the player's view of a listing: current ability and potential only as bands (narrower with a better trainer), the trip it suits, its temperament, record and price
+  function marketView(C, L) {
+    const tr = staffOf(C, "trainer"), tier = tr ? tr.tier : 0, vet = !!staffOf(C, "vet"), hw = Math.max(1, 4 - tier), ph = Math.max(2, 9 - tier * 2.2);
+    const r = rateF(L.attrs), pr = rateF(L.pot), off = (L.scout || 0) * hw * 0.8, poff = (L.scout || 0) * ph * 0.7;
+    const lvl = v => v >= 90 ? "Elite" : v >= 80 ? "Strong" : v >= 70 ? "Good" : v >= 60 ? "Fair" : "Raw", t = L.attrs.tem + ((hashStr(L.id + "t") % 7) - 3);
+    return { id: L.id, cat: L.cat, catLabel: MCATS[L.cat].label, name: L.name, age: L.age, look: L.look, ability: [Math.round(r + off - hw), Math.round(r + off + hw)], potential: [Math.round(pr + poff - ph), Math.min(98, Math.round(pr + poff + ph))],
+      bands: AK.reduce((o, k) => (o[k] = lvl(L.attrs[k] + (((hashStr(L.id + k) % 7) - 3))), o), {}), temperament: t >= 80 ? "Placid" : t >= 66 ? "Even-tempered" : t >= 52 ? "Keen" : "Fiery",
+      growth: L.growth.type, record: L.starts ? L.starts + (L.starts === 1 ? " start · " : " starts · ") + L.wins + (L.wins === 1 ? " win · " : " wins · ") + L.places + (L.places === 1 ? " placing" : " placings") : "Unraced", health: vet ? (L.health === "sound" ? "Vet check: sound" : "Vet check: a tender leg — needs a few quiet days") : "Not vet-checked (hire a vet to see)",
+      fitness: L.fitness, ask: L.ask, daysLeft: Math.max(0, L.exp - dayInt(C.day)), round: L.bid.round, roundsLeft: Math.max(0, MKT.ROUNDS - L.bid.round), closed: !!L.bid.closed, hist: L.bid.hist.slice(), counter: L.bid.counter || 0, scouted: tier };
+  }
+  const maxBoxes = o => Math.min(MKT.MAX_HORSES, o && finite(o.slots) ? o.slots : MKT.MAX_HORSES);
+  // an offer: accepted at once when it clears the seller's price-to-win; a counter (the seller's real number plus a margin that shrinks each round) when it is close; rejected when it is far; three rounds, then the seller walks away
+  function marketOffer(C, id, price, o) {
+    marketSync(C); const L = C.market.listings.find(l => l.id === id); if (!L) return { ok: false, reason: "gone" };
+    if (L.bid.closed) return { ok: false, reason: "closed" };
+    if (C.horses.length >= maxBoxes(o)) return { ok: false, reason: "box" };
+    price = Math.round(+price / 50) * 50; if (!finite(price) || price <= 0) return { ok: false, reason: "bad" };
+    if (price > C.cash) return { ok: false, reason: "cash", price };
+    const T = Math.round(L.reserve * (1 + 0.05 * L.heat) / 50) * 50; let out;
+    if (price >= L.ask || price >= T) out = { outcome: "accepted", price };
+    else {
+      L.bid.round++; const r = L.bid.round;
+      if (price >= 0.82 * T) { const c = Math.min(L.ask, Math.round(T * (1 + 0.06 * (MKT.ROUNDS - r) / 2) / 50) * 50); L.bid.counter = c; out = { outcome: "counter", counter: c, price }; L.bid.hist.push({ r, offer: price, res: "counter", counter: c }); }
+      else { L.bid.counter = 0; out = { outcome: "rejected", price }; L.bid.hist.push({ r, offer: price, res: "rejected" }); }
+      if (r >= MKT.ROUNDS) { L.bid.closed = true; L.bid.closedWeek = weekOf(C.day); out.walked = true; out.counter = out.outcome === "counter" ? out.counter : 0; if (out.outcome === "counter") { out.outcome = "walked"; out.finalCounter = L.bid.counter; } else out.outcome = "walked"; L.bid.counter = 0; }
+    }
+    out.ok = true; out.roundsLeft = Math.max(0, MKT.ROUNDS - L.bid.round); out.id = id; return out;
+  }
+  // buying: validated, paid through the ledger with a key unique to the listing (a double click can never charge twice), the horse arrives fit and with its record
+  function marketBuy(C, id, price, o) {
+    marketSync(C); const i = C.market.listings.findIndex(l => l.id === id); if (i < 0) return { ok: false, reason: "gone" };
+    const L = C.market.listings[i]; price = Math.round(+price); if (!finite(price) || price <= 0) return { ok: false, reason: "bad" };
+    if (C.horses.length >= maxBoxes(o)) return { ok: false, reason: "box" };
+    if (applied(C, "buy:" + id)) return { ok: false, reason: "owned" };
+    if (price > C.cash) return { ok: false, reason: "cash", price };
+    const T = Math.round(L.reserve * (1 + 0.05 * L.heat) / 50) * 50, counterOK = L.bid.counter && price >= L.bid.counter;
+    if (price < L.ask && price < T && !counterOK) return { ok: false, reason: "price" };
+    if (L.bid.closed && !counterOK && price < L.ask) return { ok: false, reason: "closed" };
+    const r = apply(C, "buy:" + id, -price, "horse", "Bought " + L.name); if (!r.ok) return { ok: false, reason: r.dup ? "owned" : r.reason === "insufficient" ? "cash" : (r.reason || "cash") };
+    const used = new Set(C.horses.map(h => h.id)); let hid = "b" + id.replace(/[^a-z0-9]/gi, ""); while (used.has(hid)) hid += "x";
+    const first = C.horses[0] || {}, h = { id: hid, name: L.name, say: "", look: Object.assign({ maneCol: "#2a1c10", tailCol: "#2a1c10", build: 0, muscle: 0, neck: 1, neckG: 1, head: 1, maneLen: 0.85, tailLen: 1 }, L.look), silk: first.silk || "#d62828", silk2: first.silk2 || "#f4f1ea", silkPat: first.silkPat || "hoops",
+      attrs: Object.assign({}, L.attrs), pot: Object.assign({}, L.pot), potSet: true, born: C.season ? C.season.n : 1, xp: 0, trainPts: 0, lvl: 1, xpFrac: 0, races: L.starts, wins: L.wins, places: L.places, podiums: L.places, offRaces: 0, offWins: 0, champPts: 0, majors: 0, prize: 0, trained: 0,
+      history: [], growth: Object.assign({}, L.growth), bought: { from: L.cat, price, day: dayInt(C.day) } };
+    h.foaled = seasonYear(seasonOfDay(C.day)) - L.age; fillHorse(h, C, { how: "auction", price, fitness: L.health === "tender" ? 62 : Math.max(70, L.fitness) });
+    C.horses.push(h); C.market.listings.splice(i, 1); if (L.health === "tender") devRec(C, h).sore = 4;
+    return { ok: true, horse: h, price, cash: C.cash };
+  }
+  // selling: a valuation less the agent's commission, nudged ±5% by the week's market; never your last horse, never one booked into a race
+  const marketMood = C => 0.95 + (hashStr(C.seed + "/mood/" + weekOf(C.day)) % 11) / 100;
+  function sellQuote(C, hid) {
+    const h = (C.horses || []).find(x => x.id === hid); if (!h) return { ok: false, reason: "none" };
+    const value = valueOf(h), mood = marketMood(C), price = Math.max(500, Math.round(value * mood * (1 - MKT.COMMISSION) / 50) * 50);
+    const why = C.horses.length <= 1 ? "last" : C.booking && C.booking.hid === hid ? "booked" : "";
+    return { ok: true, value, price, commission: Math.round(value * mood * MKT.COMMISSION), mood: Math.round(mood * 100), blocked: why, rating: rateOf(h.attrs), age: h.age };
+  }
+  function sellHorse(C, hid) {
+    const q = sellQuote(C, hid); if (!q.ok) return q; if (q.blocked) return { ok: false, reason: q.blocked };
+    const i = C.horses.findIndex(x => x.id === hid), h = C.horses[i], key = "sell:" + hid + ":" + dayInt(C.day);
+    if (applied(C, key)) return { ok: false, reason: "done" };
+    const r = apply(C, key, q.price, "horse", "Sold " + h.name); if (!r.ok) return { ok: false, reason: r.reason || "ledger" };
+    C.horses.splice(i, 1); if (C.active >= C.horses.length) C.active = C.horses.length - 1; if (C.active > i) C.active--; if (C.active < 0) C.active = 0;
+    if (isObj(C.farm)) { for (const k of ["care", "dev", "turnout"]) if (isObj(C.farm[k])) delete C.farm[k][hid]; }
+    C.entries = (C.entries || []).filter(e => !(e && e.hid === hid));
+    return { ok: true, price: q.price, name: h.name, cash: C.cash };
+  }
+  // a custom horse from the creator now costs a fee that grows with the stable (the first horse of a career is free)
+  const createFee = C => MKT.CREATE_FEE[Math.min(MKT.CREATE_FEE.length - 1, (C.horses || []).length)];
+
+  return { MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
     cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
