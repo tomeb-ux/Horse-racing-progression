@@ -232,6 +232,35 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
   await p.evaluate(() => { for (let k = 0; k < 200 && FARMTRIP.on; k++) FARMTRIP.frame(0.05); }); await p.waitForFunction(() => ui.state === 'racing', null, { timeout: 60000 }); ok(await p.evaluate(() => race.cfg.career.round === 2 && race.player.def.name === 'Bay Majesty'), 'and the booked round-2 race starts with its horse');
   await p.evaluate(() => { race = null; clearRaceMeshes(); SCENES.enter('menu', { instant: true }); }); await frames(p, 3);
 
+  // =========================================================== 8b. the character: animation, outfits, cost, leaks
+  console.log('\n— the character (animation, outfits, cost, leaks)');
+  await p.evaluate(() => { SCENES.enter('farm', { instant: true }); }); await p.waitForFunction(() => FARM.active, null, { timeout: 30000 }); await frames(p, 3);
+  const ch = await p.evaluate(() => {
+    const fig = FARM._test.figure, P = FARMPEOPLE, out = {};
+    const hipAfter = sp => { for (let i = 0; i < 20; i++) P.pose(fig, 0.05, sp); return fig.parts.legL.hip.rotation.x; };
+    for (let i = 0; i < 80; i++) P.pose(fig, 0.05, 0); const ph0 = fig.phase; for (let i = 0; i < 10; i++) P.pose(fig, 0.05, 0); const phIdle = fig.phase - ph0;
+    const ph1 = fig.phase; let swing = 0; for (let i = 0; i < 40; i++) { P.pose(fig, 0.05, 2.4); swing = Math.max(swing, Math.abs(fig.parts.legL.hip.rotation.x)); } const phWalk = fig.phase - ph1;
+    let jog = 0; for (let i = 0; i < 40; i++) { P.pose(fig, 0.05, 5.2); jog = Math.max(jog, Math.abs(fig.parts.legL.hip.rotation.x)); }
+    for (let i = 0; i < 40; i++) P.pose(fig, 0.05, 0); const rest = Math.abs(fig.parts.legL.hip.rotation.x);
+    Object.assign(out, { phIdle, phWalk, swing, jog, rest });
+    const per = {}; for (const o of ['stable', 'training', 'raceday']) { CAREER.setPlayer({ outfit: o }); FARM._test.ctx.refreshFigure(); let meshes = 0; fig.root.traverse(m => { if (m.isMesh) meshes++; }); per[o] = { meshes, dressed: fig.dressed.length, mats: fig.mats.length }; }
+    out.per = per;
+    const g0 = renderer.info.memory.geometries, t0 = renderer.info.memory.textures; for (let i = 0; i < 30; i++) { CAREER.setPlayer({ outfit: ['stable', 'training', 'raceday'][i % 3], look: { hair: i % 6, head: i % 5, skin: FARMPEOPLE.SKINS[i % 6] } }); FARM._test.ctx.refreshFigure(); }
+    out.leak = { geo: renderer.info.memory.geometries - g0, tex: renderer.info.memory.textures - t0, mats: fig.mats.length, dressed: fig.dressed.length };
+    CAREER.setPlayer({ outfit: 'training', look: { hair: 4, head: 1, skin: '#7b4a30' }, colours: { shirt: '#8a2f26' } }); FARM._test.ctx.refreshFigure();
+    return out;
+  });
+  ok(ch.phIdle < 0.001 && ch.phWalk > 1 && ch.swing > 0.3 && ch.jog > ch.swing * 1.2 && ch.rest < 0.05, `the walk cycle runs only while moving (idle phase change ${ch.phIdle}, walk ${ch.phWalk.toFixed(1)}), the jog swings the legs further (${ch.jog.toFixed(2)} vs ${ch.swing.toFixed(2)} rad) and the legs return to rest when stopped (${ch.rest.toFixed(3)})`);
+  ok(Object.values(ch.per).every(x => x.meshes <= 60) && new Set(Object.values(ch.per).map(x => x.dressed)).size >= 2, `three genuinely different outfits, each a small figure (${Object.entries(ch.per).map(([k, v]) => k + ' ' + v.meshes + ' meshes').join(' · ')})`);
+  ok(ch.leak.geo === 0 && ch.leak.tex === 0 && ch.leak.mats < 20, `changing outfit, hair, face and skin 30 times creates no new geometry or textures (Δ geometries ${ch.leak.geo}, textures ${ch.leak.tex}; ${ch.leak.mats} materials in use)`);
+  // movement: stopping is smooth, and the walker's cost on screen is small
+  await p.evaluate(() => { FARM._test.setPos(0, 0); FARM._test.ctx.CAM.yaw = 0; }); await frames(p, 3);
+  await p.keyboard.down('w'); await p.keyboard.down('Shift'); await frames(p, 40); const sp1 = (await I(p)).speed; await p.keyboard.up('w'); await p.keyboard.up('Shift'); const sp2 = (await I(p)).speed; await frames(p, 60); const sp3 = (await I(p)).speed;
+  ok(sp1 > 4.2 && sp2 > 1 && sp3 < 0.2, `Shift runs (${sp1.toFixed(1)} m/s), and releasing the keys slows you smoothly (${sp2.toFixed(1)} → ${sp3.toFixed(2)} m/s) rather than stopping dead`);
+  await p.evaluate(() => { window.__rr(FARM._test.ctx.scene, FARM._test.ctx.cam); });
+  const cost = await p.evaluate(() => { const fig = FARM._test.figure, c = FARM._test.ctx.cam, sc = FARM._test.ctx.scene; fig.root.visible = true; renderer.info.reset(); window.__rr(sc, c); const withFig = renderer.info.render.calls; fig.root.visible = false; renderer.info.reset(); window.__rr(sc, c); const without = renderer.info.render.calls; return { withFig, without }; });
+  ok(cost.withFig - cost.without <= 45, `the character costs ${cost.withFig - cost.without} draw calls on screen (${cost.without} → ${cost.withFig}); the whole walking view stays within the 250-call budget (${cost.withFig})`);
+
   // =========================================================== 9. the character persists
   console.log('\n— the character is saved with the career');
   await p.reload(); await ready(p); await stubRender(p); await p.click('#btnCareer'); await p.waitForFunction(() => FARM.active, null, { timeout: 30000 }); await frames(p, 3);
