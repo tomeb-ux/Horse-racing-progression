@@ -182,7 +182,7 @@ const FARM = (() => {
     get panelEl() { return panelEl; }, get hud() { return hud; }, get scene() { return fscene; }, get world() { return world; }, get cam() { return fcam; }, get fig() { return fig; }, get P() { return P; }, get CAM() { return CAM; },
     get horses() { return horses; }, get sunLight() { return sunLight; }, sunFollow: (x, z) => sunFollow(x, z), mkHorse, fade: a => { if (fadeEl) fadeEl.style.opacity = a; },
     closePanel: () => closePanel(), refreshBoard: () => refreshBoard(), refreshFigure: () => refreshFigure(), setPrompt: txt => { prompt.hidden = !txt; prompt.textContent = txt || ""; }, skipHint: on => { skipEl.hidden = !on; },
-    endTrip: () => { trip = null; }, setPlace: v => { place = v; }, objective: () => objective(), heightAt: (x, z) => world.heightAt(x, z),
+    endTrip: () => { trip = null; if (hud) hud.querySelector("#farmInfo").style.visibility = ""; }, setPlace: v => { place = v; }, objective: () => objective(), heightAt: (x, z) => world.heightAt(x, z),
   };
   function openPanel(name) {
     if (panel || trip) return; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
@@ -234,7 +234,7 @@ const FARM = (() => {
   function floatInteract() {
     let b = null; try { b = hasCareer() ? CAREER.booking() : null; } catch (e) {}
     if (!b) { try { toast("Book a race on the farmhouse calendar first", "info", 2.6); } catch (e) {} return true; }
-    trip = true; unlock(); prompt.hidden = true; near = null; if (cross) cross.hidden = true;
+    trip = true; hud.querySelector("#farmInfo").style.visibility = "hidden"; unlock(); prompt.hidden = true; near = null; if (cross) cross.hidden = true;
     FARMTRIP.start(ctx, b, () => {
       let r; try { r = CAREER.startBooked(); } catch (e) { console.error(e); r = { ok: false }; }
       if (!r || !r.ok) { FARMTRIP.abort(); try { toast("That race couldn't be started — check the calendar", "warn", 3); } catch (e) {} }

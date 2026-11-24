@@ -35,7 +35,7 @@ const FARMPEOPLE = (() => {
     // skeleton: pelvis → hips/torso → neck → head; hip joints → thighs → shins → feet; shoulders → upper arms → forearms
     const pelvis = new THREE.Group(); pelvis.position.y = 0.94; body.add(pelvis);
     const torsoG = new THREE.Group(); torsoG.position.y = 0.04; pelvis.add(torsoG);
-    const neckG = new THREE.Group(); neckG.position.y = 0.62; torsoG.add(neckG); const headG = new THREE.Group(); headG.position.y = 0.1; neckG.add(headG);
+    const neckG = new THREE.Group(); neckG.position.y = 0.61; torsoG.add(neckG); const headG = new THREE.Group(); headG.position.y = 0.045; neckG.add(headG);
     const limb = (sx, y) => { const hip = new THREE.Group(); hip.position.set(sx, y, 0); pelvis.add(hip); const knee = new THREE.Group(); knee.position.y = -0.44; hip.add(knee); return { hip, knee }; };
     const legL = limb(-0.088, -0.02), legR = limb(0.088, -0.02);
     const arm = sx => { const sh = new THREE.Group(); sh.position.set(sx, 0.55, 0); torsoG.add(sh); const el = new THREE.Group(); el.position.y = -0.3; sh.add(el); return { sh, el }; };
