@@ -138,7 +138,7 @@ const FARMTRAIN = (() => {
     if (down) {
       if (k === "escape") { abort(false); return true; }
       if (R.ph === "mount" || R.ph === "dismount") return true;
-      if (R.result) { if (k === "enter" || k === " ") { finishRun(); return true; } return true; }
+      if (R.result) { if ((k === "enter" || k === " ") && R.t - (R.resAt || 0) > 1.2) finishRun(); return true; }                       // a rhythm tapper cannot dismiss the results by accident
       if (R.keys[k]) return true; R.keys[k] = true; R.kdt[k] = performance.now();
       if ((k === "w" || k === "s") && R.race.state === "running") R.inp.effort = clamp(R.inp.effort + (k === "w" ? 0.05 : -0.05), 0, 1);
       if (k === " ") press();
@@ -202,7 +202,7 @@ const FARMTRAIN = (() => {
       const rows = rw.gains.filter(x => x.add > 0).map(x => { const a = rw.after.rows.find(r => r.k === x.k), pct = Math.round((a.prog || 0) * 100); return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12.5px"><span style="width:104px;text-align:left">${lab[x.k] || x.k}</span><span style="flex:1;height:8px;background:rgba(255,255,255,.14);border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:#e8c35a"></i></span><span style="width:150px;text-align:right">${x.points ? `<b style="color:#8fd18f">+${x.points} → ${a.v}</b>` : pct + "% to next"} · ${a.rem} to potential</span></div>`; }).join("");
       rtext = `<div style="margin-top:6px;text-align:left"><div style="font:800 11.5px var(--font-d,system-ui);letter-spacing:.1em;color:#e8c35a">DEVELOPMENT</div>${rows}<div style="margin-top:6px;font-size:12px;color:#c8d2c8">Overall <b>${rw.after.pctOfPotential}%</b> of potential · ${rw.after.remaining} points of headroom left · form: <b>${rw.after.form}</b> · load ${rw.after.load}${rw.setback ? ' · <span style="color:#e8a35a">the hard work left the horse sore</span>' : ""}</div><div style="font-size:11.5px;color:#a9b4a9">Fitness −3. Development comes over weeks and seasons — a few sessions never max a horse out.</div></div>`;
     }
-    R.result = { grade, word, detail, rw }; const el = hudEl.querySelector("#ftRes"); el.hidden = false;
+    R.result = { grade, word, detail, rw }; R.resAt = R.t; const el = hudEl.querySelector("#ftRes"); el.hidden = false;
     el.innerHTML = `<div style="background:rgba(14,22,18,.96);border:1px solid rgba(232,195,90,.7);border-radius:16px;padding:22px 28px;min-width:min(420px,90vw);max-width:min(560px,94vw);text-align:center"><div style="font:800 13px var(--font-d,system-ui);letter-spacing:.12em;color:#e8c35a">${R.D.name.toUpperCase()}</div><div style="font:900 44px var(--font-d,system-ui);margin:6px 0">${Math.round(grade * 100)}%</div><div style="font:700 17px var(--font-d,system-ui)">${word}</div><div style="margin:8px 0;font-size:13px;color:#c8d2c8">${detail}</div><div style="font-size:13px;min-height:18px">${rtext}</div><button id="ftDone" style="margin-top:14px;pointer-events:auto;cursor:pointer;font:800 14px var(--font-d,system-ui);letter-spacing:.06em;text-transform:uppercase;padding:11px 20px;border-radius:10px;border:1px solid rgba(232,195,90,.7);background:linear-gradient(90deg,#e8c35a,#d9a93a);color:#1a1405">Back to the farm <kbd style="opacity:.6">Enter</kbd></button></div>`;
     el.querySelector("#ftDone").onclick = () => finishRun();
   }

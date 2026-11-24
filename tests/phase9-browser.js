@@ -59,7 +59,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   ok(s.res.rw && s.res.rw.ok && s.res.rw.pts > 0 && s.res.rw.pts < 0.2, `the drill is worth a small fraction of a point (+${s.res.rw && s.res.rw.pts}), not a whole attribute point`);
   s = await ev(() => document.getElementById('farmTrainHud') ? document.getElementById('farmTrainHud').innerText : document.body.innerText); ok(/DEVELOPMENT/.test(s) && /of potential/.test(s) && /headroom/.test(s), 'the results screen shows what moved, progress to the next point, potential and headroom left');
   s = await dev('h0'); ok(s.prog.agi > 0 && s.handsN === 1, 'the agility progress was added to the horse\'s development record');
-  await key('Enter', 2); s = await ev(() => FARMTRAIN.state && FARMTRAIN.state.ph); ok(s === 'dismount', 'Enter dismounts: the character climbs down beside the horse');
+  await run(1.3); await key('Enter', 2); s = await ev(() => FARMTRAIN.state && FARMTRAIN.state.ph); ok(s === 'dismount', 'Enter dismounts: the character climbs down beside the horse');
   await run(2); s = await ev(() => ({ on: FARMTRAIN.on, fig: FARM.info().figure, busy: FARMCARE.busy, vis: FARM._test.horses[0].visible })); ok(!s.on && s.fig && !s.busy && s.vis, 'after the dismount the horse is back in its box and you are on foot again');
   s = await Ctl(); ok(s === kids0, `no cone or drill object is left behind (${kids0} â†’ ${s} objects)`);
 
