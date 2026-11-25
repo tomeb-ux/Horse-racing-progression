@@ -434,7 +434,7 @@ const CORE = (() => {
     return r;
   }
   const horseOf = (C, id) => (C.horses || []).find(h => h && h.id === id);
-  function careStatus(C, h) { const r = careRec(C, h), d = dayInt(C.day); return { groomed: r.groomDay === d, fed: r.fedDay === d, tier: r.fedDay === d ? r.fedTier : 0, prepared: r.prepDay === d, drilled: r.drillDay === d, best: Object.assign({}, r.best) }; }
+  function careStatus(C, h) { const r = careRec(C, h), d = dayInt(C.day); return { groomed: r.groomDay === d, washed: r.washDay === d, fed: r.fedDay === d, tier: r.fedDay === d ? r.fedTier : 0, prepared: r.prepDay === d, drilled: r.drillDay === d, best: Object.assign({}, r.best) }; }
   // readiness 0–100 (shown on the plaque / inspect card; it has no effect on racing in Phase 6)
   function readiness(C, h) { const s = careStatus(C, h); return clampN(Math.round(0.6 * (finite(h.fitness) ? h.fitness : 80) + 0.3 * (finite(h.composure) ? h.composure : 70) + (s.groomed ? 4 : 0) + (s.fed ? 3 : 0) + (s.prepared ? 3 : 0)), 0, 100); }
   function groom(C, id) {
@@ -447,6 +447,19 @@ const CORE = (() => {
     const h = horseOf(C, id); if (!h) return { ok: false, reason: "no-horse" }; const r = careRec(C, h), d = dayInt(C.day);
     if (r.washDay === d) return { ok: true, already: true, gain: 0 };
     const c0 = finite(h.composure) ? h.composure : 70; h.composure = clampN(c0 + 3, 0, 100); h.fitness = clampN((finite(h.fitness) ? h.fitness : 80) + 1, 0, 100); r.washDay = d; return { ok: true, already: false, gain: h.composure - c0 };
+  }
+  // ---------- Phase 19: the post-work summary. READ-ONLY: it describes what the day's care has done and what is still on offer; the rewards themselves are CORE.groom / wash / feed (unchanged,
+  // once per horse per day), whoever does the work (you, or the groom). Skipping the loop costs at most the small composure / fitness edge listed in `missing`.
+  function postWork(C, id) {
+    const h = horseOf(C, id); if (!h) return null; const d = dayInt(C.day), cr = (C.farm && C.farm.care && C.farm.care[id]) || {};           // read without creating the care record
+    const st = { groomed: cr.groomDay === d, washed: cr.washDay === d, fed: cr.fedDay === d, prepared: cr.prepDay === d }, ses = sessionFor(C, d, id), fac = { recovery: facLevel(C, "recovery") };
+    const ready = clampN(Math.round(0.6 * (finite(h.fitness) ? h.fitness : 80) + 0.3 * (finite(h.composure) ? h.composure : 70) + (st.groomed ? 4 : 0) + (st.fed ? 3 : 0) + (st.prepared ? 3 : 0)), 0, 100);
+    const missing = []; if (!st.washed) missing.push({ k: "wash", edge: "composure +3, fitness +1" }); if (!st.groomed) missing.push({ k: "groom", edge: "composure +" + CARE.GROOM_COMPOSURE });
+    const rec = recoveryPerDay(h, fac), lines = [];
+    lines.push((ses.works ? "Worked today (" + (ses.plan ? PLANS[ses.plan].label.toLowerCase() : "session") + ")" : "No session today") + " · " + [st.washed ? "washed ✓" : "not washed", st.groomed ? "groomed ✓" : "not groomed", st.fed ? "fed ✓" : "not fed"].join(" · "));
+    lines.push("Recovers about " + rec + " overnight (recovery " + (finite(h.attrs && h.attrs.rec) ? h.attrs.rec : 60) + (fac.recovery ? ", Recovery facility level " + fac.recovery : "") + ")");
+    lines.push("Readiness " + ready + (missing.length ? " · still on offer: " + missing.map(m => m.k + " (" + m.edge + ")").join(", ") : " · everything done"));
+    return { hid: id, name: h.name, worked: ses.works, washed: st.washed, groomed: st.groomed, fed: st.fed, readiness: ready, recovery: rec, missing, lines };
   }
   // tier 0 = the stable's feed (free); tier 1 = quality feed (a ledger expense, once per horse per day)
   function feed(C, id, tier) {
@@ -890,7 +903,7 @@ const CORE = (() => {
   // the farm clock's saved state: { day, t }. Reads and repairs; never advances anything
   function clockOf(C) { const f = isObj(C.farm) ? C.farm : (C.farm = { state: "default" }), c = f.clock; if (!isObj(c) || c.day !== dayInt(C.day) || !finite(c.t) || c.t < CLOCK.start || c.t > CLOCK.dusk) f.clock = { day: dayInt(C.day), t: CLOCK.start }; return f.clock; }
   return { HOF, hofEntry, retireHorse, retirePrompt, autoRetire, retireWhy, MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
-    CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
+    CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, postWork, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
     conditions, placeSeason, syncCalendar, roundEvent, roundStatus, upcoming, nextMeeting, nextOpenRoundDay, skipsBetween,

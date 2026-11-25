@@ -105,6 +105,7 @@ const FARMCARE = (() => {
       h += `<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;column-gap:14px">${info.attrs.map(a => bar(a.lab, a.v, 100, "#d8cfae", a.v + "/" + a.p)).join("")}</div>`;
       h += `<div style="margin-top:6px;font-size:12px;color:#c8d2c8">Development: <b>${info.dev.pctOfPotential}%</b> of potential · ${info.dev.remaining} points of headroom left · plan <b>${esc2(CAREER.plans[info.dev.plan].label)}</b> · ${info.dev.sessions} sessions${info.race.pen ? ` · <span style="color:#e8a35a">tired: racing at −${Math.round(info.race.pen * 100)}%</span>` : info.race.peak ? ` · <span style="color:#8fd18f">peaking</span>` : ""}</div>`;
       try { if (typeof FARMACTORS !== "undefined" && FARMACTORS.live()) { const ln = FARMACTORS.todayLines(hid); if (ln.length) h += `<div style="margin-top:6px;font-size:12px;color:#c8d2c8"><b>Today</b> (${CORE.fmtClock(FARMACTORS.hour())}) · ${ln.map(esc2).join(" · ")}</div>`; } } catch (e) {}
+      try { const pw = CORE.postWork(CAREER.data, hid); if (pw) h += `<div style="margin-top:6px;font-size:12px;color:#c8d2c8"><b>Post-work</b> · ${pw.lines.map(esc2).join(" · ")}</div>`; } catch (e) {}
       h += `<div style="margin-top:6px;font-size:11.5px;color:#a9b4a9">The bar shows today's value; the figure after the slash is this horse's potential. Care changes composure, recovery and readiness only — it never changes racing.</div>` + btn("Esc", "Close", "");
     } else {
       h += `<div style="margin:5px 0 3px;font-size:12px;color:#c8d2c8">Readiness ${st.readiness}${st.groomed ? " · groomed ✓" : ""}${st.fed ? " · fed ✓" : ""}${st.prepared ? " · tacked up ✓" : ""}</div>`;
@@ -135,6 +136,7 @@ const FARMCARE = (() => {
     const m = S.menu; if (!m) return; const i = m.i, g = m.g, hid = g.userData.hid, a = stallAnchor(i), s = F.world.stalls[i];
     S.act = Object.assign({ kind, t: 0, dur: DUR[kind], i, g, hid, done: false, x0: F.P.x, z0: F.P.z, ax: kind === "lead" || kind === "putback" ? s.x + 1.2 : a.x, az: a.z, hx: g.position.x, hz: g.position.z }, o || {});
     if (kind === "inspect") { S.act.dur = 1.6; }
+    if (kind === "groom") { const A0 = S.act; A0.loop = true; A0.dur = 1e9; A0.res = null; try { if (!FARMLOOP.begin({ kind: "groom", g, hid, name: nameOf(g), onEnd: r => { A0.res = r; } })) { A0.loop = false; A0.dur = DUR.groom; } } catch (e) { A0.loop = false; A0.dur = DUR.groom; } }
     menuEl.hidden = kind === "inspect" ? false : true; if (kind !== "inspect") F.setBusy(true);
     const cam = F.cineCam; if (kind !== "inspect") cam.set([s.x + 3.3, 1.85, -19.3], [s.x + 0.1, 1.4, -22.7], 52);
     const act = kind === "groom" ? "brush" : kind === "feed" ? "feed" : kind === "prepare" ? "tack" : kind === "inspect" ? "inspect" : "pat";
@@ -146,7 +148,7 @@ const FARMCARE = (() => {
   function finish(A) {
     const hid = A.hid, g = A.g; let msg = "", kind = "info";
     try {
-      if (A.kind === "groom") { const r = CAREER.care.groom(hid); msg = r.already ? nameOf(g) + " has already been groomed today" : nameOf(g) + " is glossy and relaxed (composure +" + r.gain + ")"; }
+      if (A.kind === "groom") { if (A.res === "cancel") msg = "Left the grooming for later"; else { const r = CAREER.care.groom(hid); msg = r.already ? nameOf(g) + " has already been groomed today" : nameOf(g) + " is glossy and relaxed (composure +" + r.gain + ")" + (A.res === "hand" ? " (a stable hand finished it)" : ""); } }
       else if (A.kind === "feed") { const r = CAREER.care.feed(hid, A.tier); if (r.ok) msg = r.already ? nameOf(g) + " has already been fed today" : (A.tier === 1 ? "Quality feed: " : "Fed: ") + nameOf(g) + " (composure +" + r.composure + (r.fitness ? ", fitness +" + r.fitness : "") + ")"; else { msg = r.reason === "cash" ? "Not enough cash for quality feed — the stable's feed is free" : "Couldn't feed " + nameOf(g); kind = "warn"; } }
       else if (A.kind === "prepare") { CAREER.care.prepare(hid); setTack(g, true); msg = nameOf(g) + " is saddled and ready"; kind = "good"; }
     } catch (e) { console.error(e); }
@@ -233,7 +235,7 @@ const FARMCARE = (() => {
       const k = Math.min(1, dt * 6); F.P.x += (A.ax - F.P.x) * k; F.P.z += (A.az - F.P.z) * k; F.P.face = 0;
       FARMPEOPLE.pose(F.fig, dt, 0, 0);
       if (A.tackAt != null && A.t >= A.tackAt) { setTack(A.g, true); A.tackAt = null; }
-      if (A.t >= A.dur && !A.done) { A.done = true; finish(A); }
+      if ((A.t >= A.dur || (A.loop && A.res)) && !A.done) { A.done = true; finish(A); }
     }
     if (S.led && !S.led.freeze) lead(dt);
   }

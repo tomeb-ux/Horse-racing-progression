@@ -58,9 +58,9 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
 
   console.log('\n— the wash bay');
   await ev(() => { const w = FARMLIFE.WASH; FARM._test.setPos(w.x, w.z); }); await run(2); s = await ev(() => FARM.info()); ok(s.near === 'wash' && /Wash Bay Majesty/.test(s.prompt), `at the wash bay: "${s.prompt}"`);
-  const cp0 = await ev(() => CAREER.data.horses[0].composure); await p.keyboard.press('e'); await run(2); ok(await ev(() => FARMLIFE.anim && FARMLIFE.anim.kind === 'wash' && FARM._test.figure.props.brush.visible), 'the washing animation plays (the brush is in your hand, the horse stands relaxed)'); await run(6);
+  const cp0 = await ev(() => CAREER.data.horses[0].composure); await p.keyboard.press('e'); await run(2); ok(await ev(() => FARMLIFE.anim && FARMLIFE.anim.kind === 'wash' && FARM._test.figure.props.brush.visible), 'the washing animation plays (the brush is in your hand, the horse stands relaxed)'); await p.keyboard.press('Enter'); await run(6);                       // Phase 19: the wash is a loop now; Enter hands it to the stable hand
   s = await ev(() => ({ comp: CAREER.data.horses[0].composure, st: window.__toasts.slice(-1)[0], busy: FARMCARE.busy })); ok(s.comp === cp0 + 3 && /clean and relaxed/.test(s.st), `composure +3 after the wash ("${s.st}")`);
-  await p.keyboard.press('e'); await run(8); ok(await ev(() => CAREER.data.horses[0].composure) === cp0 + 3, 'washing again the same day gives nothing more');
+  await p.keyboard.press('e'); await run(2); await p.keyboard.press('Enter'); await run(8); ok(await ev(() => CAREER.data.horses[0].composure) === cp0 + 3, 'washing again the same day gives nothing more');
 
   console.log('\n— performance and leaks');
   await ev(() => { renderer.render = window.__rr; }); s = await ev(() => { const out = []; for (const v of ['courtyard', 'overview', 'stalls', 'float', 'training']) { FARM.view(v); renderer.render(FARM._test.ctx.scene, FARM._test.ctx.cam); out.push(renderer.info.render.calls); } return out; });

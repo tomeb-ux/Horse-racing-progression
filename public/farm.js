@@ -50,7 +50,7 @@ const FARM = (() => {
     applyAtmosphere(true);
     fig = FARMPEOPLE.make(appearance()); fig.root.visible = false; fscene.add(fig.root); fig.root.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     buildHud();
-    FARMCARE.init(ctx); FARMACTORS.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); FARMLIFE.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
+    FARMCARE.init(ctx); FARMLOOP.init(ctx); FARMACTORS.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); FARMLIFE.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
   }
   function ensureHouse() {
     if (iworld) return;
@@ -146,6 +146,7 @@ const FARM = (() => {
     const k = e.key.toLowerCase();
     if (e.target && /^(input|textarea|select)$/i.test(e.target.tagName)) { if (k === "escape") { e.stopImmediatePropagation(); e.preventDefault(); if (!e.repeat) escape(); } return; }
     e.stopImmediatePropagation(); if (k === " " || k in MOVE || k === "tab" || k === "escape") e.preventDefault();   // nothing reaches the riding controls
+    if (FARMLOOP.active) { FARMLOOP.key(e); return; }                                                               // the wash / groom loop owns the keys
     if (k === "escape") { if (!e.repeat) escape(); return; }
     if (trip) { if (!e.repeat && (k === " " || k === "enter" || k === "e")) FARMTRIP.skip(); return; }
     if (FARMDRIVE.on) { fk[k] = true; if (k === "r" && !e.repeat) FARMDRIVE.reset(); return; }                                  // driving: the keys go to the vehicle
@@ -158,8 +159,8 @@ const FARM = (() => {
     if (k === "v" && !e.repeat) { setPerson(person === 1 ? 3 : 1); return; }
     fk[k] = true;
   }
-  function onKeyUp(e) { if (!active) return; const k = e.key.toLowerCase(); fk[k] = false; if (FARMTRAIN.on) FARMTRAIN.key(k, false, e); if (!(e.ctrlKey || e.metaKey) && !(e.target && /^(input|textarea|select)$/i.test(e.target.tagName))) e.stopImmediatePropagation(); }
-  function onBlur() { for (const k in fk) fk[k] = false; dragging = null; }
+  function onKeyUp(e) { if (!active) return; const k = e.key.toLowerCase(); fk[k] = false; if (FARMLOOP.active) { FARMLOOP.keyup(e); return; } if (FARMTRAIN.on) FARMTRAIN.key(k, false, e); if (!(e.ctrlKey || e.metaKey) && !(e.target && /^(input|textarea|select)$/i.test(e.target.tagName))) e.stopImmediatePropagation(); }
+  function onBlur() { for (const k in fk) fk[k] = false; dragging = null; try { FARMLOOP.blur(); } catch (e) {} }
   function look(dx, dy, k) { const s = (settings.lookSens || 1) * k; CAM.yaw += dx * s; CAM.pitch = clampN(CAM.pitch - dy * s, person === 1 ? -1.35 : -1.1, person === 1 ? 1.35 : 0.5); VIEW.on = false; }
   function onPointerDown(e) { if (!active || e.button !== 0 || blocked()) return; dragging = { x: e.clientX, y: e.clientY, moved: 0 }; }
   function onPointerMove(e) {
@@ -478,7 +479,7 @@ const FARM = (() => {
       } else if (person === 1) P.face = CAM.yaw;
     } else { P.speed += (0 - P.speed) * Math.min(1, dt * 9); P.moving = false; }
     collide(); const gy = place === "in" ? 0 : world.heightAt(P.x, P.z); P.y += (gy - P.y) * Math.min(1, dt * 14); if (Math.abs(gy - P.y) > 1) P.y = gy;
-    if (!paused) { FARMCARE.frame(dt); FARMDAY.frame(dt); FARMLIFE.frame(dt); try { FARMACTORS.frame(dt); } catch (e) { console.error(e); } }
+    if (!paused) { FARMCARE.frame(dt); FARMLOOP.frame(dt); FARMDAY.frame(dt); FARMLIFE.frame(dt); try { FARMACTORS.frame(dt); } catch (e) { console.error(e); } }
     { let df = P.face - lastFace; df = Math.atan2(Math.sin(df), Math.cos(df)); lastFace = P.face; turnRate += (df / Math.max(dt, 1e-3) - turnRate) * Math.min(1, dt * 10); }
     const wantAct = FARMCARE.led && !busy ? "lead" : null; if (!busy && (fig.action ? fig.action.name : null) !== wantAct && !FARMCARE.busy) FARMPEOPLE.act(fig, wantAct);
     if (!FARMCARE.busy && !FARMDAY.active) FARMPEOPLE.pose(fig, dt, P.speed, turnRate);
@@ -534,7 +535,7 @@ const FARM = (() => {
     }
     resetRig(); stand(); FARMCARE.enter(); FARMLIFE.enter(); try { FARMACTORS.enter(); } catch (e) { console.error(e); } FARMDAY.enter(); FARMTRAIN.enter(); busy = false; hideFigure = false; CINE.on = CINE.init = false; guideKey = ""; lastStage = ""; departT = 0; departB = null; bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
   }
-  function leave() { try { FARMACTORS.leave(); FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; try { renderer.toneMappingExposure = GFX.atmo ? GFX.atmo.expo : 0.82; } catch (e) {} }
+  function leave() { try { FARMLOOP.end("cancel"); FARMACTORS.leave(); FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; try { renderer.toneMappingExposure = GFX.atmo ? GFX.atmo.expo : 0.82; } catch (e) {} }
   // where you appear next time: the hardstand by the float, after a race
   function arrive(where) { resume = null; P.arrive = where === "hardstand" ? [31.5, 10.5, Math.PI / 2] : null; P.arriveHome = where === "hardstand"; }
   function resetRig() { const g = world && world.structures && world.structures.rig; if (g) { g.position.set(FARMWORLD.L.float.x, 0, FARMWORLD.L.float.z); g.rotation.set(0, 0, 0); if (g.userData.ramp) g.userData.ramp.rotation.z = 0.296; } }
@@ -571,7 +572,7 @@ const FARM = (() => {
     if (!built) return true;
     stopShowcase(); active = false; try { FARMCARE.leave(); } catch (e) {} unstand();
     if (farmRain) { try { farmRain.geometry.dispose(); farmRain.material.dispose(); } catch (e) {} farmRain = null; } farmP = null; farmDay = -1;
-    if (guide) { guide.dispose(); guide = null; } try { FARMACTORS.dispose(); FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
+    if (guide) { guide.dispose(); guide = null; } try { FARMLOOP.dispose(); FARMACTORS.dispose(); FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
     if (iworld) { iworld.dispose(); iworld = null; iscene = null; }
     world.dispose(); for (const g of own.geo) g.dispose(); for (const m of own.mat) m.dispose(); own.geo = []; own.mat = [];
     if (fig) { FARMPEOPLE.dispose(fig); fig = null; }

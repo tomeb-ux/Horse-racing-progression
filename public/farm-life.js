@@ -79,7 +79,8 @@ const FARMLIFE = (() => {
   function bringIn(hid) { const o = out[hid]; if (!o) return; try { FARMACTORS.noteManual(hid); } catch (e) {} const g = o.g, P = padInfo(o.k); delete out[hid]; g.userData.out = false; setTurnout(hid, null); g.position.set(P.gate.x, F.heightAt(P.gate.x, P.gate.z), P.gate.z); g.rotation.y = Math.PI / 2; FARMCARE.adopt(g, hid); F.toast(nm(hid) + " is on the lead", "info", 2); F.refreshObjective(); }
   function wash() {
     const L2 = FARMCARE.led; if (!L2 || anim) return; const g = L2.g; FARMCARE.freeze(true); F.setBusy(true); washHorse = g;
-    anim = { kind: "wash", g, t: 0, hid: L2.hid, x0: g.position.x, z0: g.position.z, px0: F.P.x, pz0: F.P.z };
+    anim = { kind: "wash", g, t: 0, hid: L2.hid, x0: g.position.x, z0: g.position.z, px0: F.P.x, pz0: F.P.z, loop: true, res: null };
+    try { const A0 = anim; FARMLOOP.begin({ kind: "wash", g, hid: L2.hid, name: nm(L2.hid), onEnd: r => { A0.res = r; } }) || (A0.loop = false); } catch (e) { anim.loop = false; }
     FARMPEOPLE.act(F.fig, "brush"); F.fig.root.visible = true; F.cineCam.set([WASH.x + 3.6, 1.9, WASH.z + 2.2], [WASH.x, 1.3, WASH.z - 1.2], 54, 4);
   }
   function stepAnim(dt) {
@@ -90,10 +91,10 @@ const FARMLIFE = (() => {
       F.P.x += (P.gate.x - 1.6 - F.P.x) * Math.min(1, dt * 2); F.P.z += (P.gate.z + 1.2 - F.P.z) * Math.min(1, dt * 2); FARMPEOPLE.pose(F.fig, dt, 0.8, 0);
       if (u >= 1) { const hid = g.userData.hid; setTurnout(hid, A.k); out[hid] = { g, k: A.k, mode: "graze", t: 5, gx: P.inside.x, gz: P.inside.z, gait: 0, sp: 0 }; anim = null; try { FARMACTORS.noteManual(hid); } catch (e) {} F.setBusy(false); F.toast(nm(hid) + " is out in the " + P.name.toLowerCase(), "good", 2.4); F.refreshObjective(); }
     } else if (A.kind === "wash") {
-      const g = A.g, u = clamp01(A.t / 6); g.position.x += (WASH.x - g.position.x) * Math.min(1, dt * 2); g.position.z += (WASH.z - 0.2 - g.position.z) * Math.min(1, dt * 2); g.rotation.y += (-Math.PI / 2 - g.rotation.y) * Math.min(1, dt * 2);
+      const g = A.g, u = A.loop ? (A.res ? 1 : 0) : clamp01(A.t / 6); g.position.x += (WASH.x - g.position.x) * Math.min(1, dt * 2); g.position.z += (WASH.z - 0.2 - g.position.z) * Math.min(1, dt * 2); g.rotation.y += (-Math.PI / 2 - g.rotation.y) * Math.min(1, dt * 2);
       animateHorse(g, 0, 0, 0, 0, 0, 0, dt, null); const B = g.userData.B; if (B) { B.neck1.rotation.z += 0.2; B.head.rotation.z += 0.1; B.body.rotation.z += Math.sin(A.t * 9) * 0.008; }
       F.P.x += (WASH.x + 1.3 - F.P.x) * Math.min(1, dt * 3); F.P.z += (WASH.z + 1.4 - F.P.z) * Math.min(1, dt * 3); F.P.face = 0.6; FARMPEOPLE.pose(F.fig, dt, 0, 0);
-      if (u >= 1) { let msg = ""; try { const r = CAREER.care.wash(A.hid); msg = r.already ? nm(A.hid) + " has already had a wash today" : nm(A.hid) + " is clean and relaxed (composure +" + r.gain + ")"; } catch (e) { console.error(e); } FARMPEOPLE.act(F.fig, null); F.cineCam.clear(); FARMCARE.freeze(false); anim = null; washHorse = null; F.setBusy(false); F.toast(msg, "good", 2.6); }
+      if (u >= 1) { let msg = ""; try { if (A.res === "cancel") msg = "Left the wash for later"; else { const r = CAREER.care.wash(A.hid); msg = r.already ? nm(A.hid) + " has already had a wash today" : nm(A.hid) + " is clean and relaxed (composure +" + r.gain + ")" + (A.res === "hand" ? " (a stable hand finished it)" : ""); } } catch (e) { console.error(e); } FARMPEOPLE.act(F.fig, null); F.cineCam.clear(); FARMCARE.freeze(false); anim = null; washHorse = null; F.setBusy(false); F.toast(msg, "good", 2.6); }
     }
   }
 

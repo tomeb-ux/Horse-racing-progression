@@ -338,6 +338,16 @@ The shadow pass is separate: about 127 extra draws in the overview, not part of 
 
 
 
+### Phase 19: the hands-on care loop (optional)
+
+**What you see.** At the wash bay the wash is no longer a timer: **E** starts a rinse loop with five regions (neck, shoulder, barrel, hindquarters, legs). Choose a region (**A/D**, **1-5** or click), **hold Space** (or the on-screen button) and a spray of water runs from your hand to that part of the horse; each region takes about a second of holding; finishing the last one completes the wash. The groom in the box menu is the same with brushing (neck, back, belly, rump, legs). At every step you can **press Enter to hand it to a stable hand** (done at once) or **Esc to leave it for later** (nothing lost). When a wash or groom is done, a short **post-work card** shows what the horse has had today, how much it recovers overnight and what is still on offer; the same lines are in the Inspect card.
+
+**No balance change.** The rewards are the unchanged `CORE.wash` (+3 composure, +1 fitness) and `CORE.groom` (+4 composure), once per horse per day, whoever does them (you, the hand-over, or the groom's daily routine). `CORE.postWork` is read-only (it does not even create the care record). Skipping costs exactly the edge it lists. Care touches composure and fitness only, so doing the loop daily or never gives identical attributes after 30 days (tested).
+
+**What I did not do.** The wash does not darken or wet the coat (no material clones, so nothing to leak); the sweat/steam from trackwork is the visual. The groom has no sheen. The cool-down walk is the Phase 18 routine or your own lead; it is not a scored step. No feeding mini-game, no farrier/vet interactions (deferred in the roadmap).
+
+**Tests.** `tests/phase19-core.js` (11) and `tests/phase19-browser.js` (21: the full wash by hand region by region, held-time progress, Esc and Enter at every step, the groom, the post-work card, five loops leave nothing behind, no page errors). `phase8-browser` now hands the wash over with Enter.
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.
