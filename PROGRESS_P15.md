@@ -399,6 +399,22 @@ The roadmap's Phase 23 is "retuning from the owner's play-test notes" plus goals
 
 **Tests.** `tests/phase23-core.js` (14, including a fuzz of 300 random careers: no goal paid twice, ledger healthy) and `tests/phase23-browser.js` (6). `career-core` 128 unchanged. I did **not** re-run `tests/economy.js` / `development.js` / `career_difficulty.js` simulations with the goal income: it adds at most $27,000 a season and I did not measure its effect on the difficulty bands.
 
+### Phase 25: a lived-in farm (owner request)
+
+**You asked for other horses walking around the farm and things happening that you can interact with.** This adds, in `public/farm-ambient.js` (one group, removed on leaving the farm; no effect on the career or the sim):
+
+- **Five resident horses** in the paddocks, none of them yours: Dolly (a retired barrier-trial mare), Jasper (a neighbour's hack, boarding), Duke (the old stock horse), and Clover with her foal Pip. They graze, wander (keeping clear of each other and of your horses), doze on three legs, flick their ears, toss their heads, and **come over to the fence when you walk past** (head up, ears forward, turning to watch you). **E pats them**: a short pat animation and a line about that horse. The foal skips about near its mother at a trot.
+- **Biscuit the farm dog**: wanders round the yard, **trots out to meet you** when you are within about 18 m, follows at a few metres, **sits when you stop** and wags; **E pats him**. He stays at home when you are far away.
+- **Seven hens** scratching about by the feed shed (one instanced mesh); they peck, wander, and **scatter when you run at them**.
+- **Visitors, on the farm clock** (their positions are a pure function of the clock and the date, so skipping time or re-entering puts them in the right place): a **hay truck** on Monday and Thursday mornings (07:30 arrives, 07:48-08:24 parked at the feed shed with the driver unloading, gone by 08:42; **E helps unload**), a bigger stack of bales in the shed for the days after; a **neighbour riding past** (Banjo, with Kath up) on Tuesday, Friday and Saturday afternoons (15:30-16:18, trotting from the gate towards the oval and back; **E says g'day**).
+- **The people will chat** (**E** next to a stable hand, the groom, the trainer or the vet): they talk about today's real situation, picking from lines that use the weather, whose turn-out or trackwork is when, a horse's form, whether a race is booked. The two hands are now Sam and Kerry.
+
+**Cost.** Residents are drawn only within 85 m of the camera, the dog and hens within 55 m, and animated only within 75 m, so the whole-property overview stays inside the farm's draw-call budget (overview 202 calls against the budget of 210). I measured no real-device frame time.
+
+**Not done.** The farrier/vet visit, the horse that arrives on the float, foals growing up over the seasons, and anything that changes with the seasons beyond the weather. Residents do not interact with your horses (no sniffing over a fence).
+
+**Tests.** `tests/phase25-browser.js` (34): the residents and where they wander, a horse coming to the fence and the pat, the dog following and sitting, hens scattering, the truck's day and hour (Monday yes, Wednesday no) with the driver, unloading and leaving, the rider's days and hours, staff chat, nothing left behind after three more visits. `farm-browser`'s idle-animation test now counts only the stall horses; its budget (overview ≤ 210) still holds.
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.

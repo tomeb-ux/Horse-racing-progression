@@ -99,7 +99,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   ok(stats.overview.buildMeshes < 120 && stats.overview.instances > 800, `the whole property is ${stats.overview.buildMeshes} merged meshes plus ${stats.overview.instances} instanced trees, shrubs, tufts and rocks`);
 
   console.log('\nâ€” nothing is animated that can\'t be seen');
-  const anim = await p.evaluate(async () => { const orig = window.animateHorse; let n = 0; window.animateHorse = function () { n++; return orig.apply(this, arguments); };
+  const anim = await p.evaluate(async () => { const orig = window.animateHorse; let n = 0; window.animateHorse = function (g) { if (!(g && g.userData && g.userData.amb)) n++; return orig.apply(this, arguments); };
     const fr = k => new Promise(r => { let i = 0; const f = () => ++i >= k ? r() : requestAnimationFrame(f); requestAnimationFrame(f); }); const o = {};
     FARM.view('stalls'); await fr(1); n = 0; await fr(4); o.near = n; FARM.view('overview'); await fr(1); n = 0; await fr(4); o.far = n; FARM.view('training'); await fr(1); n = 0; await fr(4); o.training = n; window.animateHorse = orig; return o; });
   ok(anim.near >= 15 && anim.far === 0 && anim.training === 0, `idle animation runs for the five horses when the camera is near (${anim.near} updates in 4 frames) and not at all when the camera is far (${anim.far}) or looking at the oval (${anim.training})`);

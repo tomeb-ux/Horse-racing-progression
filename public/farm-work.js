@@ -125,6 +125,6 @@ const FARMWORK = (() => {
   function dispose() { leave(); F = null; }
   function frame(dt) { if (!F) return; for (const j of jobs.slice()) { try { stepJob(j, dt); } catch (e) { console.error(e); end(j, true); } } }
   const lastFor = hid => { const l = lastWork[hid]; try { return l && l.day === CAREER.data.day ? l : null; } catch (e) { return null; } };
-  return { init, enter, leave, dispose, frame, startWork, stop, clear, find, lastFor, ovalAt, startD, buildWalker, get jobs() { return jobs; }, get walker() { return walker; }, POINTS: { WASH, ENTRY, COOL, WALK }, per: PER };
+  return { init, enter, leave, dispose, frame, startWork, stop, clear, find, lastFor, rider, ovalAt, startD, buildWalker, get jobs() { return jobs; }, get walker() { return walker; }, POINTS: { WASH, ENTRY, COOL, WALK }, per: PER };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = FARMWORK;

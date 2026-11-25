@@ -104,7 +104,7 @@ const FARMLIFE = (() => {
 
   // ---------------------------------------------------------------- the people who work here
   function buildStaff() {
-    const defs = []; defs.push({ id: "hand", name: "Stable hand", look: { skin: "#c68e6b", hair: 0, hairCol: "#3a2616", shirt: "#8a5a2e" }, role: "hand" }); defs.push({ id: "hand2", name: "Stable hand", look: { skin: "#8d5a3b", hair: 1, hairCol: "#1f140c", shirt: "#4a6a4c" }, role: "hand" });
+    const defs = []; defs.push({ id: "hand", name: "Sam", look: { skin: "#c68e6b", hair: 0, hairCol: "#3a2616", shirt: "#8a5a2e" }, role: "hand" }); defs.push({ id: "hand2", name: "Kerry", look: { skin: "#8d5a3b", hair: 1, hairCol: "#1f140c", shirt: "#4a6a4c" }, role: "hand" });
     try { const S = CAREER.data.staff || {}; for (const r of ["groom", "trainer", "vet"]) if (S[r]) defs.push({ id: r, name: S[r].name, look: S[r].look || {}, role: r }); } catch (e) {}
     for (const d of defs) {
       const look = d.look || {}, fig = FARMPEOPLE.make({ look: { head: 1, hair: look.hair | 0, hairCol: look.hairCol || "#3a2616", skin: look.skin || "#e0b48c", build: 0 }, outfit: d.role === "trainer" ? "training" : "stable", colours: { shirt: look.shirt || "#2e5e8a", trousers: d.role === "vet" ? "#e8e4d8" : "#3a3a40", boots: "#4a2e1a" } });
