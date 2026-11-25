@@ -13,7 +13,7 @@ Branch: `claude/amazing-clarke-jzpr1x` only; `main` is not to be touched.
 
 | Phase | Title | Status | Owner review |
 |---|---|---|---|
-| 15 | Racing smoothness (micro-stutter) | **15A done (instrumentation, headless counters, tool fixes); 15B waits for the owner's device reports. No stutter fix has been made.** | — |
+| 15 | Racing smoothness (micro-stutter) | **15A done. 15B first real-device round (Apple M2, Chrome) found the continuous ~30 fps was battery power management; plugged in the race runs at 60 fps with 4 hitches/min, one of 99 ms caused by a mid-race AUTO step-up. 15C proposal written, awaiting review: nothing implemented, no stutter fix has been made.** | — |
 | 16 | Review stabilisation and farm render headroom | not started | — |
 | 17 | Farm clock and daily schedule | not started | — |
 | 18 | Morning trackwork, cool-down and staff care routines | not started | — |
@@ -26,7 +26,7 @@ Branch: `claude/amazing-clarke-jzpr1x` only; `main` is not to be touched.
 
 Phase 15 sub-steps:
 - **15A (done):** the lean instrumentation set, tool fixes and the race-hygiene test.
-- **15B:** owner measurements, bisect builds and the diagnosis. **Stop.**
+- **15B (first round done, one device):** owner measurements, bisect builds and the diagnosis. Only the Apple M2 / Chrome device has reported so far.
 - **15C:** fixes for confirmed causes only.
 - **15D:** verification against `ROADMAP_P15.md` §2.5.
 
@@ -52,7 +52,11 @@ Phase 15 sub-steps:
 
 | Date | Build / commit | Device · browser · Hz | Condition (ROADMAP §2.2) | On-time % | p95 / p99 ms | Longest ms | Hitches/min | AUTO changes | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | — | — | (first rows come from Phase 15A/15B) |
+| 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · battery | A: benchmark, artifact, defaults | 100 (metric artefact, see below) | — / — (median 33.3) | — | — | not recorded (render ×1, shadows 1024 observed: AUTO at its floor) | **~30 fps cadence; the 15A detector read it as "30 Hz" so it judged every frame on time.** Owner: jerky. |
+| 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · battery | E: same build as direct HTML in its own tab | 100 (artefact) | — / — (median 33.3) | — | — | — | identical to the artifact run: **not a host-page / iframe effect** |
+| 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · battery | F: AUTO lab = Off (fixed High) | 100 (artefact) | — / — (median 33.3) | — | — | 0 by design | canvas 3420 × 1902 (2×), shadows 4096, **still 33.3 ms**. Not a controlled AUTO test: it compared the floor level with High |
+| 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · battery | owner's separate check | — | ~27 fps | — | — | — | Chrome ~27 fps on battery, 60 fps immediately when plugged in; unplug / replug during a race degrades / restores |
+| 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · plugged in (60 Hz) | A: benchmark, defaults, 60 s, 3,593 frames | 99.89 | 16.8 / 17.5 (median 16.7) | 99.2 | 4.0 (4 hitches in 60 s) | **3** | one hitch of 99.2 ms = AUTO step-up to render ×2 with ~101.6 ms of JS in the preceding frame. The other 3 hitches are not attributed (raw report not available to Claude) |
 
 ## Phase reports
 
@@ -79,6 +83,7 @@ Phase 15 sub-steps:
 
 **Known limitations of the instrumentation**
 - The refresh rate is read from the fastest frames the page reaches (snapped to a standard rate). A device that never reaches its display rate reads as the rate it does reach; say the display Hz in the notes.
+- **Observed failure (2026-11-25): on a power-throttled Mac running steadily at ~30 fps the "display refresh (detected)" read "30 Hz", the hitch threshold became 50 ms and the report said 100 % on-time.** The detected value is the cadence the page achieves, not the display's rate; 15C proposes to label and judge it that way (see below).
 - It sees rAF intervals and JS time. It cannot see GPU time, compositor or driver stalls except as "the interval was long and JS was short". Chrome traces and `chrome://gpu` remain necessary.
 - The benchmark has no human input, so it excludes the cost of rider input and of a real career race's HUD events; condition B covers that path.
 - Park is lazy: the farm's first frames after returning re-upload (visible as hitches in the log, behind the loading overlay when entering via the farm; not behind it when returning to the menu).
@@ -150,13 +155,66 @@ Retained (normal): 269 geometries / 72 textures alive during a race, the farm al
 Nothing in 15A touches race physics, results, `sim.js`, horse attributes or difficulty. The change set is diagnostics plus guarded one-line hooks in `gfx.js`, `commentary.js`, `farm.js` and the frame loop, all inert by default. Per the Testing policy the **Tier 3 full suite was therefore deferred** (not run): `career_difficulty.js`, `progression.js`, `economy.js`, `development.js`, `field/chaos/avoid/pileup/pushfall`, `randwick/flemington`, `commentary*`, `eleven-*`, `phase6–14` cores and browsers, `career-browser`, `presentation-browser`, `voice-browser`. Multiplayer tests: not run, multiplayer disabled by design. A Tier 3 run belongs to 15C/15D, when a fix touches `gfx.js` / the race path for real.
 
 #### Next investigation steps
-1. **15B (needs you):** run the protocol below on your devices, send the files, and I will tabulate them in the measurements log. Priorities: A ×2, then F-auto-off and F-parked, A-farm60, B, D, E, G.
+1. **15B (partly done):** one device (Apple M2, Chrome) has reported; see "15B first real-device round" below. More devices and the raw report files would still help (the original report said several devices).
 2. If AUTO off / race-only removes the hitches → 15C "AUTO feed" row of §2.4. If parked helps → the "park farm on race entry" row. If neither, if hitches carry `jsPrev` small → GPU / compositor / host: look at the Chrome trace and condition E. If JS-heavy → add the per-section timers from the §2.1 menu **one at a time**.
 3. Still open from the roadmap §2.3: the CDP allocation profile (the 9.5 → 12.2 MB/s rise, which survives the corrected tools), and the ten-different-fields geometry-cache growth check.
 4. The `renderer.info` count of 24 texture uploads per frame at every build is worth a look if the GPU trace points at uploads (candidate: skinned-mesh bone textures; not verified).
 
 #### Publishing
 See the closing message of the session for the artifact version. No historical comparison build (`5139a6f`, `49aaed3`, HEAD) has been published: that needs the owner's approval first.
+
+
+### 15B first real-device round: Apple M2 MacBook, Chrome (owner's reports; evidence in `docs/perf-evidence/`)
+
+**Evidence preserved:** `docs/perf-evidence/2026-11-25_apple-m2-chrome_owner-summary.md` holds the owner's figures exactly as given. The raw Shift+F8 `report.txt` files were not pasted into the session, so they are not in the repo yet; drop them into that folder unedited when available.
+
+**What the owner observed**
+- Battery, three benchmarks (artifact, the same HTML opened directly, AUTO lab = Off): all "30 Hz", 33.3 ms median. Racing looked jerky.
+- Chrome on this MacBook ran at about 27 fps on battery and reached 60 fps immediately when plugged in; unplugging during a Final Furlong race degraded it visibly and reconnecting restored it.
+- Plugged in, defaults, 60 s benchmark: 3,593 frames (59.9 fps), 99.89 % on time, median 16.7 / p95 16.8 / p99 17.5 ms, 4 hitches (one of 99.2 ms), 3 AUTO changes. The 99.2 ms hitch coincided with an AUTO step-up to render ×2 and about 101.6 ms of JavaScript in the preceding frame.
+
+**What this establishes (on this device)**
+1. **The continuous ~30 fps was the machine's power state, not the game.** The same page, same build and same race run at 60 fps plugged in and at ~27–30 fps on battery, and toggling the charger toggles it live. It is not the artifact host (the direct HTML was identical), not racing physics, and not a fixed frame cap: `frame()` is the only `requestAnimationFrame` loop and has no frame skipping or limiter. (What Chrome / macOS does on battery, such as Energy Saver or Low Power Mode, is not visible from JavaScript; it was not isolated further.)
+2. **The 15A instrumentation misjudged that situation** (see Known limitations): a steady 30 fps read as a "30 Hz display" with 100 % on-time. Tests under a faked power cap cannot be built here.
+3. **AUTO graphics sinks to its floor under a throttled cadence and keeps it.** Headless, with synthetic 33.3 ms frames: level 9 (render ×1.0, shadows 1024, far horses simpler) is reached in 20 s and written to `ff_autoLevel`; with the cap lifted (simulated clock) it takes about 207 s of healthy frames to climb back to level 0, one step every 12 s after a 60 s back-off. The owner's "normal" battery runs were therefore at the floor (canvas 1× / shadows 1024), and the AUTO-Off run (fixed High = 2× / 4096) compared the floor with High, so it was not a controlled test of AUTO scheduling.
+4. **A mid-race AUTO step-up cost a visible hitch.** Each AUTO change calls `applyQuality()`: `renderer.setPixelRatio()` (which calls `setSize`, assigning `canvas.width/height`), then `resize()` (assigning them again: two drawing-buffer reallocations, checked in the three.js r128 source), plus a shadow-map dispose and re-create. The one measured instance was 99.2 ms with ~101.6 ms of JS. This is the first real-device confirmation of the "AUTO changes mid-race" suspect, as an event; its share of all hitches is unknown. After a battery session leaves AUTO at the floor, the first plugged-in races climb back up in steps **during the race**, which is when the owner saw 3 changes in 60 s.
+
+**What it does not establish**
+- Whether the owner's other devices (the original report said "several") had the same cause. Only one device has reported.
+- What caused the other three hitches in the plugged-in run (not attributed; the report with their event lists is needed).
+- The cost split of the 101.6 ms between the two reallocations, the shadow map and the next frame's GPU work: not measured.
+- Whether Safari / other browsers behave differently: not tested.
+
+**Acceptance gate (ROADMAP §2.5) against the plugged-in benchmark, one device:** on-time ≥ 99 % **met** (99.89 %); no frame > 50 ms **not met** (99.2 ms); hitches ≤ 1 per minute **not met** (4 per minute); AUTO/applyQuality changes after 3 s = 0 **not met** (3). The stutter is **not** declared fixed; the owner reports the race looks smooth only when plugged in, and 15C is meant to remove the remaining mid-race reallocation hitch.
+
+### Phase 15C proposal (for review; **nothing is implemented**)
+
+**Goal:** no expensive AUTO reallocation during an active race, with no change to default quality, graphics detail, race physics or `sim.js`.
+
+**Recommended smallest change (C1), `gfx.js` + one argument in the `frame()` call:**
+- Tell `GFX.autoTick` whether a race is *live* (`ui.state === "racing"` and `race.state` is `running` or `done`: gates open until the results screen). Pre-gate (`load` / `count` / parade), replay, results, pause, farm and menu frames are *not* live.
+- **While live, an AUTO decision is not applied.** An up-step (headroom) is queued as `AUTO.pending` and AUTO makes no further decisions until it is applied. A mild down-step (median 19.5–28 ms) is queued the same way.
+- **Exception, unchanged behaviour: a severe down-step** (median over 28 ms, under about 36 fps) still applies immediately, because a struggling device needs relief now.
+- **Apply points:** the first non-live frame (results screen, pause, replay, menu or farm), and explicitly at the start of `startRace()` before `renderer.compile`, so a pending change lands behind the loading gates, not under a running field.
+- **`ff_autoLevel` is written only when a level is actually applied** (no storage write during a live race either).
+- Nothing else changes: thresholds, steps, the 60 s back-off, level contents and the stored-level semantics stay as they are. `settings.quality` presets other than AUTO are unaffected.
+
+**Why only this:** it removes the one hitch the owner measured (an up-step to ×2) and the other two mid-race changes in that run, without touching what AUTO considers good quality. Because most climbing back up happens on the farm and menu (farm and menu frames feed AUTO), the level recovers between races. If a device is cap-limited and only ever steps down mildly, it gets one queued change per race instead of one hitch.
+
+**Optional, to decide after measuring, not part of C1:**
+- **C2, halve the cost of every change:** `applyQuality()` currently resizes the drawing buffer twice (`setPixelRatio` then `resize()`); skipping the redundant second assignment when the size is unchanged would cut the cost of each change (which still happens between races). Needs a before / after timing on the owner's Mac; I would not do it blind.
+- **C3, measurement honesty (report-only, no behaviour change):** rename "display refresh (detected)" to "frame cadence achieved", add a loud line when the cadence is far below 60 Hz, base on-time and the hitch threshold on a display rate that is not inferred from a throttled cadence (assume ≥ 60 Hz unless a 3 s idle `requestAnimationFrame` probe says otherwise), and add the battery state (`navigator.getBattery()`), so a power-throttled run can never again read as "100 % on time". Also the "AUTO: freeze at the current level" lab mode for a controlled AUTO comparison, and the AUTO level at benchmark start / end in the report.
+- **Not recommended now:** deferring mild down-steps is already in C1; changing the AUTO feed (farm frames), the ratchet / climb rate, wider hysteresis and other §2.4 rows wait for evidence from more devices.
+
+**Verification plan for C1 (before anything is called done):**
+- `tests/race-hygiene-browser.js` "afterfarm" run: the current baseline shows 1 `applyQuality`, 1 `setPixelRatio`, 1 `localStorage` write and 1 AUTO change after the gates (chase camera). After C1 those clean-second counts must be 0, and the pending change must appear after the race.
+- `tests/auto-quality-browser.js` extended: a queued change is not applied while live; a severe slowdown still applies at once; the queued change applies at the next safe point and is then persisted once; the physics-independence check (identical finish order and times at levels 0 and 9) stays green.
+- Because `gfx.js` and the race frame loop are touched, the **Tier 3 full suite is required** (race physics itself is not touched), plus the single-file build and `scenes` / `farm-flow` runs.
+- Owner, plugged in, from a stored low AUTO level (the state a battery session leaves): benchmark twice. Expected: zero AUTO changes between the gates and the finish, no frame over 50 ms caused by `applyQuality`, hitches per minute at or below 1. Then the real-career condition B. **Subjective sign-off by the owner stays the gate.**
+
+**Not touched by C1:** `sim.js`, race physics, horse models, commentary, the farm, default quality, or the stored `ff_autoLevel` value semantics.
+
+After 15C is reviewed, built and verified, the roadmap resumes with **Phase 16 (review stabilisation and farm render headroom)**; nothing of Phase 16 has been started.
 
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
