@@ -64,7 +64,7 @@ const FARMWORK = (() => {
     const P = j.path, g = j.g; if (!P || j.pi >= P.length) return true; let tg = P[j.pi], dx = tg[0] - g.position.x, dz = tg[1] - g.position.z, d = Math.hypot(dx, dz);
     if (d < 0.4) { j.pi++; if (j.pi >= P.length) return true; tg = P[j.pi]; dx = tg[0] - g.position.x; dz = tg[1] - g.position.z; d = Math.hypot(dx, dz); }
     const s = Math.min(d, v * dt); g.position.x += dx / d * s; g.position.z += dz / d * s; g.position.y = Math.max(F.heightAt(g.position.x, g.position.z), 0);
-    const want = Math.atan2(-dz, dx); let e = want - g.rotation.y; e = Math.atan2(Math.sin(e), Math.cos(e)); g.rotation.y += e * Math.min(1, dt * 5); j.hsp = v; j.gait += v * dt / 1.75; PRESENT.animateWalk(g, j.gait % 1, dt, { rest: 0.4, look: 0 }); return false;
+    const want = Math.atan2(-dz, dx); let e = want - g.rotation.y; e = Math.atan2(Math.sin(e), Math.cos(e)); g.rotation.y += e * Math.min(1, dt * 5); j.hsp = v; if (v >= 2.8) { j.gait += v * dt / 3.6; PRESENT.animateTrot(g, j.gait % 1, dt, { rest: 0.4 }); } else { j.gait += v * dt / 1.75; PRESENT.animateWalk(g, j.gait % 1, dt, { rest: 0.4, look: 0 }); } return false;
   }
   function stepJob(j, dt) {
     const g = j.g, i = j.i, k = K(); j.t += dt;
@@ -75,7 +75,7 @@ const FARMWORK = (() => {
       const u = clamp01(j.t / 2.0), e = ease(u); g.position.set(j.from[0] + (j.to[0] - j.from[0]) * e, u > 0.5 ? Math.max(0.13, F.heightAt(g.position.x, g.position.z)) : 0.15, j.from[1] + (j.to[1] - j.from[1]) * e); j.gait += 1.4 * dt / 1.75; PRESENT.animateWalk(g, j.gait % 1, dt, { rest: 0.4, look: 0 });
       if (u >= 1) { k.doorOf(i, false); const o = ovalAt(startD()), pth = k.route([g.position.x, g.position.z], [ENTRY.x, ENTRY.z]); pth.push([o[0], o[1]]); j.path = pth; j.pi = 0; j.stage = 2; j.t = 0; }
     } else if (j.stage === 2) {                                                                // ridden to the oval
-      if (ride(j, dt, 2.2) || j.t > 80) { j.stage = 3; j.t = 0; j.d = startD(); j.ran = 0; j.lapT = 0; }
+      if (ride(j, dt, 3.2) || j.t > 80) { j.stage = 3; j.t = 0; j.d = startD(); j.ran = 0; j.lapT = 0; }
     } else if (j.stage === 3) {                                                                // the work: one lap
       const per = PER(), I = j.I, left = per - j.ran, v = I.fast && left <= I.fast ? I.vf : I.v, ramp = Math.min(1, 0.25 + j.ran / 40), vv = v * ramp * (left < 25 ? Math.max(0.4, left / 25) : 1);
       j.ran += vv * dt; j.d = startD() + j.ran; j.lapT += dt; posOval(j); j.ph += dt * vv / (1.6 + 0.65 * vv);

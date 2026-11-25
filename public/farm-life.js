@@ -50,6 +50,10 @@ const FARMLIFE = (() => {
         animateHorse(g, 0, 0, 0, 0, 0, 0, dt, null);
         const B = g.userData.B;
         if (o.mode === "graze" && B) { const k = Math.min(1, (6 - Math.max(0, o.t - 0)) > 0 ? 1 : 1), nod = Math.sin(performance.now() / 1000 * 0.9 + o.k) * 0.05; B.neck1.rotation.z += 0.78; B.neck2.rotation.z += 0.26; B.head.rotation.z += 0.34 + nod; B.head.rotation.y = Math.sin(performance.now() / 1000 * 0.4) * 0.1; }
+        if (o.mode === "roll") { if (!FARMIDLE.roll(g, dt, o, F.heightAt(g.position.x, g.position.z))) { o.mode = "graze"; o.t = 6; } continue; }
+        if (o.mode === "doze") { FARMIDLE.doze(g, dt, o); if (o.t <= 0) { o.dz = 0; o.mode = "graze"; o.t = 3; } continue; }
+        if (o.mode === "graze") FARMIDLE.events(g, dt, FARMIDLE.st(g));
+        if (o.t <= 0 && o.mode === "graze") { const r = Math.random(); if (r < 0.1 && FARMIDLE.wantsRoll(o, g)) { o.mode = "roll"; o.rt = null; continue; } if (r < 0.32) { o.mode = "doze"; o.t = 10 + Math.random() * 9; o.dz = 0; continue; } }
         if (o.t <= 0) { const P = padInfo(o.k), r = hash(hid, Math.floor(performance.now() / 5000)); o.gx = P.x0 + (P.x1 - P.x0) * r; o.gz = P.z0 + (P.z1 - P.z0) * hash(hid, "n" + Math.floor(performance.now() / 5000)); o.mode = "walk"; }
       }
     }
@@ -76,7 +80,7 @@ const FARMLIFE = (() => {
     F.setBusy(true); anim = { kind: "out", g, k, t: 0, from: [g.position.x, g.position.z], P }; g.userData.out = true; g.userData.padK = k;
     FARMPEOPLE.act(F.fig, null);
   }
-  function bringIn(hid) { const o = out[hid]; if (!o) return; try { FARMACTORS.noteManual(hid); } catch (e) {} const g = o.g, P = padInfo(o.k); delete out[hid]; g.userData.out = false; setTurnout(hid, null); g.position.set(P.gate.x, F.heightAt(P.gate.x, P.gate.z), P.gate.z); g.rotation.y = Math.PI / 2; FARMCARE.adopt(g, hid); F.toast(nm(hid) + " is on the lead", "info", 2); F.refreshObjective(); }
+  function bringIn(hid) { const o = out[hid]; if (!o) return; try { FARMIDLE.reset(o.g); } catch (e) {} try { FARMACTORS.noteManual(hid); } catch (e) {} const g = o.g, P = padInfo(o.k); delete out[hid]; g.userData.out = false; setTurnout(hid, null); g.position.set(P.gate.x, F.heightAt(P.gate.x, P.gate.z), P.gate.z); g.rotation.y = Math.PI / 2; FARMCARE.adopt(g, hid); F.toast(nm(hid) + " is on the lead", "info", 2); F.refreshObjective(); }
   function wash() {
     const L2 = FARMCARE.led; if (!L2 || anim) return; const g = L2.g; FARMCARE.freeze(true); F.setBusy(true); washHorse = g;
     anim = { kind: "wash", g, t: 0, hid: L2.hid, x0: g.position.x, z0: g.position.z, px0: F.P.x, pz0: F.P.z, loop: true, res: null };
@@ -156,7 +160,7 @@ const FARMLIFE = (() => {
   // Phase 17: the staff-led turnout hands horses over / takes them back
   function placeOut(g, k, derived) { place(g, k); if (!derived) setTurnout(g.userData.hid, k); }
   function adoptOut(g, k, derived) { const P = padInfo(k), hid = g.userData.hid; if (!derived) setTurnout(hid, k); g.userData.out = true; g.userData.padK = k; out[hid] = { g, k, mode: "graze", t: 5, gx: P.inside.x, gz: P.inside.z, gait: 0, sp: 0 }; }
-  function releaseOut(hid) { const o = out[hid]; if (!o) return null; delete out[hid]; if (hid in care()) setTurnout(hid, null); return o.g; }
+  function releaseOut(hid) { const o = out[hid]; if (!o) return null; try { FARMIDLE.reset(o.g); } catch (e) {} delete out[hid]; if (hid in care()) setTurnout(hid, null); return o.g; }
   const stations = role => STN[role] || STN.hand;
   return { init, enter, leave, dispose, frame, points, interact, buildUpgrades, isOut, placeOut, adoptOut, releaseOut, stations, padInfo, get anim() { return anim; }, get out() { return out; }, get npcs() { return npcs; }, setTurnout, GATE, padInfo, WASH };
 })();

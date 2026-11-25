@@ -26,6 +26,11 @@ const CALLS = (() => {
   ]);
   add("intro", "full", 2, "pre", ["Welcome to Flemington, and they're loading up for this one.", "Good afternoon from Flemington, the field is going into the gates."], { venue: "flemington" });
   add("intro", "full", 2, "pre", ["Welcome to Royal Randwick, and they're going into the barriers.", "A beautiful day here at Randwick, and the field is loading now."], { venue: "randwick" });
+  // Phase 21: the regional towns are named (the venue key is the town's slug, see commentary.js venueKey)
+  const TOWNS = ["Casino", "Dubbo", "Echuca", "Grafton", "Hamilton", "Kyneton", "Moree", "Mudgee", "Muswellbrook", "Port Macquarie", "Tamworth", "Toowoomba", "Wagga Wagga", "Warrnambool"];
+  for (const t of TOWNS) { const k = t.toLowerCase().replace(/[^a-z]+/g, "_");
+    add("intro", "full", 2, "pre", ["Welcome to " + t + ", and they're loading up for this one.", "Good afternoon from " + t + ", the runners are going into the gates."], { venue: k });
+    add("crowd", "full", 4, "straight", [t + " is on its feet!"], { venue: k }); }
   add("intro", "full", 2, "pre", ["Welcome to Furlong Park, and they're nearly ready to go.", "Good afternoon from Furlong Park, the runners are going in."], { venue: "generic" });
   add("intro", "full", 3, "pre", ["Welcome to Flemington for the Melbourne Cup, the race that stops a nation!", "It's Melbourne Cup day, and the whole country is watching!", "A massive crowd here at Flemington, and the Cup field is loading!"], { race: "cup" });
   add("intro", "full", 3, "pre", ["Welcome to Royal Randwick for The Everest, the richest race on turf!", "It's Everest day at Randwick, and what a field we've got!"], { race: "everest" });
@@ -188,6 +193,6 @@ const CALLS = (() => {
   const TIER_TAGS = { 1: "[calm race caller]", 2: "[lively race caller]", 3: "[building excitement]", 4: "[urgent, fast and loud]", 5: "[screaming with excitement, very fast]", triumphant: "[triumphant and loud]" };
   // a horse's name is recorded in three deliveries: before a phrase mid-race, excited in the straight, screamed at the climax
   const NAME_CTX = { c: { tier: 2, tag: "[lively race caller]", punct: "," }, x: { tier: 4, tag: "[urgent, fast and loud]", punct: "!" }, s: { tier: 5, tag: "[screaming with excitement, very fast]", punct: "!" } };
-  return { units: U, byTopic, byId: new Map(U.map(u => [u.id, u])), TIER_TAGS, NAME_CTX };
+  return { units: U, byTopic, byId: new Map(U.map(u => [u.id, u])), TIER_TAGS, NAME_CTX, TOWNS };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = CALLS;

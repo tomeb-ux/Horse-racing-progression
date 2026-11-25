@@ -178,6 +178,7 @@ const FARMCARE = (() => {
       if (L && L.g === g && L.mode !== "stall") continue;                           // the led horse is animated in lead()
       const d = Math.hypot(g.position.x - cam.position.x, g.position.z - cam.position.z); if (d > 38 && !(A && A.g === g)) continue;
       animateHorse(g, 0, 0, 0, 0, 0, 0, dt, null);
+      if (!(A && A.g === g)) { try { FARMIDLE.box(g, dt, F.P); } catch (e) {} }
       if (A && A.g === g) { const k = Math.min(1, A.t / 0.7) * (A.kind === "inspect" ? 1 : 1); overlay(g, A.kind === "groom" ? "groom" : A.kind === "feed" ? "feed" : A.kind === "prepare" ? "tack" : A.kind === "inspect" ? "inspect" : "", k, dt); }
     }
   }

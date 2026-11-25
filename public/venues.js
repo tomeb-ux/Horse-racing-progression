@@ -233,7 +233,7 @@ const VENUES = (() => {
      ROYAL RANDWICK
      ===================================================================== */
   function buildRandwick(trk) {
-    const G = new THREE.Group(); G.name = "venue-randwick";
+    const G = new THREE.Group(); G.name = "venue-randwick"; G.userData.trk = trk;
     const W = trk.W, lap = trk.lap, pt = trk.point, rng = GFX.rand(2224);
     const C = course(G, trk, { turfTint: 0xa6bf9c, infieldTint: 0xb3c49c, groundTint: 0xb4b88e, chuteGapBefore: 60 });
     // ---- infield: the Kensington track (inner turf course) and a sand training track, service road, big screen
@@ -347,7 +347,7 @@ const VENUES = (() => {
      FLEMINGTON
      ===================================================================== */
   function buildFlemington(trk) {
-    const G = new THREE.Group(); G.name = "venue-flemington";
+    const G = new THREE.Group(); G.name = "venue-flemington"; G.userData.trk = trk;
     const W = trk.W, lap = trk.lap, pt = trk.point, rng = GFX.rand(2312);
     const C = course(G, trk, { turfTint: 0xa2bc98, infieldTint: 0xafc298, groundTint: 0xb2b68a, chuteGapBefore: 40 });
     const spots = [], mm = M();
@@ -668,6 +668,7 @@ const VENUES = (() => {
   function buildCountry(trk, v) {
     const G = new THREE.Group(); G.name = "venue-country-" + v;
     const F0 = trk.finishD || 0, tr = { id: "country" + v, W: trk.W, lap: trk.lap, point: (s, off, out) => trk.point(F0 + s, off, out), chutes: {}, marks: {} };
+    G.userData.trk = tr;
     const W = tr.W, lap = tr.lap, pt = tr.point, rng = GFX.rand(3100 + v * 17), spots = [], mm = M();
     const C = course(G, tr, v ? { turfTint: 0xa8bf92, infieldTint: 0xb2c79a, groundTint: 0xa7b283 } : { turfTint: 0xb3c29a, infieldTint: 0xbcc79e, groundTint: 0xbcae80 });
     finish(G, tr, "COUNTRY RACE CLUB", ["#14331f", "#ffffff"]);
@@ -696,6 +697,24 @@ const VENUES = (() => {
     return G;
   }
 
+  // ---------- Phase 21: floodlight towers for evening meetings. Built once per venue (one instanced pole, one instanced lamp head, one additive halo point cloud = 3 draws),
+  // visible only when the atmosphere is dusk or evening. Towers stand outside the rail round the back of the course, clear of the stands and the finish.
+  let HALO = null;
+  function haloTex() { if (HALO) return HALO; const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"), g = x.createRadialGradient(32, 32, 2, 32, 32, 31); g.addColorStop(0, "rgba(255,244,214,1)"); g.addColorStop(0.35, "rgba(255,236,190,.55)"); g.addColorStop(1, "rgba(255,230,170,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); HALO = new THREE.CanvasTexture(c); return HALO; }
+  function floodlights(G, trk) {
+    const lap = trk.lap, W = trk.W; if (!lap || !trk.point) return null; const pts = [];
+    const n = lap > 2200 ? 10 : 8; for (let i = 0; i < n; i++) { const s = 80 + (lap - 360) * (i / (n - 1)); const p = trk.point(s, W + 16, {}); if (isFinite(p.x) && isFinite(p.z)) pts.push(p); }
+    if (!pts.length) return null; const grp = new THREE.Group(); grp.name = "floodlights"; grp.visible = false;
+    const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.28, 0.4, 30, 8), new THREE.MeshLambertMaterial({ color: 0x8e949a }), pts.length), head = new THREE.InstancedMesh(new THREE.BoxGeometry(5.5, 1.6, 0.7), new THREE.MeshBasicMaterial({ color: 0xfff1cc }), pts.length), d = new THREE.Object3D();
+    const pos = new Float32Array(pts.length * 3);
+    pts.forEach((p, i) => { d.position.set(p.x, 15, p.z); d.rotation.set(0, 0, 0); d.updateMatrix(); pole.setMatrixAt(i, d.matrix); const ang = Math.atan2(p.nx || 0, p.nz || 1); d.position.set(p.x, 30.6, p.z); d.rotation.set(0, ang, 0); d.updateMatrix(); head.setMatrixAt(i, d.matrix); pos.set([p.x, 30.6, p.z], i * 3); });
+    pole.frustumCulled = head.frustumCulled = false; const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const halo = new THREE.Points(g, new THREE.PointsMaterial({ map: haloTex(), size: 38, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.85, sizeAttenuation: true, fog: false })); halo.frustumCulled = false;
+    grp.add(pole, head, halo); G.add(grp); G.userData.flood = grp; return grp;
+  }
+  const isNight = () => { try { const t = GFX.atmo && GFX.atmo.tod; return t === "dusk" || t === "evening"; } catch (e) { return false; } };
+  function syncFlood() { if (!current) return; if (!current.userData.flood && current.userData.trk) floodlights(current, current.userData.trk); const f = current.userData.flood; if (f) f.visible = isNight(); }
+
   // ---------- switching venue ----------
   function use(trk, cfg) {
     if (!BOX) BOX = new THREE.BoxGeometry(1, 1, 1);
@@ -707,7 +726,7 @@ const VENUES = (() => {
       if (vs && vs.style === "country") {                                               // a regional race club: the small country look on the generic course
         const key = "country" + (vs.variant ? 1 : 0); if (!built[key]) { built[key] = buildCountry(trk, vs.variant ? 1 : 0); world.add(built[key]); }
         built[key].userData.setTown(vs.town); for (const k in built) built[k].visible = k === key; if (generic) generic.visible = false; current = built[key]; currentId = key;
-        GFX.fogRange(FOG0[0], FOG0[1]); const cr = current.userData.crowd, c = cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); return;
+        GFX.fogRange(FOG0[0], FOG0[1]); const cr = current.userData.crowd, c = cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); syncFlood(); return;
       }
       if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); GFX.fogRange(FOG0[0], FOG0[1]); return;
     }
@@ -719,7 +738,7 @@ const VENUES = (() => {
     // a major meeting fills the stands; an ordinary one is a decent midweek crowd
     const c = cfg && cfg.career, cr = current.userData.crowd;
     if (cr) cr.set(c && (c.crown || c.major) ? 1 : c && c.official ? 0.6 : 0.48);
-    swapFinishNear(current.userData.finishNear || []);
+    swapFinishNear(current.userData.finishNear || []); syncFlood();
   }
   // the photo-finish view hides the inner finish post (it stands between the camera and the noses)
   let savedNear = null;
@@ -728,7 +747,7 @@ const VENUES = (() => {
   let screenT = 0;
   function update(dt) {
     if (!current) return;
-    screenT -= dt; if (screenT > 0) return; screenT = 0.25;
+    screenT -= dt; if (screenT > 0) return; screenT = 0.25; syncFlood();
     for (const sc of SCREENS) {
       if (!sc.group.visible) continue;
       const g = sc.ctx, W2 = 640, H2 = 256;

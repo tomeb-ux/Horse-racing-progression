@@ -65,10 +65,10 @@ const COMM = (() => {
       this.flags = {}; this.falls = []; this.fallSeen = new Set(); this.I = 1; this.done = false; this.finalPending = false; this.winCalled = false;
       this.markers = {}; this.prestige = this.meta.crown ? 2 : this.meta.major ? 1.2 : this.meta.official ? 0.6 : 0.3;
       this.ledAll = null; this.at600 = null; this.at200 = null; this.paceS = []; this.quietSince = 0;
-      this.rivalry = this.meta.rivalry || {}; this.venue = this.venueKey(); this.raceKey = this.raceKeyOf();
+      this.rivalry = this.meta.rivalry || {}; this.venue = this.venueKey(); this.isTown = !!(BANK.TOWNS && BANK.TOWNS.some(t => t.toLowerCase().replace(/[^a-z]+/g, "_") === this.venue)); this.raceKey = this.raceKeyOf();
       sessionN++;
     }
-    venueKey() { const v = (this.meta.venue || "").toLowerCase(), id = this.race && this.race.trk && this.race.trk.id; return /flemington/.test(v) || id === "flemington" ? "flemington" : /randwick/.test(v) || id === "randwick" ? "randwick" : v && !/furlong/.test(v) ? "neutral" : "generic"; }       // any other named course (a country track, a provincial meeting) gets the neutral intros — never "Furlong Park"
+    venueKey() { const v = (this.meta.venue || "").toLowerCase(), id = this.race && this.race.trk && this.race.trk.id; const slug = v.replace(/[^a-z]+/g, "_"); if (BANK.TOWNS && BANK.TOWNS.some(t => t.toLowerCase().replace(/[^a-z]+/g, "_") === slug)) return slug; return /flemington/.test(v) || id === "flemington" ? "flemington" : /randwick/.test(v) || id === "randwick" ? "randwick" : v && !/furlong/.test(v) ? "neutral" : "generic"; }       // any other named course (a country track, a provincial meeting) gets the neutral intros — never "Furlong Park"
     raceKeyOf() { const n = (this.meta.name || "").toLowerCase(); return /melbourne cup/.test(n) ? "cup" : /everest/.test(n) ? "everest" : this.meta.major ? "major" : null; }
     player() { const p = this.race.player; return p && (p.isPlayer || this.opts.player === p) ? p : (this.opts.player || null); }
     route() { return this.race.route || this.race.trk || {}; }
@@ -246,7 +246,7 @@ const COMM = (() => {
       // --- the straight and the finish: called in short bursts ---
       if (late && this.flags.straight) {
         add("late", 5.6, () => this.lateMain(s, false, now - this.lastSpokeEnd >= 0.8));
-        if (this.raceKey && !this.flags.crowd && this.I >= 3.6) add("crowd", 4.4, () => { this.flags.crowd = true; const u = this.pickUnit("crowd", { venue: this.venue }) || this.pickUnit("crowd", {}); return u ? { parts: [{ u }], cat: "crowd" } : null; });
+        if ((this.raceKey || this.isTown) && !this.flags.crowd && this.I >= 3.6) add("crowd", 4.4, () => { this.flags.crowd = true; const u = this.pickUnit("crowd", { venue: this.venue }) || this.pickUnit("crowd", {}); return u ? { parts: [{ u }], cat: "crowd" } : null; });
         if (gL >= 4 && L2 && L3 && s.gap23 < 0.6 * LEN && this.fresh("placings", 20)) add("placings", 4.6, () => { this.memo("placings"); return this.full("placings"); });
         return C;
       }

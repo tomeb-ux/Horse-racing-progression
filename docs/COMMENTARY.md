@@ -114,7 +114,8 @@ dropped rather than describing the past.
 | delivery experiments (4 × ~350 characters) | 1,415 |
 | one Scribe transcription check (the estimate said 11; it cost 202 — so no more were made) | 202 |
 | the library: 47 batches (410 phrases + 128 names × 3) | about 18,200 by the account's usage counter (19,280 estimated beforehand) |
-| **left this period** | **12,502** |
+| Phase 21: 14 regional town intros ×2 and crowd lines (42 clips, 3 batches, one take each) | 2,225 |
+| **left this period (before Phase 21)** | **12,502** |
 
 Every request was priced with `estimate_only` first or from the measured 1 credit per character (tags included). New
 names in Enhanced mode cost ~120 credits each (three deliveries), once — the remaining balance covers about 100 of them.
@@ -132,3 +133,8 @@ clips laid out at the times the director spoke them; an interrupting call is pla
 4. `node tests/eleven-plan.js` (every phrase and name recorded), `node tests/commentary-scenarios.js 160`.
 The director picks from the bank whatever voice is active; a phrase without a recording would play as a caption only,
 which is why `tests/eleven-plan.js` fails if any phrase lacks one.
+
+
+## 7. Regional town names (Phase 21)
+
+`calls.js` has `TOWNS` (the 14 regional-circuit venues); each gets two intros and a crowd line (`venue` = the town's slug). `commentary.js venueKey()` returns the slug for those venues. Recorded with `tools/commentary-split-simple.js` (ffmpeg + node, no scipy): `node tools/commentary-split-simple.js <master.mp3> <batch> <tier> <[id,text] json> public/assets/audio/commentary`. 2,225 credits.

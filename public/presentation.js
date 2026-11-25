@@ -26,8 +26,8 @@ const PRESENT = (() => {
   // fetlock sinks as it takes the weight, then the heel lifts and the hoof breaks over at the toe. Swing: the knee (front)
   // or hock (hind) folds, the hoof is carried forward and the limb reaches out straight just before it lands.
   const smooth = x => x * x * (3 - 2 * x);
-  function walkLeg(t, hind, A, out) {
-    const st = 0.62;
+  function walkLeg(t, hind, A, out, stance) {
+    const st = stance || 0.62;
     if (t < st) {
       const u = t / st, load = Math.sin(Math.min(1, u / 0.85) * Math.PI), brk = u > 0.78 ? smooth((u - 0.78) / 0.22) : 0;
       out[0] = Math.asin(Math.sin(A) * (1 - 2 * u));
@@ -42,6 +42,29 @@ const PRESENT = (() => {
     }
     return out;
   }
+  // Phase 20: the trot. A two-beat diagonal gait: front-left with hind-right, then front-right with hind-left, with a moment of suspension between (stance 46 %).
+  // `ph` is the stride (one full cycle = both diagonals); a trot at 3.5 m/s has a stride of about 3.6 m. opts: jig (0..1, a keen horse jogging on the spot: shorter, higher, head up), rest, look.
+  const TROT_FOOT = [0, 0.5, 0.5, 0];                                     // FL, FR, HL, HR
+  function animateTrot(g, phase, dt, opts) {
+    const u = g.userData, B = u.B, L = u.look; if (!B) return; opts = opts || {};
+    if (u.fallVis && typeof restoreFromFall === "function") restoreFromFall(u);
+    const ph = ((phase % 1) + 1) % 1, jig = opts.jig || 0, A = (l) => (l ? 0.36 : 0.40) * (1 - 0.3 * jig);
+    u.legs.forEach((l, i) => { let t = ph - TROT_FOOT[i]; if (t < 0) t += 1; walkLeg(t, l.hind, A(l.hind), _w, 0.46); for (let k = 0; k < 4; k++) l.b[k].rotation.z = _w[k]; });
+    const bob = Math.abs(Math.sin(ph * Math.PI * 2)), roll = Math.sin(ph * Math.PI * 2);
+    B.body.position.set(0, 1.30 + 0.05 * bob + 0.02 * jig, 0);
+    B.body.rotation.set(roll * 0.012, Math.sin(ph * Math.PI * 2) * 0.01, 0.015 * Math.cos(ph * Math.PI * 4));
+    B.pelvis.rotation.set(-roll * 0.012, 0, 0.02 * Math.sin(ph * Math.PI * 4 + 1));
+    const toss = jig ? Math.max(0, Math.sin((u.idleT = (u.idleT || 0) + dt) * 2.1 + jig * 7)) ** 8 * 0.2 * jig : 0;
+    B.neck1.rotation.set(roll * 0.02, 0, 0.0 - L.carriage + 0.02 - 0.08 * bob + 0.06 * jig + toss);
+    B.neck2.rotation.set(0, Math.sin(ph * Math.PI * 2) * 0.02, 0.02 * jig);
+    B.head.rotation.set(0, (opts.look || 0) + Math.sin(ph * Math.PI * 2 + 0.5) * 0.04, -0.1 + 0.06 * bob - toss * 0.6);
+    B.tail1.rotation.set(Math.sin(ph * Math.PI * 4) * 0.12, 0, -0.2 - 0.1 * jig); B.tail2.rotation.set(Math.sin(ph * Math.PI * 4 - 0.7) * 0.12, 0, 0.05); B.tail3.rotation.set(Math.sin(ph * Math.PI * 4 - 1.4) * 0.1, 0, 0.03); B.tail4.rotation.set(0, 0, 0);
+    if (typeof earPose === "function") earPose(u, 0, 0, dt);
+    u.bob = 0; if (u.blob) u.blob.scale.set(1, 1, 1);
+    _jkX.curv = 0; _jkX.acc = 0; _jkX.fat = 0; _jkX.cel = 0;
+    poseJockey(u, 0, 0, ph, 0, 0, 0, opts.rest != null ? opts.rest : 1, 0, dt);
+  }
+
   function animateWalk(g, phase, dt, opts) {
     const u = g.userData, B = u.B, L = u.look; if (!B) return;
     if (u.fallVis && typeof restoreFromFall === "function") restoreFromFall(u);
@@ -62,6 +85,7 @@ const PRESENT = (() => {
     B.tail1.rotation.set(sw * 0.14, 0, -0.08); B.tail2.rotation.set(Math.sin(ph * Math.PI * 2 - 0.7) * 0.12, 0, 0.03); B.tail3.rotation.set(Math.sin(ph * Math.PI * 2 - 1.4) * 0.1, 0, 0.02); B.tail4.rotation.set(Math.sin(ph * Math.PI * 2 - 2.1) * 0.08, 0, 0);
     if (typeof earPose === "function") earPose(u, 0, 0, dt);
     u.bob = 0; u.blob.scale.set(1, 1, 1);
+    if (opts && opts.blow) { const bt = (u.blowT = (u.blowT || 0) + dt * (4.2 + 2 * opts.blow)), br = Math.sin(bt) * 0.5 + 0.5; B.body.position.y += 0.012 * opts.blow * br; B.neck1.rotation.z -= 0.035 * opts.blow * br; B.head.rotation.z += 0.03 * opts.blow * br; B.body.rotation.z += 0.012 * opts.blow * (1 - br); }       // Phase 20: blowing after the race
     _jkX.curv = 0; _jkX.acc = 0; _jkX.fat = 0; _jkX.cel = opts && opts.cel ? opts.cel : 0;
     poseJockey(u, 0, 0, ph, 0, 0, 0, opts && opts.rest != null ? opts.rest : 1, 0, dt);
     _jkX.cel = 0;
@@ -157,10 +181,15 @@ const PRESENT = (() => {
       #prUI .pr-win .e{font-size:13px;letter-spacing:.3em;font-weight:800;color:var(--prc,#e8c35a)}
       #prUI .pr-win .w{font-size:40px;font-weight:900;margin:4px 0 2px}
       #prUI .pr-win .d{font-size:15px;opacity:.9}
-      @media (max-width:640px){#prUI .pr-top .t{font-size:20px}#prUI .pr-win .w{font-size:28px}#prUI .pr-card{left:12px;right:12px;bottom:16px}}`;
+      #prUI .pr-odds{position:absolute;right:22px;top:66px;width:236px;background:rgba(10,14,12,.74);border-top:3px solid var(--prc,#e8c35a);border-radius:8px;padding:8px 12px 10px;font-size:12.5px;line-height:1.55}
+      #prUI .pr-odds b.h{display:block;font-size:11px;letter-spacing:.22em;opacity:.85;margin-bottom:3px}
+      #prUI .pr-odds div.r{display:flex;justify-content:space-between;gap:8px;white-space:nowrap}
+      #prUI .pr-odds div.r span:first-child{overflow:hidden;text-overflow:ellipsis}
+      #prUI .pr-odds div.me{color:#ffd54a;font-weight:800}
+      @media (max-width:640px){#prUI .pr-odds{display:none}#prUI .pr-top .t{font-size:20px}#prUI .pr-win .w{font-size:28px}#prUI .pr-card{left:12px;right:12px;bottom:16px}}`;
     document.head.appendChild(st);
     const d = document.createElement("div"); d.id = "prUI"; d.hidden = true;
-    d.innerHTML = `<div class="pr-top"><div class="k" id="prKick"></div><div class="t" id="prTitle"></div></div><button class="pr-skip" id="prSkip">SKIP ▸</button><div class="pr-card off" id="prCard"></div><div class="pr-win" id="prWin" hidden></div>`;
+    d.innerHTML = `<div class="pr-top"><div class="k" id="prKick"></div><div class="t" id="prTitle"></div></div><button class="pr-skip" id="prSkip">SKIP ▸</button><div class="pr-card off" id="prCard"></div><div class="pr-odds" id="prOdds" hidden></div><div class="pr-win" id="prWin" hidden></div>`;
     document.body.appendChild(d); S.ui = d;
     d.querySelector("#prSkip").onclick = () => finish();
     addEventListener("keydown", e => { if (!S.mode) return; if (e.code === "Space" || e.code === "Enter" || e.code === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); finish(); } }, true);
@@ -188,6 +217,16 @@ const PRESENT = (() => {
     if (setting() === "always") return true;
     return !!(cfg.career && (cfg.career.major || cfg.career.crown));
   }
+  // Phase 21: a bookmaker's board in the mounting yard. DISPLAY ONLY (no betting exists): prices come from the runners' ratings alone, with a bookmaker's margin.
+  function oddsFor(field) {
+    const rt = field.map(h => ratingOf(h.def) || 60), mean = rt.reduce((a, b) => a + b, 0) / rt.length, w = rt.map(x => Math.exp((x - mean) / 7)), tot = w.reduce((a, b) => a + b, 0);
+    return field.map((h, i) => { const p = w[i] / tot, o = Math.max(1.3, 0.88 / p); return { h, o, txt: "$" + (o < 10 ? o.toFixed(2) : o < 30 ? Math.round(o) : Math.round(o / 5) * 5) }; }).sort((a, b) => a.o - b.o);
+  }
+  function showOdds(r) {
+    const el = S.ui.querySelector("#prOdds"); if (!el) return; const rows = oddsFor(r.horses).slice(0, 12);
+    el.innerHTML = '<b class="h">THE BETTING</b>' + rows.map(x => `<div class="r${x.h === r.player ? " me" : ""}"><span>${esc(x.h.def.name)}</span><span>${x.txt}</span></div>`).join("") + (r.horses.length > 12 ? '<div class="r" style="opacity:.6"><span>…and ' + (r.horses.length - 12) + " more</span><span></span></div>" : "");
+    el.hidden = false;
+  }
   function parade(r) {
     const ring = typeof VENUES !== "undefined" && VENUES.parade && VENUES.parade(); if (!ring) return false;
     ensureUI(); S.mode = "parade"; S.t = 0; S.race = r; S.ring = ring; S.walkT = 0;
@@ -203,7 +242,7 @@ const PRESENT = (() => {
     dressLawn(ring);
     const meta = r.cfg.career || {}, venue = r.cfg.track === "flemington" ? "FLEMINGTON · MOUNTING YARD" : "ROYAL RANDWICK · THEATRE OF THE HORSE";
     S.ui.querySelector("#prKick").textContent = venue; S.ui.querySelector("#prTitle").textContent = (meta.name || (r.dist + " m race")).toUpperCase();
-    S.ui.style.setProperty("--prc", meta.crown ? "#e8c35a" : "#9fd6ae"); S.ui.querySelector("#prWin").hidden = true;
+    S.ui.style.setProperty("--prc", meta.crown ? "#e8c35a" : "#9fd6ae"); S.ui.querySelector("#prWin").hidden = true; try { showOdds(r); } catch (e) {}
     S.shots = [{ k: "wide", d: 3.2 }, { k: "horse", h: r.player, d: 4.2, label: "YOUR RUNNER" }];
     rivals.forEach((h, i) => S.shots.push({ k: "horse", h, d: 3.0, label: i === 0 ? "THE MAIN DANGER" : "ONE TO WATCH" }));
     S.shots.push({ k: "wide2", d: 2.6 });
@@ -225,7 +264,8 @@ const PRESENT = (() => {
       m.position.set(P0.x, P0.y, P0.z); const hx = P1.x - P0.x, hz = P1.z - P0.z; m.rotation.set(0, Math.atan2(hx, hz) - Math.PI / 2, 0);
       // cadence matched to the ground speed (a walking stride is about 1.75 m), so the hooves don't slide
       const keen = h.rp ? Math.max(0, h.rp.eager - 0.45) * 1.6 : 0;
-      animateWalk(m, (S.walkT * spd / 1.75 + i * 0.37) % 1, dt, { rest: 1, keen });
+      if (keen > 0.55) animateTrot(m, (S.walkT * spd / 1.5 + i * 0.37) % 1, dt, { rest: 1, jig: Math.min(1, (keen - 0.55) / 0.5 + 0.35) });          // Phase 20: a keen horse jig-jogs round the ring
+      else animateWalk(m, (S.walkT * spd / 1.75 + i * 0.37) % 1, dt, { rest: 1, keen });
       // the strapper walks at the horse's head on the outside of the ring (the cameras look in from the lawn)
       const len = Math.hypot(hx, hz) || 1, fx = hx / len, fz = hz / len;
       let sx = -fz, sz = fx; if ((P0.x + sx - c0.x) ** 2 + (P0.z + sz - c0.z) ** 2 < (P0.x - c0.x) ** 2 + (P0.z - c0.z) ** 2) { sx = -sx; sz = -sz; }
@@ -288,6 +328,9 @@ const PRESENT = (() => {
       const tbl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.9, 16), new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.5 })); tbl.position.set(f.x, 0.95, f.z); S.group.add(tbl);
       S.trophy = trophyMesh(/melbourne cup/i.test(meta.name || "") ? "three" : /everest/i.test(meta.name || "") ? "silver" : "two"); S.trophy.position.set(f.x, 1.42, f.z); S.group.add(S.trophy);
       S.trophyAt = new THREE.Vector3(f.x, 1.8, f.z);
+    } else if (meta.official) {                                       // Phase 21: an official race gets a smaller cup on a plain table by the post (the big two keep their dais)
+      const f = r.route.point(r.dist + 4, r.trk.W + 6, {}), tbl = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.9, 16), new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.5 })); tbl.position.set(f.x, 0.45, f.z); S.group.add(tbl);
+      S.trophy = trophyMesh("two"); S.trophy.scale.setScalar(0.7); S.trophy.position.set(f.x, 0.95, f.z); S.group.add(S.trophy); S.trophyAt = new THREE.Vector3(f.x, 1.3, f.z);
     } else S.trophy = null;
     const title = meta.name ? meta.name.toUpperCase() : (r.dist + " m " + (DIST_LABEL[r.dist] || "")).toUpperCase();
     const second = r.finishOrder[1], gap = second && typeof finishGap === "function" ? finishGap(w, second) : null;
@@ -311,7 +354,7 @@ const PRESENT = (() => {
     const lane = r.trk.W * 0.55, q = r.route.point(prog - NOSE_OFF, lane, {});
     m.position.set(q.x, 0, q.z); m.rotation.set(0, Math.atan2(q.hx, q.hz) - Math.PI / 2, 0);
     const cel = Math.min(1, S.t / 1.2);
-    animateWalk(m, (S.walkT * 0.95) % 1, dt, { rest: 0.55, cel, look: Math.sin(S.t * 0.6) * 0.15 });
+    animateWalk(m, (S.walkT * 0.95) % 1, dt, { rest: 0.55, cel, look: Math.sin(S.t * 0.6) * 0.15, blow: Math.max(0.15, 1 - S.t / 14) });
     const yaw = m.rotation.y + Math.PI / 2, fx = Math.sin(yaw), fz = Math.cos(yaw);
     let tp, tl, fov = 34;
     const lastShot = S.trophy && S.t > S.dur - 3.4;
@@ -335,7 +378,7 @@ const PRESENT = (() => {
     const mode = S.mode, done = S.done; S.mode = null;
     if (S.group) { world.remove(S.group); disposeGroup(S.group); S.group = null; }
     S.hidden.forEach(m => m.visible = true); S.hidden = [];
-    if (S.ui) { S.ui.hidden = true; S.ui.querySelector("#prWin").hidden = true; setCard(null); }
+    if (S.ui) { S.ui.hidden = true; S.ui.querySelector("#prWin").hidden = true; const od = S.ui.querySelector("#prOdds"); if (od) od.hidden = true; setCard(null); }
     if (typeof BC !== "undefined") BC.shot = null;
     if (mode === "parade" && S.race === race) { race.horses.forEach(h => h.mesh && (h.mesh.userData.cel = 0)); }
     if (done) done();
@@ -343,5 +386,5 @@ const PRESENT = (() => {
   function frame(dt) {
     if (S.mode === "parade") paradeFrame(dt); else if (S.mode === "celebrate") celebrateFrame(dt);
   }
-  return { wantParade, parade, wantCelebration, celebrate, frame, finish, animateWalk, get mode() { return S.mode; }, trophyMesh };
+  return { wantParade, parade, wantCelebration, celebrate, frame, finish, animateWalk, animateTrot, get mode() { return S.mode; }, trophyMesh };
 })();

@@ -350,6 +350,31 @@ The shadow pass is separate: about 127 extra draws in the overview, not part of 
 
 **Tests.** `tests/phase19-core.js` (11) and `tests/phase19-browser.js` (21: the full wash by hand region by region, held-time progress, Esc and Enter at every step, the groom, the post-work card, five loops leave nothing behind, no page errors). `phase8-browser` now hands the wash over with Enter.
 
+### Phase 20: horse behaviour and the trot
+
+**Added.**
+- **A trot** (`PRESENT.animateTrot`): a two-beat diagonal gait (front-left with hind-right, then front-right with hind-left, stance 46 %), a springier body, the head steadier, the rider posed to match. A `jig` option makes a keen horse jog on the spot (shorter, higher, head up, tossing). Used by: the parade (a keen horse, `eager` above about 0.55, now jig-jogs round the ring while the others walk), the work rider taking a horse out to the oval (Phase 18), and available to anything else.
+- **Blowing** after the race: the winner's walk-back breathes hard (flank heave, nodding head) and settles over about 14 s.
+- **Farm behaviour** (`public/farm-idle.js`, farm only): each horse has a small random event machine whose odds come from its own temperament attribute and the time of day. Nervous horses toss their heads and paw more; horses paw more at feed times (06:00-06:40 and 16:00-16:50 on the farm clock); tails swish more in the southern summer (Dec-Feb). A horse in its box **looks over the door at you** as you come up (head and neck turn toward you, ears already flick by themselves). In the paddock horses sometimes **doze on three legs** (head hanging, a hind leg rested on its toe) and, rarely, **roll** (down onto one side, legs kicking, back up; one horse at a time).
+
+**Not done (listed in the roadmap for Phase 20, left out on purpose).** Sweating-up visuals for fractious horses (needs a per-horse material change; I would not do it blind), steam on cold days, the jockey standing in the irons when pulling up, the late look-round, and hands-and-heels versus whip posture. Those live in the race jockey rig (`poseJockey`/`jockeyPoints`), which every race frame runs; I judged them too risky to change without a real-device frame-time check. `sim.js` is untouched and the race animation path is untouched.
+
+**Tests.** `tests/phase20-browser.js` (13): the trot's diagonal pairs and finite poses, the idle events, the look-over, doze, roll and recovery (upright, `XYZ` rotation order restored, nothing left rolling), no page errors. Race-facing regressions: `presentation-browser`, `replay-lunge-browser`, `race-hygiene-browser` (see the status table at the end of Phase 21).
+
+### Phase 21: race-day immersion and commentary (the parts that could be done safely)
+
+**Commentary: the 14 regional towns are named.** The caller now opens a country meeting with the town ("Welcome to Dubbo, and they're loading up for this one.", "Good afternoon from Muswellbrook, the runners are going into the gates.") and uses "Tamworth is on its feet!" in the straight. 14 towns, 42 new phrases, recorded in the owner's "Commentator" voice (eleven_v4, one take each, three batch recordings split at their pauses): **2,225 ElevenLabs credits** (848 + 988 + 389; the owner approved spending credits). The splitter `tools/commentary-split-simple.js` needs only ffmpeg and node (the old one needs scipy); every batch cut cleanly (margin 0.19-0.27 s over the next-longest pause, speaking rates 4.8-6.4 syllables a second, clip lengths uniform per batch). I could not listen to them; the lengths and rates are consistent with the words. The venue key is now the town's slug for those 14 venues; other country venues keep the neutral intros. `tests/phase21-core.js` (88) runs a real simulated race for each town and checks the key, the intros and the crowd line; `tests/eleven-plan.js` confirms every phrase has a recording.
+
+**Race day.**
+- **A betting board** in the mounting yard (feature races at Randwick and Flemington): the runners with prices from their ratings (favourite first, your horse highlighted, a bookmaker's margin). Display only: there is no betting.
+- **Floodlight towers** for evening meetings (dusk or evening atmosphere): 8-10 towers outside the rail round the back of the course, clear of the stands and the finish: one instanced pole, one instanced lamp head, one additive halo point cloud = **3 draws, only when it is evening**, nothing by day. Built once per venue before the gates open, so no mid-race upload or compile (the atmosphere is set before the venue is chosen and never changes during a race).
+- **A high finish-line camera**: the finish shot alternates between the side-on camera and a high one.
+- **An official race now has its own small trophy** on a table by the post (the Cup and The Everest keep their dais).
+
+**Not done.** Crowd audio layers: the crowd noise beds were deliberately muted in an earlier phase ("read as static on most speakers", `audio.roar` returns at once) and making new crowd audio needs sound effects I have no tool to record, so I left it. The float arrival and a separate mounting-yard scene (the parade already is the mounting yard), new replay angles, "return to scale", and a trophy tier by grade beyond the one above.
+
+**Tests.** `tests/phase21-core.js`, `tests/phase21-browser.js` (10: the board, price order, display-only, floodlights at evening and dusk but not midday or golden hour, three renderable objects).
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.
