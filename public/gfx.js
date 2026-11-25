@@ -463,15 +463,20 @@ const GFX = (() => {
     TLO = !!lo; const parts = [], r = rand(species.length * 977);
     if (species === "gum") {
       const bark = lin(0xcfc4ae); parts.push(trunk(0.45, 0.22, 11, bark, 0, 0, 0.6));
-      for (let k = 0; k < 3; k++) { const a = k * 2.1 + r(), b = trunk(0.2, 0.08, 6, bark, 0, 0, 0); b.rotateZ(0.6 + r() * 0.3); b.rotateY(a); b.translate(0.4, 8 + k, 0); parts.push(b); }
+      for (let k = 0; k < 3; k++) { const a = k * 2.1 + r(), b = trunk(0.2, 0.08, 6, bark, 0, 0, 0); b.rotateZ(0.6 + r() * 0.3); b.rotateY(a); b.translate(0.6 * (8 + k) * (8 + k) / 11, 8 + k, 0); parts.push(b); }     // each limb starts on the leaning trunk
     } else if (species === "fig") parts.push(trunk(1.3, 0.7, 5, lin(0x8d8577)));
     else if (species === "plane") parts.push(trunk(0.5, 0.3, 7, lin(0x9b917c)));
     else parts.push(trunk(0.3, 0.2, 3, lin(0x5b4a38)));      // cypress
     TLO = false; return (TREE[key] = merge(parts));
   }
+  const GUM_ANCHORS = (() => {          // [x, y, z, radius] of the gum's clumps: one over each limb tip, one over the top of the leaning trunk (local to the tree, before its scale)
+    const r = rand(3 * 977), out = [];
+    for (let k = 0; k < 3; k++) { const a = k * 2.1 + r(), th = 0.6 + r() * 0.3, y0 = 8 + k; out.push([0.6 * y0 * y0 / 11 - 6 * Math.sin(th) * Math.cos(a), y0 + 6 * Math.cos(th) + 0.6, 6 * Math.sin(th) * Math.sin(a), 2.6 + 0.35 * k]); }
+    out.push([6.6, 12.2, 0, 3.0]); return out;
+  })();
   // per species: clump count, radius range (m, before the tree's own scale), (x, y, z) shape factors, height range, spread round the trunk top, base colour (linear), lean of the crown centre
   const CROWN = {
-    gum:     { n: 4, rad: [2.6, 3.6], flat: [1.2, 0.74, 1.12], y: [10.2, 14.4], spread: 3.0, lean: 3.0, col: [0.30, 0.38, 0.17] },
+    gum:     { n: 4, rad: [2.6, 3.6], flat: [1.2, 0.74, 1.12], y: [10.2, 14.4], spread: 3.0, lean: 0, col: [0.30, 0.38, 0.17], anchors: GUM_ANCHORS },
     fig:     { n: 5, rad: [4.0, 5.2], flat: [1.22, 0.7, 1.22], y: [6.8, 9.6], spread: 4.4, lean: 0, col: [0.11, 0.21, 0.065] },
     plane:   { n: 3, rad: [3.3, 4.4], flat: [1.0, 0.92, 1.0], y: [8.0, 11.0], spread: 2.0, lean: 0, col: [0.22, 0.38, 0.10] },
     cypress: { n: 3, rad: [1.5, 1.9], flat: [0.95, 1.75, 0.95], y: [4.2, 10.2], spread: 0.25, lean: 0, col: [0.11, 0.21, 0.09] },
@@ -480,13 +485,14 @@ const GFX = (() => {
   function crownItems(sp, treeM, tx, ty, tz, r, out, cols) {   // the clumps of one tree as instance matrices (+ colours), appended to `out`
     const C = CROWN[sp];
     for (let k = 0; k < C.n; k++) {
-      const a = k / C.n * 6.283 + r() * 0.9, d = k ? C.spread * (0.4 + 0.6 * r()) : C.spread * 0.15 * r(), t = C.n > 1 ? k / (C.n - 1) : 0.5;
-      const rad = C.rad[0] + (C.rad[1] - C.rad[0]) * r(), h = C.y[0] + (C.y[1] - C.y[0]) * (k === 0 ? 0 : 0.2 + 0.8 * r());
-      _lp.set(Math.cos(a) * d + C.lean, h - (d / (C.spread + 0.01)) * (C.y[1] - C.y[0]) * 0.18, Math.sin(a) * d);
+      const a = k / C.n * 6.283 + r() * 0.9, d = k ? C.spread * (0.4 + 0.6 * r()) : C.spread * 0.15 * r(), t = C.n > 1 ? k / (C.n - 1) : 0.5, A = C.anchors && C.anchors[k];
+      let rad = C.rad[0] + (C.rad[1] - C.rad[0]) * r(); const h = C.y[0] + (C.y[1] - C.y[0]) * (k === 0 ? 0 : 0.2 + 0.8 * r());
+      if (A) { _lp.set(A[0] + (r() - 0.5) * 0.8, A[1] + (r() - 0.5) * 0.8, A[2] + (r() - 0.5) * 0.8); rad = A[3] * (0.9 + 0.25 * r()); }
+      else _lp.set(Math.cos(a) * d + C.lean, h - (d / (C.spread + 0.01)) * (C.y[1] - C.y[0]) * 0.18, Math.sin(a) * d);
       _ls.set(rad * C.flat[0] * (0.88 + 0.26 * r()), rad * C.flat[1] * (0.85 + 0.3 * r()), rad * C.flat[2] * (0.88 + 0.26 * r()));
       _le.set((r() - 0.5) * 0.35, r() * 6.283, (r() - 0.5) * 0.35); _lq.setFromEuler(_le);
       _lm.compose(_lp, _lq, _ls); _cm.multiplyMatrices(treeM, _lm);
-      const e = _cm.elements; out.push({ m: _cm.clone(), x: tx, y: ty, z: tz });
+      out.push({ m: _cm.clone(), x: tx, y: ty, z: tz });
       const lift = 0.82 + 0.3 * t * (k === 0 ? 0 : 1), tint = 0.88 + r() * 0.24, hue = 0.94 + r() * 0.12;      // lighter on the upper / outer clumps, a little hue drift between trees
       cols.push(C.col[0] * lift * tint * hue, C.col[1] * lift * tint, C.col[2] * lift * tint * (2 - hue));
     }
