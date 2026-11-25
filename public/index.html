@@ -657,7 +657,8 @@ const settings = {
   shadows: store.get("shadows", true),
   parade: ["majors", "always", "off"].includes(store.get("parade", "majors")) ? store.get("parade", "majors") : "majors",
   celebrate: store.get("celebrate", true),
-  quality: ["auto", "high", "medium", "low"].includes(store.get("quality", "auto")) ? store.get("quality", "auto") : "auto",
+  // Medium is the maximum graphics quality and the default; a saved "high" (the removed preset) is migrated to Medium once. Nothing else is touched.
+  quality: (() => { let v = store.get("quality", "medium"); if (v === "high") { v = "medium"; store.set("quality", v); } return ["auto", "medium", "low"].includes(v) ? v : "medium"; })(),
   crowd: store.get("crowd", "full"),
   scenery: store.get("scenery", "high"),
   chaos: store.get("chaos", false),
@@ -3690,7 +3691,7 @@ function buildSettings() {
   chipRow($("optShadow"), [true, false], settings.shadows, v => { settings.shadows = v; store.set("shadows", v); renderer.shadowMap.enabled = v; sun.castShadow = v; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }, v => v ? "On" : "Off");
   chipRow($("optParade"), ["majors", "always", "off"], settings.parade, v => { settings.parade = v; store.set("parade", v); }, v => ({ majors: "Feature races", always: "Every race", off: "Off" })[v]);
   chipRow($("optCeleb"), [true, false], settings.celebrate, v => { settings.celebrate = v; store.set("celebrate", v); }, v => v ? "On" : "Off");
-  chipRow($("optQuality"), ["auto", "high", "medium", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ auto: "Auto (recommended)", high: "High (fixed)", medium: "Medium", low: "Low (integrated graphics)" })[v]);
+  chipRow($("optQuality"), ["medium", "auto", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ auto: "Auto (adapts, never above Medium)", medium: "Medium (best, recommended)", low: "Low (integrated graphics)" })[v]);
   chipRow($("optCrowd"), ["full", "light", "off"], settings.crowd, v => { settings.crowd = v; store.set("crowd", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optScenery"), ["high", "medium", "low"], settings.scenery, v => { settings.scenery = v; store.set("scenery", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
 

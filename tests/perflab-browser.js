@@ -15,6 +15,7 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a stu
 };
 const INIT = (o) => {
   localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false'); localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false');
+  localStorage.setItem('ff_quality', '"auto"');      // Medium is the default preset now; these checks are about AUTO, so Auto is chosen
   if (!sessionStorage.getItem('__ff_seeded')) { sessionStorage.setItem('__ff_seeded', '1'); for (const k in o.seed) localStorage.setItem(k, o.seed[k]); }
   window.__noPresent = true; if (o.stubRaf) { window.__rafQ = []; window.requestAnimationFrame = f => { window.__rafQ.push(f); return 1; }; }
 };
@@ -88,7 +89,7 @@ const BENCHCFG = "Object.assign(quickCfg(), { distance: 1600, field: 12, track: 
   await p.keyboard.press('Shift+F8');
   await p.selectOption('#pl_park', 'park'); await p.selectOption('#pl_light', 'clear'); await p.selectOption('#pl_comm', 'off'); await p.selectOption('#pl_auto', 'race');
   let l = await p.evaluate(() => ({ ls: JSON.parse(localStorage.getItem('ff_lab')), lab: PERFLAB.lab, auto: GFX.AUTO.lab, stored: localStorage.getItem('ff_autoLevel'), q: settings.quality, qs: localStorage.getItem('ff_quality') }));
-  ok(l.ls.park === 'park' && l.ls.light === 'clear' && l.ls.comm === 'off' && l.ls.auto === 'race' && l.auto === 'race' && l.stored === stored0 && l.q === 'auto' && l.qs === null, `the four switches are stored under ff_lab; ff_autoLevel (${stored0}) and the quality preset are untouched by changing them`);
+  ok(l.ls.park === 'park' && l.ls.light === 'clear' && l.ls.comm === 'off' && l.ls.auto === 'race' && l.auto === 'race' && l.stored === stored0 && l.q === 'auto' && l.qs === '"auto"', `the four switches are stored under ff_lab; ff_autoLevel (${stored0}) and the quality preset are untouched by changing them`);
   ok(await p.evaluate(() => /⚠ not the normal game/.test(PERFLAB.report()) && /FORCED afternoon-clear/.test(PERFLAB.report()) && /PARKED while racing/.test(PERFLAB.report())), 'the report flags a non-default lab');
   await p.click('#pl_reset'); l = await p.evaluate(() => ({ ls: localStorage.getItem('ff_lab'), lab: PERFLAB.lab, auto: GFX.AUTO.lab }));
   ok(l.ls === null && l.auto === 'normal' && l.lab.park === 'retain', '"Reset all to normal" removes the key');
@@ -106,7 +107,7 @@ const BENCHCFG = "Object.assign(quickCfg(), { distance: 1600, field: 12, track: 
   });
   ok(au.raceOnlyFarm === 0 && au.raceOnlyRace > 0, `"race frames only": 10 s of slow farm frames change nothing (level ${au.raceOnlyFarm}), slow race frames still step down (level ${au.raceOnlyRace})`);
   ok(au.normalFarm > 0, `"normal": slow farm frames feed AUTO exactly as before (level ${au.normalFarm})`);
-  ok(au.offLevel === 5 && au.offWrites === 0 && au.offPR === 2 && au.offShadow === 4096 && au.back.shadow === 1024, `"off": fixed High (render ×${au.offPR}, shadows ${au.offShadow}) whatever the stored level; 12 s of very slow frames change nothing and write nothing; switching back restores level 5 (shadows ${au.back.shadow})`);
+  ok(au.offLevel === 5 && au.offWrites === 0 && au.offPR === 1.5 && au.offShadow === 2048 && au.back.shadow === 1024, `"off": fixed top level = Medium (render ×${au.offPR}, shadows ${au.offShadow}) whatever the stored level; 12 s of very slow frames change nothing and write nothing; switching back restores level 5 (shadows ${au.back.shadow})`);
   // race lighting
   const lt = await p.evaluate(() => { const go = () => { startRace(Object.assign(quickCfg(), { distance: 1000, field: 6, track: 'randwick', seed: 3, allBots: true, career: { name: 'Look test', exhibition: true, tod: 'golden_hour', wx: 'rain' } })); const a = GFX.atmo; const r = a.tod + '/' + a.wx; quitToMenu(); return r; };
     const n = go(); PERFLAB.setLab('light', 'clear'); const c = go(); PERFLAB.setLab('light', 'normal'); return { n, c, again: go() }; });

@@ -17,7 +17,7 @@ const note = m => { info++; console.log(' · ' + m); };
 const INIT = () => {
   // seed the settings first (the counters below are installed afterwards, so these writes are not counted)
   localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false');
-  localStorage.setItem('ff_commentary', JSON.stringify({ on: false, vol: 0.9, captions: false })); localStorage.removeItem('ff_quality'); localStorage.removeItem('ff_autoLevel');
+  localStorage.setItem('ff_commentary', JSON.stringify({ on: false, vol: 0.9, captions: false })); localStorage.setItem('ff_quality', '"auto"'); localStorage.removeItem('ff_autoLevel');
   window.__noPresent = true;
   window.__rafQ = []; window.requestAnimationFrame = f => { window.__rafQ.push(f); return 1; };            // the test drives every frame
   const H = window.__hyg = { b: 'pre', bucket: {}, total: {}, stack: [] };

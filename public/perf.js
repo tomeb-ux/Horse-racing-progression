@@ -10,7 +10,7 @@
      setAtmosphere / envFor, and changes in the GPU geometry / texture / shader-program counts.
    • SHIFT+F8: performance report as selectable text (Copy button; if the clipboard is blocked in the artifact sandbox the text is selected for Ctrl/Cmd+C) with the hidden lab and benchmark.
    • LAB (ff_lab; defaults = the normal game; nothing here touches the saved quality settings or ff_autoLevel):
-       AUTO graphics: normal / race frames only / off (fixed High)      Farm GPU resources: retained / parked while racing
+       AUTO graphics: normal / race frames only / off (fixed Medium)      Farm GPU resources: retained / parked while racing
        Race lighting: normal / forced afternoon-clear                  Commentary: normal / off
    • BENCHMARK: a fixed all-bot race (Randwick · 1,600 m · 12 runners · seed 11 · chase camera), measured for 60 s after the gates open; straight away, or after 60 s on the
      farm showcase. The look (afternoon clear / golden hour / rain) is a benchmark parameter.
@@ -29,7 +29,7 @@ const PERFLAB = (() => {
   function applyLab() {
     if (typeof GFX === "undefined") return;
     const was = GFX.AUTO.lab; GFX.AUTO.lab = lab.auto;
-    if (was !== lab.auto && (lab.auto === "off" || was === "off")) { try { GFX.applyQuality(); } catch (e) {} }   // "off" = fixed High: apply the render scale / shadows at once (and back again)
+    if (was !== lab.auto && (lab.auto === "off" || was === "off")) { try { GFX.applyQuality(); } catch (e) {} }   // "off" = fixed at the top level (Medium): apply the render scale / shadows at once (and back again)
   }
   try { if (typeof GFX !== "undefined") GFX.AUTO.lab = lab.auto; } catch (e) {}                    // a plain property: safe while this file is still initialising
 
@@ -141,7 +141,7 @@ const PERFLAB = (() => {
     }
     const h = HL[HL.length - 1]; if (h) L.push(`last hitch: ${h.ms} ms at ${num(h.at, 1)} s${h.dist != null ? " · " + h.dist + " m" : ""} [${h.seg}]${h.events.length ? " — " + h.events.map(e => e.split(":")[0]).filter((x, i, a) => a.indexOf(x) === i).join(", ") : ""}`);
     const f = farmState(); L.push(`farm: ${f.built ? (f.parked ? "built, GPU resources PARKED" : "built, GPU resources resident") : "not built"}${labActive().length ? "   ⚠ LAB: " + labActive().map(k => k + "=" + lab[k]).join(" ") : ""}   (Shift+F8: report)`);
-    if (lab.auto === "off") L.push("AUTO is OFF by the lab switch: fixed High");
+    if (lab.auto === "off") L.push("AUTO is OFF by the lab switch: fixed top level (Medium)");
     lines.splice(1, 0, ...L);
   }
 
@@ -294,7 +294,7 @@ const PERFLAB = (() => {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:#e8c35a;letter-spacing:.04em">PERFORMANCE LAB &amp; REPORT <span style="font-weight:400;color:#9db0a3">· Phase ${BUILD} diagnostics</span></b>${btn("pl_x", "Close (Esc)")}</div>
       <div style="color:#9db0a3;margin-bottom:8px">Hidden experiments for finding the racing stutter. Defaults are the normal game. Nothing here changes your saved graphics settings or your AUTO level. Switches apply from the next race (AUTO applies at once).</div>
       <table style="border-collapse:collapse;width:100%;margin-bottom:8px">
-        <tr><td style="padding:3px 8px 3px 0">AUTO graphics</td><td>${sel("auto", [["normal", "Normal — farm, menu and races all feed AUTO"], ["race", "Race frames only"], ["off", "Off — fixed High, nothing stored"]])}</td></tr>
+        <tr><td style="padding:3px 8px 3px 0">AUTO graphics</td><td>${sel("auto", [["normal", "Normal — farm, menu and races all feed AUTO"], ["race", "Race frames only"], ["off", "Off — fixed at the top level (Medium), nothing stored"]])}</td></tr>
         <tr><td style="padding:3px 8px 3px 0">Farm GPU resources</td><td>${sel("park", [["retain", "Retained (normal)"], ["park", "Temporarily parked before racing"]])}</td></tr>
         <tr><td style="padding:3px 8px 3px 0">Race lighting</td><td>${sel("light", [["normal", "Normal — the event's own look"], ["clear", "Forced afternoon-clear"]])}</td></tr>
         <tr><td style="padding:3px 8px 3px 0">Commentary</td><td>${sel("comm", [["normal", "Normal"], ["off", "Off (saved setting untouched)"]])} ${btn("pl_reset", "Reset all to normal")}</td></tr>

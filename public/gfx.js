@@ -2,7 +2,7 @@
 /* =====================================================================
    FINAL FURLONG — GRAPHICS KIT (gfx.js)
    Shared, purely visual building blocks used by every venue (the simulation never reads any of this):
-     • quality presets (High / Medium / Low): pixel ratio, shadow resolution, crowd density, tree counts
+     • quality presets (Medium = the maximum / Low; AUTO never exceeds Medium): pixel ratio, shadow resolution, crowd density, tree counts
      • image-based lighting: a procedural daylight sky rendered once into a prefiltered environment map, so every
        physically based material (glass, steel, coats, silks, turf) picks up believable sky reflections and fill light
      • a shader sky dome (gradient, sun glow) that matches the environment map and the fog
@@ -16,8 +16,8 @@
    ===================================================================== */
 const GFX = (() => {
   const QUALITY = {
-    auto:   { pr: 2,   shadow: 4096, crowd: 1.0,  trees: 1.0,  grassDetail: 1, label: "Auto" },   // High content; AUTO trims runtime cost
-    high:   { pr: 2,   shadow: 4096, crowd: 1.0,  trees: 1.0,  grassDetail: 1, label: "High" },
+    // Medium is the MAXIMUM quality (the former High preset was removed: it cost far more on laptops for little visible gain). AUTO's ceiling is exactly Medium, so no AUTO level can ask for more.
+    auto:   { pr: 1.5, shadow: 2048, crowd: 0.6,  trees: 0.7,  grassDetail: 1, label: "Auto" },   // = Medium; AUTO only ever trims runtime cost below it
     medium: { pr: 1.5, shadow: 2048, crowd: 0.6,  trees: 0.7,  grassDetail: 1, label: "Medium" },
     low:    { pr: 1,   shadow: 0,    crowd: 0.32, trees: 0.45, grassDetail: 0, label: "Low" },
   };
@@ -27,31 +27,30 @@ const GFX = (() => {
 
   /* ---------- quality ---------- */
   /* AUTO graphics: presentation only (the simulation, AI, clock and results never read any of this). Starting from the
-     High look, sustained slow frames step DOWN one stage at a time in this order: distant crowd detail → distant
+     Medium look (the maximum), sustained slow frames step DOWN one stage at a time in this order: distant crowd detail → distant
      trees/roses → shadow resolution → other scenery detail → shadow resolution again → modest render-resolution steps
-     (2× → 1.75× → 1.5× → 1.25× → 1×) → far horses/riders a touch coarser. Sustained headroom steps back UP. Anti-
+     (from the Medium ceiling of 1.5×: 1.25× → 1×) → far horses/riders a touch coarser. Sustained headroom steps back UP. Anti-
      oscillation: decisions use the median frame time of 1.5 s windows (a single GC pause or shader compile is ignored),
      a step down needs 2 bad windows in a row (one, and two steps at once, when it is badly slow: under ~36 fps), a step
      up needs 8 good ones (12 s), every change is followed by a 3–6 s cooldown, and a level that had to be abandoned is not retried for 60 s (doubling each time it fails again). The level
      reached is remembered for the next session. */
-  const AUTO_STEPS = [
+  const AUTO_STEPS = [                                           // level 0 = Medium (the ceiling); every step below only simplifies. Stored levels from the old 10-level table are read as the same severity (an old level 9 is out of range and starts at 0).
     { note: "full quality" },
     { crowd: 1.7, note: "distant crowd simpler" },
     { crowd: 1.7, trees: 1.7, note: "distant trees and roses simpler" },
-    { crowd: 1.7, trees: 1.7, shadow: 2048, note: "shadow map 2048" },
-    { crowd: 2.4, trees: 2.4, rails: 2, shadow: 2048, note: "scenery detail reduced" },
+    { crowd: 2.4, trees: 2.4, rails: 2, note: "scenery detail reduced" },
     { crowd: 2.4, trees: 2.4, rails: 2, shadow: 1024, note: "shadow map 1024" },
-    { crowd: 2.4, trees: 2.4, rails: 2, shadow: 1024, pr: 1.75, note: "render scale 1.75" },
-    { crowd: 2.4, trees: 2.4, rails: 2, shadow: 1024, pr: 1.5, note: "render scale 1.5" },
-    { crowd: 2.8, trees: 2.8, rails: 2.4, shadow: 1024, pr: 1.25, note: "render scale 1.25" },
-    { crowd: 3, trees: 3, rails: 2.4, shadow: 1024, pr: 1, horses: 1.35, note: "render scale 1.0, far horses simpler" },
+    { crowd: 2.4, trees: 2.4, rails: 2, shadow: 1024, pr: 1.25, note: "render scale 1.25" },
+    { crowd: 2.8, trees: 2.8, rails: 2.4, shadow: 1024, pr: 1.25, note: "scenery detail reduced further" },
+    { crowd: 2.8, trees: 2.8, rails: 2.4, shadow: 1024, pr: 1, note: "render scale 1.0" },
+    { crowd: 3, trees: 3, rails: 2.4, shadow: 1024, pr: 1, horses: 1.35, note: "far horses simpler" },
   ];
   const AUTO = { level: 0, win: [], winT: 0, bad: 0, good: 0, cool: 0, hold: 0, fails: {}, last: "", changes: 0, ms: 0, fps: 0, enabled: false, lab: "normal", pending: null };
   try { const l = +localStorage.getItem("ff_autoLevel"); if (l >= 0 && l < AUTO_STEPS.length) AUTO.level = l; } catch (e) {}
   const kindBias = { crowd: 1, trees: 1, shrubs: 1, "rail-posts": 1 };
   let horseBias = 1;
   function runtimeParams() {
-    const Q = q(), st = settings.quality === "auto" || !QUALITY[settings.quality] ? AUTO_STEPS[AUTO.lab === "off" ? 0 : AUTO.level] : {};   // lab "off" (PERFLAB, hidden): fixed High; the stored level is neither used nor changed
+    const Q = q(), st = settings.quality === "auto" || !QUALITY[settings.quality] ? AUTO_STEPS[AUTO.lab === "off" ? 0 : AUTO.level] : {};   // lab "off" (PERFLAB, hidden): fixed at the top level (Medium); the stored level is neither used nor changed
     return { pr: Math.min(Q.pr, st.pr || 9), shadow: Q.shadow ? Math.min(Q.shadow, st.shadow || 1e9) : 0, crowd: st.crowd || 1, trees: st.trees || 1, rails: st.rails || 1, horses: st.horses || 1 };
   }
   function applyQuality() {
@@ -88,7 +87,7 @@ const GFX = (() => {
   }
   function autoTick(dt, active, raceFrame, live) {
     // `active` = any frame AUTO may judge (race, replay, presentation, farm, menu showcase: unchanged since Phase 3); `raceFrame` = false on a farm / menu frame (undefined = not told).
-    // Hidden lab switch (PERFLAB, ff_lab): "race" = farm and menu frames are ignored; "off" = nothing feeds AUTO (fixed High, nothing stored). Normal = exactly as before.
+    // Hidden lab switch (PERFLAB, ff_lab): "race" = farm and menu frames are ignored; "off" = nothing feeds AUTO (fixed at the top level = Medium, nothing stored). Normal = exactly as before.
     if (AUTO.lab === "off" || (AUTO.lab === "race" && raceFrame === false)) active = false;
     if (AUTO.pending) { if (settings.quality !== "auto" || AUTO.lab === "off") AUTO.pending = null; else if (!live && !document.hidden) applyPending(); }       // safe point reached
     if (settings.quality !== "auto" || !active || document.hidden) { AUTO.win.length = 0; AUTO.winT = 0; AUTO.enabled = settings.quality === "auto"; return; }
@@ -424,17 +423,88 @@ const GFX = (() => {
         #endif
         float sway = max(0.0, transformed.y - 3.0) * 0.012; transformed.x += sin(uTime * 1.3 + ph) * sway; transformed.z += sin(uTime * 0.9 + ph * 1.7) * sway * 0.6;`); };
     m.customProgramCacheKey = () => "fftree"; return m; })());
+  /* ---------- race-course tree canopies (RACE SCENES ONLY) ----------
+     The farm keeps its own trees (farm-trees.js) and the farm's palms keep treeGeo(): nothing above or in those files changed. For the race venues the old canopies were 6–9 separate
+     noise-displaced spheres per tree (~600–700 triangles a tree, all of it also drawn into the shadow map). Now every gum / fig / plane / cypress is a bare trunk (+ limbs) plus 3–5 instances
+     of ONE shared, lumpy, opaque canopy clump (56 triangles near, 20 far) with a small leaf texture: no alpha, no transparent layers, FrontSide only. Each clump gets its own scale (so its
+     shape), yaw, tilt and tint; the species decide the layout, size and colour, so a gum stays open and grey-green, a fig broad and dark, a plane round, a cypress tall and narrow. */
+  const CANOPY = {};
+  function canopyTexture() {            // a tileable 128² greyscale leaf-cluster texture (the species colour comes from the instance colour); built once, 64 KB
+    if (CANOPY.tex) return CANOPY.tex;
+    const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d"), r = rand(77);
+    g.fillStyle = "#c9c9c9"; g.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 360; i++) {
+      const x = r() * 128, y = r() * 128, w = 2.5 + r() * 5, h = 1.6 + r() * 2.6, a = r() * Math.PI, v = r() < 0.22 ? 105 + r() * 40 : 190 + r() * 65;
+      g.fillStyle = "rgb(" + (v | 0) + "," + (v | 0) + "," + (v | 0) + ")";
+      for (const ox of [-128, 0, 128]) for (const oy of [-128, 0, 128]) { const X = x + ox, Y = y + oy; if (X < -10 || X > 138 || Y < -10 || Y > 138) continue; g.save(); g.translate(X, Y); g.rotate(a); g.beginPath(); g.ellipse(0, 0, w, h, 0, 0, 6.283); g.fill(); g.restore(); }
+    }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; return (CANOPY.tex = t);
+  }
+  function canopyClump(lo) {            // the one shared canopy mesh: an irregular dome, flatter underneath, shaded light on top / dark below
+    const key = lo ? "lo" : "hi"; if (CANOPY[key]) return CANOPY[key];
+    const g = new THREE.SphereGeometry(1, lo ? 5 : 7, lo ? 3 : 5), P = g.attributes.position, UV = g.attributes.uv;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), n = fbm(x * 1.3 + 3.1, y * 1.2 + z * 1.1, 1e6, 41, 2), k = 0.74 + 0.5 * n, yy = y < 0 ? y * 0.5 : y;
+      P.setXYZ(i, x * k, yy * k, z * k); UV.setXY(i, UV.getX(i) * 3, UV.getY(i) * 2);          // u × 3 (a whole number: the texture is continuous across the sphere's seam)
+    }
+    g.computeVertexNormals();
+    paint(g, (C, x, y, z, nx, ny) => { const t = clamp(0.5 + ny * 0.5, 0, 1), sp = hash(Math.round(x * 6), Math.round(y * 6 + z * 9), 17); C.setRGB(1, 1, 1).multiplyScalar((0.5 + 0.5 * t) * (0.9 + 0.2 * sp)); });
+    g.computeBoundingSphere(); return (CANOPY[key] = g);
+  }
+  const canopyMat = () => CANOPY.mat || (CANOPY.mat = (() => {
+    const m = new THREE.MeshStandardMaterial({ map: canopyTexture(), vertexColors: true, roughness: 0.9, metalness: 0 });          // opaque, front faces only
+    m.onBeforeCompile = sh => { sh.uniforms.uTime = uTime;
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uTime;").replace("#include <begin_vertex>", `#include <begin_vertex>
+        float ph = instanceMatrix[3].x * 0.05 + instanceMatrix[3].z * 0.07;
+        float sway = max(0.0, instanceMatrix[3].y - 3.0) * 0.012; transformed.x += sin(uTime * 1.3 + ph) * sway; transformed.z += sin(uTime * 0.9 + ph * 1.7) * sway * 0.6;`); };
+    m.customProgramCacheKey = () => "ffcanopy"; return m; })());
+  function raceTrunkGeo(species, lo) {  // the old trunk and limbs of the species (same shapes, same colours), without the old blob canopies
+    const key = "race_" + species + (lo ? "_lo" : ""); if (TREE[key]) return TREE[key];
+    TLO = !!lo; const parts = [], r = rand(species.length * 977);
+    if (species === "gum") {
+      const bark = lin(0xcfc4ae); parts.push(trunk(0.45, 0.22, 11, bark, 0, 0, 0.6));
+      for (let k = 0; k < 3; k++) { const a = k * 2.1 + r(), b = trunk(0.2, 0.08, 6, bark, 0, 0, 0); b.rotateZ(0.6 + r() * 0.3); b.rotateY(a); b.translate(0.4, 8 + k, 0); parts.push(b); }
+    } else if (species === "fig") parts.push(trunk(1.3, 0.7, 5, lin(0x8d8577)));
+    else if (species === "plane") parts.push(trunk(0.5, 0.3, 7, lin(0x9b917c)));
+    else parts.push(trunk(0.3, 0.2, 3, lin(0x5b4a38)));      // cypress
+    TLO = false; return (TREE[key] = merge(parts));
+  }
+  // per species: clump count, radius range (m, before the tree's own scale), (x, y, z) shape factors, height range, spread round the trunk top, base colour (linear), lean of the crown centre
+  const CROWN = {
+    gum:     { n: 4, rad: [2.5, 3.5], flat: [1.2, 0.72, 1.12], y: [11.4, 15.2], spread: 3.0, lean: 0.0, col: [0.20, 0.27, 0.12] },
+    fig:     { n: 5, rad: [4.0, 5.2], flat: [1.22, 0.68, 1.22], y: [8.3, 10.8], spread: 4.4, lean: 0, col: [0.075, 0.15, 0.045] },
+    plane:   { n: 3, rad: [3.3, 4.4], flat: [1.0, 0.92, 1.0], y: [9.6, 12.4], spread: 2.0, lean: 0, col: [0.15, 0.27, 0.07] },
+    cypress: { n: 3, rad: [1.5, 1.9], flat: [0.95, 1.75, 0.95], y: [4.8, 10.8], spread: 0.25, lean: 0, col: [0.075, 0.15, 0.065] },
+  };
+  const _cm = new THREE.Matrix4(), _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _le = new THREE.Euler(), _lp = new THREE.Vector3(), _ls = new THREE.Vector3();
+  function crownItems(sp, treeM, tx, ty, tz, r, out, cols) {   // the clumps of one tree as instance matrices (+ colours), appended to `out`
+    const C = CROWN[sp];
+    for (let k = 0; k < C.n; k++) {
+      const a = k / C.n * 6.283 + r() * 0.9, d = k ? C.spread * (0.4 + 0.6 * r()) : C.spread * 0.15 * r(), t = C.n > 1 ? k / (C.n - 1) : 0.5;
+      const rad = C.rad[0] + (C.rad[1] - C.rad[0]) * r(), h = C.y[0] + (C.y[1] - C.y[0]) * (k === 0 ? 0.55 : 0.2 + 0.8 * r()) ;
+      _lp.set(Math.cos(a) * d + C.lean, h - (d / (C.spread + 0.01)) * (C.y[1] - C.y[0]) * 0.18, Math.sin(a) * d);
+      _ls.set(rad * C.flat[0] * (0.88 + 0.26 * r()), rad * C.flat[1] * (0.85 + 0.3 * r()), rad * C.flat[2] * (0.88 + 0.26 * r()));
+      _le.set((r() - 0.5) * 0.35, r() * 6.283, (r() - 0.5) * 0.35); _lq.setFromEuler(_le);
+      _lm.compose(_lp, _lq, _ls); _cm.multiplyMatrices(treeM, _lm);
+      const e = _cm.elements; out.push({ m: _cm.clone(), x: tx, y: ty, z: tz });
+      const lift = 0.82 + 0.3 * t * (k === 0 ? 0 : 1), tint = 0.88 + r() * 0.24, hue = 0.94 + r() * 0.12;      // lighter on the upper / outer clumps, a little hue drift between trees
+      cols.push(C.col[0] * lift * tint * hue, C.col[1] * lift * tint, C.col[2] * lift * tint * (2 - hue));
+    }
+  }
   // list: [{ x, z, s (scale), sp (species), rot }] → instanced meshes added to group (one per species)
   function plantTrees(group, list) {
     const keep = q().trees, by = {}, dm = new THREE.Object3D(), col = new THREE.Color(), r = rand(list.length + 3);
     list.forEach((t, i) => { if (keep < 1 && hash(i, 7, 3) > keep && !t.keep) return; (by[t.sp || "plane"] = by[t.sp || "plane"] || []).push(t); });
+    const canopyItems = [], canopyCols = [];
     for (const sp in by) {
       // chunked by ~160 m, each chunk with a low-detail twin (same trees, coarser canopy) used once a tree is under ~70 px tall
-      const L = by[sp], items = [], colors = new Float32Array(L.length * 3);
+      const L = by[sp], items = [], colors = new Float32Array(L.length * 3), crown = !!CROWN[sp];
       L.forEach((t, i) => { dm.position.set(t.x, t.y || 0, t.z); dm.rotation.set(0, t.rot != null ? t.rot : r() * 6.28, 0); const s = t.s || 1; dm.scale.set(s * (0.9 + r() * 0.2), s, s * (0.9 + r() * 0.2)); dm.updateMatrix();
-        items.push({ m: dm.matrix.clone(), x: t.x, y: t.y || 0, z: t.z }); col.setRGB(0.86 + r() * 0.22, 0.86 + r() * 0.22, 0.82 + r() * 0.2); colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b; });
-      chunked(group, items, [treeGeo(sp), treeGeo(sp, true)], treeMat(), { cell: 260, colors, cy: 8, rad: 10, px: [260], size: 14, shadow: true, shadowLo: false, name: "trees" });
+        items.push({ m: dm.matrix.clone(), x: t.x, y: t.y || 0, z: t.z }); col.setRGB(0.86 + r() * 0.22, 0.86 + r() * 0.22, 0.82 + r() * 0.2); colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
+        if (crown) crownItems(sp, dm.matrix, t.x, t.y || 0, t.z, r, canopyItems, canopyCols); });
+      chunked(group, items, crown ? [raceTrunkGeo(sp), raceTrunkGeo(sp, true)] : [treeGeo(sp), treeGeo(sp, true)], treeMat(), { cell: 260, colors, cy: 8, rad: 10, px: [260], size: 14, shadow: true, shadowLo: false, name: "trees" });
     }
+    if (canopyItems.length) chunked(group, canopyItems, [canopyClump(), canopyClump(true)], canopyMat(), { cell: 260, colors: new Float32Array(canopyCols), cy: 12, rad: 12, px: [260], size: 18, shadow: true, shadowLo: false, name: "canopy" });
   }
 
   /* ---------- hedges, flower beds, roses ---------- */
