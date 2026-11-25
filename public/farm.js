@@ -50,7 +50,7 @@ const FARM = (() => {
     applyAtmosphere(true);
     fig = FARMPEOPLE.make(appearance()); fig.root.visible = false; fscene.add(fig.root); fig.root.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     buildHud();
-    FARMCARE.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); FARMLIFE.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
+    FARMCARE.init(ctx); FARMACTORS.init(ctx); FARMDAY.init(ctx); FARMTRAIN.init(ctx); FARMLIFE.init(ctx); guide = FARMNAV.guide(fscene, world.heightAt);
   }
   function ensureHouse() {
     if (iworld) return;
@@ -75,6 +75,10 @@ const FARM = (() => {
         <div style="background:rgba(14,22,18,.96);border:1px solid var(--panel-line,#2a3a30);border-radius:16px;padding:26px 30px;min-width:min(340px,86vw);display:flex;flex-direction:column;gap:10px;text-align:center">
           <div style="font:800 20px var(--font-d,system-ui);letter-spacing:.1em;color:#f2efe6;margin-bottom:4px">PAUSED</div>
           <button id="fpResume" style="${BTN};background:linear-gradient(90deg,#e8c35a,#d9a93a);color:#1a1405">Resume</button>
+          <div id="fpClockBox" hidden style="display:flex;flex-direction:column;gap:8px">
+            <button id="fpClock" style="${BTN}">Farm clock: Normal</button>
+            <button id="fpSkipNext" style="${BTN}">Skip to the next activity</button>
+            <button id="fpSkipEve" style="${BTN}">Skip to the evening</button></div>
           <button id="fpHub" style="${BTN}">Career: stable, training &amp; records</button>
           <button id="fpMenu" style="${BTN}">Main menu</button>
           <div style="font-size:11.5px;color:#a9b4a9;margin-top:4px">Your career saves automatically.</div></div></div>
@@ -82,7 +86,10 @@ const FARM = (() => {
     document.body.appendChild(hud); screens.farm = hud;
     const q = id => hud.querySelector(id);
     prompt = q("#farmPrompt"); title = q("#farmTitle"); wxEl = q("#farmWx"); objEl = q("#farmObj"); cross = q("#farmCross"); fadeEl = q("#farmFade"); pauseEl = q("#farmPause"); panelEl = q("#farmPanel"); skipEl = q("#farmSkip"); hintEl = q("#farmHint");
-    q("#fpResume").onclick = () => setPaused(false); q("#fpHub").onclick = () => { setPaused(false); leaveToCareer(); }; q("#fpMenu").onclick = () => { setPaused(false); SCENES.enter("menu"); };
+    q("#fpResume").onclick = () => setPaused(false);
+    q("#fpClock").onclick = () => { const o = ["normal", "slow", "paused"], k = o[(o.indexOf(FARMACTORS.speed) + 1) % 3]; FARMACTORS.setSpeed(k); refreshClockBox(); };
+    q("#fpSkipNext").onclick = () => { const w = FARMACTORS.skipNext(); setPaused(false); toast("Skipped ahead to " + CORE.fmtClock(FARMACTORS.hour()) + (w ? " · " + w : ""), "info", 2.2); };
+    q("#fpSkipEve").onclick = () => { FARMACTORS.skipEvening(); setPaused(false); toast("It's evening: " + CORE.fmtClock(FARMACTORS.hour()), "info", 2.2); }; q("#fpHub").onclick = () => { setPaused(false); leaveToCareer(); }; q("#fpMenu").onclick = () => { setPaused(false); SCENES.enter("menu"); };
   }
 
   // ---------------------------------------------------------------- the horses: stalls and plaques, and the horse on show
@@ -183,7 +190,8 @@ const FARM = (() => {
     if (panel) return closePanel();
     setPaused(!paused);
   }
-  function setPaused(v) { paused = !!v; if (pauseEl) pauseEl.hidden = !paused; if (paused) { unlock(); for (const k in fk) fk[k] = false; } }
+  function refreshClockBox() { try { const box = hud.querySelector("#fpClockBox"), on = FARMACTORS.live(); if (box) box.hidden = !on; const b = hud.querySelector("#fpClock"); if (b) b.textContent = "Farm clock: " + FARMACTORS.LABEL[FARMACTORS.speed] + (on ? " · " + CORE.fmtClock(FARMACTORS.hour()) : ""); } catch (e) {} }
+  function setPaused(v) { paused = !!v; if (pauseEl) pauseEl.hidden = !paused; if (paused) refreshClockBox(); if (paused) { unlock(); for (const k in fk) fk[k] = false; } }
   function setPerson(n) {
     if ((n === 1 ? 1 : 3) === person) return;
     person = n === 1 ? 1 : 3; settings.person = person; store.set("person", person); CAM.pitch = person === 1 ? Math.max(-0.4, CAM.pitch + 0.22) : Math.min(0.2, CAM.pitch - 0.22);   // eye level straight ahead / a little above the shoulder looking down
@@ -198,7 +206,7 @@ const FARM = (() => {
     endTrip: () => { trip = null; if (hud) hud.querySelector("#farmInfo").style.visibility = ""; }, setPlace: v => { place = v; }, objective: () => objective(), heightAt: (x, z) => world.heightAt(x, z),
     keys: fk, resolve: (q, r, o) => resolve(q, r, o), toast: (m, k, d) => { try { toast(m, k, d); } catch (e) {} }, setBusy: v => { busy = !!v; if (v) { for (const k in fk) if (!(FARMDRIVE.on)) fk[k] = false; prompt.hidden = true; near = null; } }, faceCam: yaw => { CAM.yaw = yaw; camReady = false; },
     cineCam: { set(pos, look, fov, k) { CINE.tp.set(pos[0], pos[1], pos[2]); CINE.tl.set(look[0], look[1], look[2]); CINE.fov = fov || 56; CINE.k = k || 6; CINE.on = true; if (!CINE.init) { CINE.init = true; CINE.cp.copy(fcam.position); const d = new THREE.Vector3(); fcam.getWorldDirection(d); CINE.cl.copy(fcam.position).addScaledVector(d, 10); } }, clear() { CINE.on = false; CINE.init = false; camReady = false; } },
-    blockedAt: (x, y, z) => blockedAt(x, y, z), place: () => place, quickGo: () => { if (place === "in") exitHouse(() => FARMDAY.quickLeave()); else FARMDAY.quickLeave(); }, refreshObjective: () => { try { FARMDAY.changedQuiet(); } catch (e) {} objective(); }, hideFig: v => { hideFigure = !!v; if (v && fig) fig.root.visible = false; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
+    blockedAt: (x, y, z) => blockedAt(x, y, z), blocked: () => blocked(), applyAtmosphere: f => applyAtmosphere(f), updateWx: () => updateWx(), resolveFn: null, place: () => place, quickGo: () => { if (place === "in") exitHouse(() => FARMDAY.quickLeave()); else FARMDAY.quickLeave(); }, refreshObjective: () => { try { FARMDAY.changedQuiet(); } catch (e) {} objective(); }, hideFig: v => { hideFigure = !!v; if (v && fig) fig.root.visible = false; }, depart: b => depart(b), quickTrip: b => startTrip(b), get settings() { return settings; },
   };
   let openArg = null;
   function openPanel(name, arg) {
@@ -349,13 +357,15 @@ const FARM = (() => {
     try {
       const C = CAREER && CAREER.data; if (!C || typeof ATMO === "undefined") return null;
       const bk = C.booking && C.cal && C.cal.events.find(x => x.id === C.booking.eid);
+      const wxk = ATMO.dayWeather(C.seed, C.day, CORE.parts(C.day).m);
+      if (!(bk && bk.day === C.day) && typeof FARMACTORS !== "undefined" && FARMACTORS.live()) return ATMO.blend(FARMACTORS.hour(), wxk);          // Phase 17: the light follows the farm clock
       if (bk && bk.day === C.day && bk.tod) return ATMO.params(bk.tod, bk.forecast && bk.forecast.weather);
       return ATMO.params(ATMO.dayPart(C.seed, C.day), ATMO.dayWeather(C.seed, C.day, CORE.parts(C.day).m));
     } catch (e) { return null; }
   }
   function applyAtmosphere(force) {
     if (!world || !world.skyU || typeof ATMO === "undefined") return;
-    REF = REF || ATMO.params("mid_morning", "clear"); const p = farmAtmo() || REF; if (!force && farmP && farmP.tod === p.tod && farmP.wx === p.wx) return; farmP = p;
+    REF = REF || ATMO.params("mid_morning", "clear"); const p = farmAtmo() || REF; if (!force && farmP && !p.live && farmP.tod === p.tod && farmP.wx === p.wx) return; farmP = p;
     const r3 = (base, a, b) => base.map((v, i) => Math.max(0, Math.min(1.6, v * (a[i] / Math.max(0.001, b[i]))))), U = world.skyU;
     U.uHor.value.fromArray(r3(FARM_BASE.hor, p.sky.hor, REF.sky.hor)); U.uMid.value.fromArray(r3(FARM_BASE.mid, p.sky.mid, REF.sky.mid)); U.uTop.value.fromArray(r3(FARM_BASE.top, p.sky.zen, REF.sky.zen));
     U.sunCol.value.fromArray(p.tod === "evening" ? [0.05, 0.06, 0.1] : p.sunColor); U.uGlow.value = p.glow; U.uStars.value = p.tod === "evening" ? 1 : p.tod === "dusk" ? 0.35 * (1 - p.cloud) : 0;
@@ -366,8 +376,12 @@ const FARM = (() => {
     renderer.toneMappingExposure = FARM_BASE.expo * p.expo / REF.expo;
     try { fscene.environment = GFX.envFor(p); } catch (e) {}
     if (!farmRain && p.rain > 0.01) { farmRain = GFX.createRain(); fscene.add(farmRain); } if (farmRain) farmRain.userData.set(p.rain);
-    if (wxEl) wxEl.textContent = (CORE.TOD_LABEL[p.tod] || "") + " · " + (CORE.WX_LABEL[p.wx] || "");
+    updateWx();
     if (sunLight && world) sunFollow(P.x, P.z);
+  }
+  function updateWx() {
+    if (!wxEl || !farmP) return; const clk = typeof FARMACTORS !== "undefined" && farmP.live ? CORE.fmtClock(FARMACTORS.hour()) + " · " : "";
+    wxEl.textContent = clk + (farmP.live ? "" : (CORE.TOD_LABEL[farmP.tod] || "") + " · ") + (CORE.WX_LABEL[farmP.wx] || "");
   }
   function sunFollow(cx, cz) {
     const d = world.sunDir, tx = Math.round(cx / 0.04) * 0.04, tz = Math.round(cz / 0.04) * 0.04;
@@ -464,7 +478,7 @@ const FARM = (() => {
       } else if (person === 1) P.face = CAM.yaw;
     } else { P.speed += (0 - P.speed) * Math.min(1, dt * 9); P.moving = false; }
     collide(); const gy = place === "in" ? 0 : world.heightAt(P.x, P.z); P.y += (gy - P.y) * Math.min(1, dt * 14); if (Math.abs(gy - P.y) > 1) P.y = gy;
-    if (!paused) { FARMCARE.frame(dt); FARMDAY.frame(dt); FARMLIFE.frame(dt); }
+    if (!paused) { FARMCARE.frame(dt); FARMDAY.frame(dt); FARMLIFE.frame(dt); try { FARMACTORS.frame(dt); } catch (e) { console.error(e); } }
     { let df = P.face - lastFace; df = Math.atan2(Math.sin(df), Math.cos(df)); lastFace = P.face; turnRate += (df / Math.max(dt, 1e-3) - turnRate) * Math.min(1, dt * 10); }
     const wantAct = FARMCARE.led && !busy ? "lead" : null; if (!busy && (fig.action ? fig.action.name : null) !== wantAct && !FARMCARE.busy) FARMPEOPLE.act(fig, wantAct);
     if (!FARMCARE.busy && !FARMDAY.active) FARMPEOPLE.pose(fig, dt, P.speed, turnRate);
@@ -518,9 +532,9 @@ const FARM = (() => {
       if (r.place === "in") { ensureHouse(); place = "in"; iscene.add(fig.root); refreshBoard(); title.textContent = (builtName + " · farmhouse").toUpperCase(); }
       P.x = r.x; P.z = r.z; P.y = r.place === "in" ? 0 : world.heightAt(r.x, r.z); P.face = r.face; CAM.yaw = r.yaw; CAM.pitch = r.pitch;
     }
-    resetRig(); stand(); FARMCARE.enter(); FARMLIFE.enter(); FARMDAY.enter(); FARMTRAIN.enter(); busy = false; hideFigure = false; CINE.on = CINE.init = false; guideKey = ""; lastStage = ""; departT = 0; departB = null; bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
+    resetRig(); stand(); FARMCARE.enter(); FARMLIFE.enter(); try { FARMACTORS.enter(); } catch (e) { console.error(e); } FARMDAY.enter(); FARMTRAIN.enter(); busy = false; hideFigure = false; CINE.on = CINE.init = false; guideKey = ""; lastStage = ""; departT = 0; departB = null; bind(); sunFollow(P.x, P.z); objective(); hintEl.hidden = false; camReady = false; placeCamera(0.1);
   }
-  function leave() { try { FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; try { renderer.toneMappingExposure = GFX.atmo ? GFX.atmo.expo : 0.82; } catch (e) {} }
+  function leave() { try { FARMACTORS.leave(); FARMLIFE.leave(); FARMTRAIN.leave(); FARMDAY.leave(); FARMCARE.leave(); FARMDRIVE.stop(true); } catch (e) { console.error(e); } busy = false; hideFigure = false; CINE.on = false; if (guide) { guide.setPath(null); guideKey = ""; } active = false; unbind(); unstand(); if (prompt) prompt.hidden = true; if (pauseEl) pauseEl.hidden = true; if (panelEl) { panelEl.hidden = true; panelEl.innerHTML = ""; } if (fadeEl) fadeEl.style.opacity = "0"; paused = false; panel = null; trans = null; if (trip) { try { FARMTRIP.abort(); } catch (e) {} } trip = null; near = null; if (fig) fig.root.visible = false; try { renderer.toneMappingExposure = GFX.atmo ? GFX.atmo.expo : 0.82; } catch (e) {} }
   // where you appear next time: the hardstand by the float, after a race
   function arrive(where) { resume = null; P.arrive = where === "hardstand" ? [31.5, 10.5, Math.PI / 2] : null; P.arriveHome = where === "hardstand"; }
   function resetRig() { const g = world && world.structures && world.structures.rig; if (g) { g.position.set(FARMWORLD.L.float.x, 0, FARMWORLD.L.float.z); g.rotation.set(0, 0, 0); if (g.userData.ramp) g.userData.ramp.rotation.z = 0.296; } }
@@ -557,7 +571,7 @@ const FARM = (() => {
     if (!built) return true;
     stopShowcase(); active = false; try { FARMCARE.leave(); } catch (e) {} unstand();
     if (farmRain) { try { farmRain.geometry.dispose(); farmRain.material.dispose(); } catch (e) {} farmRain = null; } farmP = null; farmDay = -1;
-    if (guide) { guide.dispose(); guide = null; } try { FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
+    if (guide) { guide.dispose(); guide = null; } try { FARMACTORS.dispose(); FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
     if (iworld) { iworld.dispose(); iworld = null; iscene = null; }
     world.dispose(); for (const g of own.geo) g.dispose(); for (const m of own.mat) m.dispose(); own.geo = []; own.mat = [];
     if (fig) { FARMPEOPLE.dispose(fig); fig = null; }

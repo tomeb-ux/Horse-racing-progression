@@ -848,8 +848,49 @@ const CORE = (() => {
     const out = []; for (const h of (C.horses || []).slice()) if ((h.age | 0) >= HOF.MAX_AGE && C.horses.length > 1 && !(C.booking && C.booking.hid === h.id)) { const r = retireHorse(C, h.id, "aged"); if (r.ok) out.push(r); } return out;
   }
 
+  // ---------- Phase 17: the farm day. A PURE schedule: what each horse is doing at which hour of the farm clock (never stored, always derived from the real career data) ----------
+  // The farm clock is ambience: it sets the light and what the staff do with horses that are NOT with the player. It never advances the calendar.
+  const CLOCK = { start: 5.5, dusk: 19, secPerDay: 600 };                                   // 05:30 → 19:00 in about ten real minutes
+  const fmtClock = h => { const m = Math.round(Math.max(0, h) * 60), hh = Math.floor(m / 60) % 24, mm = m % 60; return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0"); };
+  // read-only view of a horse's development record (devRec creates records; the schedule must not change the career)
+  const devView = (C, h) => { const r = C.farm && C.farm.dev && C.farm.dev[h.id]; return { plan: r && PLANS[r.plan] ? r.plan : "balanced", int: r && r.int >= 1 && r.int <= 3 ? r.int : 1, sore: r && finite(r.sore) ? r.sore : 0, load: r && finite(r.load) ? r.load : 0, sessDay: r && finite(r.sessDay) ? r.sessDay : -1 }; };
+  // does this horse have a training session this morning? The same rule autoDay applied when the day began (no session on a rest plan, on Sundays, while sore, or in the 2 days before a booked race).
+  // `sore` is read AFTER autoDay counted it down, so a horse that is sore now was sore then.
+  function sessionFor(C, day, hid) {
+    const h = horseOf(C, hid); if (!h) return { works: false, why: "none" }; const r = devView(C, h), d = dayInt(day), ok = (works, why) => ({ works, why, plan: r.plan, int: r.int });
+    const taper = !!(C.booking && C.booking.hid === h.id && C.booking.day - d <= 2 && C.booking.day >= d), tired = finite(h.fitness) && h.fitness < DEV.FIT_MIN;
+    const why = r.plan === "rest" ? "rest plan" : dowOf(d) === 0 ? "Sunday" : r.sore > 0 ? "sore" : taper ? "race taper" : tired ? "too tired" : null;
+    if (d === dayInt(C.day)) return r.sessDay === d ? ok(true, PLANS[r.plan].label) : ok(false, why || "no session today");           // today: exactly what autoDay did (a session ran, or it did not)
+    return why ? ok(false, why) : ok(true, PLANS[r.plan].label);                                                                        // another day: the rule
+  }
+  // The day, per horse. `wx`: the day's weather key (clear, partly_cloudy, overcast, light_rain, rain). Returns { day, horses: [{ hid, name, idx, pinned, work, turnout, lines }] }
+  // work: { from, to } | null (the morning session; shown from Phase 18) · turnout: { from, to, paddock } | null · pinned: why the horse never leaves its box today (or null)
+  function farmDay(C, day, wx) {
+    const d = dayInt(day), out = { day: d, wx: wx || "clear", horses: [] }, hs = (C.horses || []).filter(h => h && !h.retired), b = C.booking, np = 3;
+    hs.forEach((h, idx) => {
+      const r = devView(C, h), ses = sessionFor(C, d, h.id), age = finite(h.age) ? h.age : ageOf(h, d), toRace = b && b.hid === h.id ? b.day - d : null;
+      let pinned = null; if (toRace != null && toRace >= 0 && toRace <= 1) pinned = toRace === 0 ? "race day" : "race tomorrow"; else if (r.sore > 0) pinned = "sore: resting in the box"; else if (wx === "rain") pinned = "heavy rain: kept in";
+      const stag = idx * 0.25, justRaced = finite(h.lastRaceDay) && dayInt(h.lastRaceDay) === d - 1;
+      let from = 10, to = 15.5; if (age <= 2) { from = 10.5; to = 13.5; } else if (age >= 8) { from = 9.5; to = 16; }
+      if (wx === "light_rain") { from = 10.5; to = 12.5; } if (justRaced) { from = Math.min(from, 9.5); to = Math.max(to, 16.5); }
+      const work = ses.works ? { from: 6.25 + stag, to: 8.25 + stag } : null;
+      const turnout = pinned ? null : { from: from + stag, to: to + stag, paddock: idx % np };
+      const lines = []; if (pinned) lines.push(pinned.charAt(0).toUpperCase() + pinned.slice(1));
+      if (work) lines.push(`Trackwork ${fmtClock(work.from)} (${PLANS[ses.plan].label.toLowerCase()}, ${["light", "normal", "hard"][ses.int - 1]})`); else lines.push(`No work today (${ses.why})`);
+      if (turnout) lines.push(`Paddock ${fmtClock(turnout.from)}–${fmtClock(turnout.to)}`); lines.push("In the box for the evening");
+      out.horses.push({ hid: h.id, name: h.name, idx, pinned, work, turnout, lines, session: ses });
+    });
+    return out;
+  }
+  // what the horse is doing at hour `t`: "box" | "work" | "paddock" (the staff move it between them; this is only the wanted place)
+  function placeAt(plan, hid, t) {
+    const e = plan.horses.find(x => x.hid === hid); if (!e) return "box";
+    if (e.work && t >= e.work.from && t < e.work.to) return "work"; if (e.turnout && t >= e.turnout.from && t < e.turnout.to) return "paddock"; return "box";
+  }
+  // the farm clock's saved state: { day, t }. Reads and repairs; never advances anything
+  function clockOf(C) { const f = isObj(C.farm) ? C.farm : (C.farm = { state: "default" }), c = f.clock; if (!isObj(c) || c.day !== dayInt(C.day) || !finite(c.t) || c.t < CLOCK.start || c.t > CLOCK.dusk) f.clock = { day: dayInt(C.day), t: CLOCK.start }; return f.clock; }
   return { HOF, hofEntry, retireHorse, retirePrompt, autoRetire, retireWhy, MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
-    cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
+    CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
     conditions, placeSeason, syncCalendar, roundEvent, roundStatus, upcoming, nextMeeting, nextOpenRoundDay, skipsBetween,

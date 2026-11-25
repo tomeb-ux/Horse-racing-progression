@@ -306,6 +306,32 @@ The shadow pass is separate: about 127 extra draws in the overview, not part of 
 
 **Career bug sweep.** No new defects were found in the Phase 9-14 career rules by the existing core suites (career-core 128, phase9-core 44, phase12-core 36, phase6-core 43, phase8-core 37 all pass). I did not run a long playthrough: the sweep is test-based, not exploratory.
 
+### Phase 17: the farm clock and the daily schedule
+
+**What you see.** The farm now has a time of day: **05:30 → 19:00 in about ten real minutes**, shown in the HUD next to the weather ("07:42 · Overcast"). The light follows it (sky, sun, fog, exposure blend between the existing time-of-day looks; the environment map steps to the nearest one). Horses are no longer parked in their boxes all day: at the times the schedule says, a **stable hand opens the box, leads the horse on a rope across the yard to its paddock gate and lets it go**; later a hand walks into the paddock, clips the rope on and **brings it back and shuts it in**. Two hands do this (the existing one plus a second). Inspect on a horse shows a **Today** line (where it is now, trackwork, paddock times, why it is kept in). The farm map shows horses where they actually are and the farm time.
+
+**It never rushes you.** The clock runs only while you are free outdoors. It holds during any panel or the map, a lead, a drill, the house, a trip, the pause menu, race-day activity and while the pause menu is open. It never advances the calendar: the day ends only when you end it. The pause menu has **Farm clock: Normal / Slow / Paused**, **Skip to the next activity** and **Skip to the evening** (the clock only moves forward). At 19:00 it stops and says so. On race day the farm keeps the race's own time of day and shows no clock (the stable stays quiet).
+
+**Where the schedule comes from (`CORE.farmDay`, pure, tested).** Nothing about the day is stored. It is derived from the career: training plan and intensity, soreness, a booked race (race day and the day before: the booked horse stays in), heavy rain (kept in), light rain (short turn-out), age (youngsters out for less, veterans for longer), a horse that raced yesterday (longer turn-out), paddock = horse number mod 3, and a 15-minute stagger per horse. `CORE.sessionFor` replays exactly the rule `autoDay` used to decide whether a session ran, so the picture and the career never disagree.
+
+**Rules for the player.** Staff act at transitions only (a horse becoming due out/in). A horse you are leading, a horse you turned out by hand and a horse in a drill are left alone until the schedule changes. Entering the farm, or skipping, snaps every horse to what the schedule says and cancels any half-finished job.
+
+**Not changed.** `sim.js`, racing, Career rules, Quick Race, Chaos, saves (the running clock is kept in memory and written to the career only when you leave the farm or skip, so walking about never edits your save), lighting at the racecourses and the existing farm care actions.
+
+**Tests.** `tests/phase17-core.js` (46 checks on the pure schedule, clock and the atmosphere blend) and `tests/phase17-browser.js` (clock start, advance, holds on map / lead / Paused, Slow at half speed, skips, a full turn-out job with door, rope and paddock, a full bring-in, the player-is-never-overridden rules, race day, new day, leave and return).
+
+### Phase 18: morning trackwork, cool-down, the horse walker and the wash
+
+**What you see.** A horse that has a training session today (the same rule the calendar used when the day began: `CORE.sessionFor`) is no longer sitting in its box while it "trains". About 06:15 (staggered 15 min per horse) the box opens, a **work rider is up** (the horse's own jockey mesh, shown), it is ridden to the exercise oval, does **one lap** (light: a light canter; normal: a steady canter; hard: a steady canter with a quicker last 120 m), is ridden back to the courtyard and the rider hands it over. It is **steaming** (a few soft puffs above the back) and a stable hand **cools it out**: led once round the courtyard on a rope, or, once the **Recovery facility is level 1 or more, on the horse walker** (a post with 2/3/4 arms at level 1/2/3 that turns while the horse circles on it). Then the hand leads it to the **wash bay** and washes it, and it goes back to its box. Inspect shows where the horse is in that sequence and, afterwards, **"Work this morning: one lap in 54.2 s"** (the trainer's stopwatch).
+
+**No new rewards.** This is presentation of what the calendar already did. Nothing here edits the career (the test compares the career data before and after a whole morning). Staff care rewards stay exactly as `CORE.staffDaily` defined them; the wash the hand gives is not the player's wash and gives no composure.
+
+**Rules.** The hands are the same two that do turn-out; if both are busy the horse waits at the courtyard for one. A horse you start leading is released from its job. Skipping into the work window puts the horse straight onto the oval; skipping past it puts it in its box. Horses with no session (rest plan, Sunday, sore, race taper, too tired) never leave their boxes for work.
+
+**Known simplifications.** The oval is one lap at constant speeds (no timing against anything); the stopwatch is a time reading in Inspect, not a prop; the horse walker stands in the courtyard at a fixed spot; sweat is shown as steam only (the coat does not darken).
+
+**Tests.** `tests/phase18-browser.js`.
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.

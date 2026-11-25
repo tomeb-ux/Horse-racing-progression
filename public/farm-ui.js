@@ -190,8 +190,9 @@ const FARMUI = (() => {
     try { for (const p of FARMTRAIN.POINTS) label(p.where === "gate" ? "Starting-gate unit" : "Oval entrance", p.x, p.z - 3, "#f6e6b0", 11); } catch (e) {}
     // the horses in their boxes (the booked one marked)
     let bk = null; try { bk = CAREER.booking(); } catch (e) {}
-    for (const gm of F.horses) { const i = gm.userData.stallI; if (i == null) continue; const s = w.stalls[i], x = X(s.x), z = Z(s.z + 4.2), booked = bk && bk.hid === gm.userData.hid;
+    for (const gm of F.horses) { const i = gm.userData.stallI; if (i == null) continue; const s = w.stalls[i], away = gm.userData.out, x = away ? X(gm.position.x) : X(s.x), z = away ? Z(gm.position.z) : Z(s.z + 4.2), booked = bk && bk.hid === gm.userData.hid;
       g.beginPath(); g.arc(x, z, booked ? 5.5 : 4, 0, Math.PI * 2); g.fillStyle = booked ? "#e8c35a" : "#f2efe6"; g.fill(); g.strokeStyle = "#3a2a18"; g.lineWidth = 1; g.stroke(); }
+    try { if (FARMACTORS.live()) { g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(W - 150, 10, 140, 26); g.fillStyle = "#f2efe6"; g.font = "700 14px system-ui"; g.textAlign = "center"; g.fillText("Farm time " + CORE.fmtClock(FARMACTORS.hour()), W - 80, 28); } } catch (e) {}
     // you
     const P = F.P, px = X(P.x), pz = Z(P.z), f = P.face || 0; g.save(); g.translate(px, pz); g.rotate(-f + Math.PI / 2 * 0 + Math.PI); g.beginPath(); g.moveTo(0, -9); g.lineTo(6, 7); g.lineTo(0, 3); g.lineTo(-6, 7); g.closePath(); g.fillStyle = "#e8c35a"; g.fill(); g.strokeStyle = "#1a1408"; g.lineWidth = 1.5; g.stroke(); g.restore();
     g.fillStyle = "#f2efe6"; g.font = "600 11px system-ui"; g.textAlign = "left"; g.fillRect(14, H - 22, 20 * sc, 3); g.fillText("20 m", 14 + 20 * sc + 6, H - 17);

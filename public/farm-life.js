@@ -76,7 +76,7 @@ const FARMLIFE = (() => {
     F.setBusy(true); anim = { kind: "out", g, k, t: 0, from: [g.position.x, g.position.z], P }; g.userData.out = true; g.userData.padK = k;
     FARMPEOPLE.act(F.fig, null);
   }
-  function bringIn(hid) { const o = out[hid]; if (!o) return; const g = o.g, P = padInfo(o.k); delete out[hid]; g.userData.out = false; setTurnout(hid, null); g.position.set(P.gate.x, F.heightAt(P.gate.x, P.gate.z), P.gate.z); g.rotation.y = Math.PI / 2; FARMCARE.adopt(g, hid); F.toast(nm(hid) + " is on the lead", "info", 2); F.refreshObjective(); }
+  function bringIn(hid) { const o = out[hid]; if (!o) return; try { FARMACTORS.noteManual(hid); } catch (e) {} const g = o.g, P = padInfo(o.k); delete out[hid]; g.userData.out = false; setTurnout(hid, null); g.position.set(P.gate.x, F.heightAt(P.gate.x, P.gate.z), P.gate.z); g.rotation.y = Math.PI / 2; FARMCARE.adopt(g, hid); F.toast(nm(hid) + " is on the lead", "info", 2); F.refreshObjective(); }
   function wash() {
     const L2 = FARMCARE.led; if (!L2 || anim) return; const g = L2.g; FARMCARE.freeze(true); F.setBusy(true); washHorse = g;
     anim = { kind: "wash", g, t: 0, hid: L2.hid, x0: g.position.x, z0: g.position.z, px0: F.P.x, pz0: F.P.z };
@@ -88,7 +88,7 @@ const FARMLIFE = (() => {
       const u = clamp01(A.t / 4.2), P = A.P, seg = u < 0.4 ? [A.from, [P.gate.x, P.gate.z], u / 0.4] : [[P.gate.x, P.gate.z], [P.inside.x, P.inside.z], (u - 0.4) / 0.6];
       const [a, b, k] = seg, x = a[0] + (b[0] - a[0]) * k, z = a[1] + (b[1] - a[1]) * k, g = A.g; g.position.set(x, F.heightAt(x, z), z); g.rotation.y = Math.atan2(-(b[1] - a[1]), b[0] - a[0]); A.gait = (A.gait || 0) + 1.2 * dt / 1.75; PRESENT.animateWalk(g, A.gait % 1, dt, { rest: 1 });
       F.P.x += (P.gate.x - 1.6 - F.P.x) * Math.min(1, dt * 2); F.P.z += (P.gate.z + 1.2 - F.P.z) * Math.min(1, dt * 2); FARMPEOPLE.pose(F.fig, dt, 0.8, 0);
-      if (u >= 1) { const hid = g.userData.hid; setTurnout(hid, A.k); out[hid] = { g, k: A.k, mode: "graze", t: 5, gx: P.inside.x, gz: P.inside.z, gait: 0, sp: 0 }; anim = null; F.setBusy(false); F.toast(nm(hid) + " is out in the " + P.name.toLowerCase(), "good", 2.4); F.refreshObjective(); }
+      if (u >= 1) { const hid = g.userData.hid; setTurnout(hid, A.k); out[hid] = { g, k: A.k, mode: "graze", t: 5, gx: P.inside.x, gz: P.inside.z, gait: 0, sp: 0 }; anim = null; try { FARMACTORS.noteManual(hid); } catch (e) {} F.setBusy(false); F.toast(nm(hid) + " is out in the " + P.name.toLowerCase(), "good", 2.4); F.refreshObjective(); }
     } else if (A.kind === "wash") {
       const g = A.g, u = clamp01(A.t / 6); g.position.x += (WASH.x - g.position.x) * Math.min(1, dt * 2); g.position.z += (WASH.z - 0.2 - g.position.z) * Math.min(1, dt * 2); g.rotation.y += (-Math.PI / 2 - g.rotation.y) * Math.min(1, dt * 2);
       animateHorse(g, 0, 0, 0, 0, 0, 0, dt, null); const B = g.userData.B; if (B) { B.neck1.rotation.z += 0.2; B.head.rotation.z += 0.1; B.body.rotation.z += Math.sin(A.t * 9) * 0.008; }
@@ -99,12 +99,12 @@ const FARMLIFE = (() => {
 
   // ---------------------------------------------------------------- the people who work here
   function buildStaff() {
-    const defs = []; defs.push({ id: "hand", name: "Stable hand", look: { skin: "#c68e6b", hair: 0, hairCol: "#3a2616", shirt: "#8a5a2e" }, role: "hand" });
+    const defs = []; defs.push({ id: "hand", name: "Stable hand", look: { skin: "#c68e6b", hair: 0, hairCol: "#3a2616", shirt: "#8a5a2e" }, role: "hand" }); defs.push({ id: "hand2", name: "Stable hand", look: { skin: "#8d5a3b", hair: 1, hairCol: "#1f140c", shirt: "#4a6a4c" }, role: "hand" });
     try { const S = CAREER.data.staff || {}; for (const r of ["groom", "trainer", "vet"]) if (S[r]) defs.push({ id: r, name: S[r].name, look: S[r].look || {}, role: r }); } catch (e) {}
     for (const d of defs) {
       const look = d.look || {}, fig = FARMPEOPLE.make({ look: { head: 1, hair: look.hair | 0, hairCol: look.hairCol || "#3a2616", skin: look.skin || "#e0b48c", build: 0 }, outfit: d.role === "trainer" ? "training" : "stable", colours: { shirt: look.shirt || "#2e5e8a", trousers: d.role === "vet" ? "#e8e4d8" : "#3a3a40", boots: "#4a2e1a" } });
       fig.root.traverse(o => { if (o.isMesh) o.castShadow = false; }); F.scene.add(fig.root);
-      const n = { d, fig, x: 0, z: 0, face: 0, sp: 0, mode: "idle", t: 1 + Math.random() * 3, route: [], ri: 0 }; npcs.push(n); const s = stationFor(d.role, 0); n.x = s.x; n.z = s.z; n.face = s.face || 0;
+      const n = { d, fig, x: 0, z: 0, face: 0, sp: 0, mode: "idle", t: 1 + Math.random() * 3, route: [], ri: 0 }; npcs.push(n); const s = stationFor(d.role, d.id === "hand2" ? 3 : 0); if (d.id === "hand2") n.ri = 3; n.x = s.x; n.z = s.z; n.face = s.face || 0;
     }
   }
   const STN = {
@@ -117,6 +117,7 @@ const FARMLIFE = (() => {
   function stepNpcs(dt) {
     const cam = F.cam;
     for (const n of npcs) {
+      if (n.job) continue;                                             // a stable hand leading a horse is driven by FARMACTORS
       const root = n.fig.root, dd = Math.hypot(n.x - cam.position.x, n.z - cam.position.z), near = dd < 48 && F.place() === "out"; root.visible = near;
       if (!near) continue; const st = STN[n.d.role];
       if (n.mode === "walk") {
@@ -151,5 +152,10 @@ const FARMLIFE = (() => {
   }
   function frame(dt) { if (!F) return; if (upMesh) upMesh.visible = F.cam.position.y < 16;      // the signs are small: not drawn from the high whole-property views
     stepAnim(dt); stepOut(dt); stepNpcs(dt); }
-  return { init, enter, leave, dispose, frame, points, interact, buildUpgrades, isOut, get anim() { return anim; }, get out() { return out; }, get npcs() { return npcs; }, setTurnout, GATE, padInfo, WASH };
+  // Phase 17: the staff-led turnout hands horses over / takes them back
+  function placeOut(g, k) { place(g, k); setTurnout(g.userData.hid, k); }
+  function adoptOut(g, k) { const P = padInfo(k), hid = g.userData.hid; setTurnout(hid, k); g.userData.out = true; g.userData.padK = k; out[hid] = { g, k, mode: "graze", t: 5, gx: P.inside.x, gz: P.inside.z, gait: 0, sp: 0 }; }
+  function releaseOut(hid) { const o = out[hid]; if (!o) return null; delete out[hid]; setTurnout(hid, null); return o.g; }
+  const stations = role => STN[role] || STN.hand;
+  return { init, enter, leave, dispose, frame, points, interact, buildUpgrades, isOut, placeOut, adoptOut, releaseOut, stations, padInfo, get anim() { return anim; }, get out() { return out; }, get npcs() { return npcs; }, setTurnout, GATE, padInfo, WASH };
 })();

@@ -52,6 +52,18 @@ const ATMO = (() => {
   const frac = h => (h % 100000) / 100000;
   function dayWeather(seed, day, month) { return pick(frac(hash(seed + "/wx/" + day)), WXS, SEASONAL[month] || SEASONAL[1]); }
   function dayPart(seed, day) { return pick(frac(hash(seed + "/tod/" + day)), DAYPARTS, DAYW); }
-  return { TODS, WXS, T, W, params, isLit, dayWeather, dayPart, DAYPARTS };
+  // ---- Phase 17: the farm clock's continuous light. The hour (05:30 → 19:00) is blended between the neighbouring day-part looks (same weather); everything numeric is interpolated, colours in RGB.
+  // `tod` / `envFrom` name the NEAREST day part (the cached environment map is built from that look: it changes at day-part boundaries only, never per frame).
+  const KEYH = [["early_morning", 5.5], ["mid_morning", 8.5], ["midday", 12], ["afternoon", 15], ["late_afternoon", 16.8], ["golden_hour", 18], ["dusk", 19]];
+  const lerpV = (a, b, u) => typeof a === "number" ? a + (b - a) * u : Array.isArray(a) ? a.map((v, i) => lerpV(v, b[i], u)) : a && typeof a === "object" ? Object.keys(a).reduce((o, k) => (o[k] = lerpV(a[k], b[k], u), o), {}) : (u < 0.5 ? a : b);
+  const hexMix = (a, b, u) => { const c = sh => Math.round((a >> sh & 255) * (1 - u) + (b >> sh & 255) * u); return (c(16) << 16) | (c(8) << 8) | c(0); };
+  const norm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  function blend(hour, wx) {
+    const h = clamp(+hour || KEYH[0][1], KEYH[0][1], KEYH[KEYH.length - 1][1]); let i = 0; while (i < KEYH.length - 2 && h >= KEYH[i + 1][1]) i++;
+    const [ta, ha] = KEYH[i], [tb, hb] = KEYH[i + 1], u = clamp((h - ha) / (hb - ha), 0, 1), A = params(ta, wx), B = params(tb, wx), o = u >= 1 ? lerpV(B, B, 0) : lerpV(A, B, u);
+    o.hemiSky = hexMix(A.hemiSky, B.hemiSky, u); o.hemiGround = hexMix(A.hemiGround, B.hemiGround, u); o.sunDir = norm3(o.sunDir); o.lightDir = norm3(o.lightDir);
+    o.tod = u < 0.5 ? ta : tb; o.wx = A.wx; o.key = (u < 0.5 ? A : B).key; o.live = true; o.hour = h; o.envFrom = u < 0.5 ? A : B; return o;
+  }
+  return { TODS, WXS, T, W, params, blend, KEYH, isLit, dayWeather, dayPart, DAYPARTS };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = ATMO;
