@@ -24,3 +24,13 @@ MacBook power management (battery state) was the primary cause of the apparent c
 
 ## Arithmetic check by Claude (not a re-measurement)
 4 hitches / 3,593 frames = 0.111 % (consistent with 99.89 % on-time); 4 hitches in 60 s = about 4 per minute.
+
+## 4. After the 15C AUTO-queue build (artifact version 21), plugged in, all lab switches at defaults (owner's figures)
+| Item | Value |
+|---|---|
+| Frames over the 60 s benchmark | 3,524 (about 58.7 FPS) |
+| On-time frames | 97.93 % |
+| Late frames | 73, maximum 83.3 ms |
+| Graphics | full quality at the time: AUTO level 0, 2× render scale, 4096 shadows (the now-removed High) |
+| AUTO quality changes during the race | 0 |
+| Owner's reading | the 30 FPS power issue is substantially understood, AUTO changes now appear to be deferred correctly; occasional uneven frame pacing remains and overall performance is much better |

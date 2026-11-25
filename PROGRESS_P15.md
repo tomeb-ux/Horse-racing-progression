@@ -56,6 +56,7 @@ Phase 15 sub-steps:
 | 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · battery | E: same build as direct HTML in its own tab | 100 (artefact) | — / — (median 33.3) | — | — | — | identical to the artifact run: **not a host-page / iframe effect** |
 | 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · battery | F: AUTO lab = Off (fixed High) | 100 (artefact) | — / — (median 33.3) | — | — | 0 by design | canvas 3420 × 1902 (2×), shadows 4096, **still 33.3 ms**. Not a controlled AUTO test: it compared the floor level with High |
 | 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · battery | owner's separate check | — | ~27 fps | — | — | — | Chrome ~27 fps on battery, 60 fps immediately when plugged in; unplug / replug during a race degrades / restores |
+| 2026-11-25 | 15C artifact v21 | Apple M2 MacBook · Chrome · plugged in (60 Hz) | A: benchmark, defaults, 60 s, 3,524 frames (58.7 fps), full quality (AUTO level 0, ×2, 4096 shadows: the removed High) | 97.93 | — / — | 83.3 | 73 late frames in 60 s | **0** | after the AUTO-queue fix: no AUTO change in the race, no 99 ms hitch. **Remaining uneven pacing (73 late frames, max 83 ms) is kept as a non-blocking performance concern**; the owner's reading is that it is much better. Raw report not available to Claude |
 | 2026-11-25 | 15A artifact v20 | Apple M2 MacBook · Chrome · plugged in (60 Hz) | A: benchmark, defaults, 60 s, 3,593 frames | 99.89 | 16.8 / 17.5 (median 16.7) | 99.2 | 4.0 (4 hitches in 60 s) | **3** | one hitch of 99.2 ms = AUTO step-up to render ×2 with ~101.6 ms of JS in the preceding frame. The other 3 hitches are not attributed (raw report not available to Claude) |
 
 ## Phase reports
@@ -245,6 +246,42 @@ The owner asked for a minimal fix and no further profiling. Only C1 was built; C
 **Deferred, and why:** the Tier 3 full suite (race-engine node tests, `career_difficulty`, `progression`, `economy`, commentary and phase 6–14 suites). The change is presentation-only: `sim.js` is byte-identical (`git diff 5139a6f HEAD -- public/sim.js` is empty), the physics-independence check passes, and the owner asked to avoid heavy test runs for small changes. My own 15C proposal said Tier 3 was required because `gfx.js` is touched; I am recording this as a deliberate departure at the owner's request, not as a pass. It can be run at any time.
 
 **Limits:** headless counts show the *mechanism* is fixed (no reallocation after the gates); they say nothing about how it feels. The check that matters is the owner's: plugged in, from a stored low AUTO level (after a battery session), a benchmark and a career race. Expect no AUTO change between the gates and the finish, and no 99 ms hitch from a quality step. The first race after a long battery session will still start at the lowered level and climb between races (most of the climb happens on the farm and menu), not mid-race.
+
+### After 15C on the owner's Mac, and the Medium / race-tree changes (this section is the record for them)
+
+**15C result (owner, Apple M2, Chrome, plugged in, artifact v21):** 3,524 frames in 60 s (about 58.7 fps), 97.93 % on time, 73 late frames with an 83.3 ms maximum, **zero AUTO changes during the race**, full quality (then AUTO level 0 = ×2, 4096 shadows). Recorded in `docs/perf-evidence/` and the measurements log. **The remaining occasional uneven frame pacing is kept as a non-blocking performance concern** (not investigated further, as agreed; it is to be re-examined only if it persists in normal plugged-in play). The stutter is not declared fixed; the owner's judgement is "much better".
+
+#### Medium is now the maximum graphics quality (`gfx.js`, `index.html`; owner request)
+- The **High preset is removed** from the settings screen and from `GFX.QUALITY`. Graphics quality now offers **Medium (best, recommended)**, **Auto (adapts, never above Medium)** and **Low**.
+- **Default is Medium** for new players (nothing is written until they change something).
+- **Migration:** a saved `high` is changed to `medium` once and saved as Medium; an unknown value becomes Medium; saved `auto` and `low` are kept. The crowd and camera settings and the career save are untouched (tested). An existing player who never touched the setting (so no stored key) also starts on Medium.
+- **AUTO never exceeds Medium:** the `auto` preset's content settings are exactly Medium's (render ×1.5, 2048 shadows, crowd 0.6, trees 0.7). The AUTO step table was rebuilt as **9 levels that only ever simplify below Medium** (crowd → trees → scenery → shadow 1024 → render ×1.25 → … → ×1.0 → far horses). The old table had levels (render ×1.75, shadow 2048) that Medium's ceiling would have turned into no-op steps. Stored `ff_autoLevel` values keep roughly the same severity; an old level 9 is out of range and simply starts at 0. A stale `"high"` set by a script or a test falls back to the Medium ceiling. Checked for every level of Auto / Medium / Low and for the lab's "off" (fixed top level) in `auto-quality-browser`.
+- The hidden lab's AUTO "off" now means "fixed at the top level (Medium)".
+- **Not changed (decision for the owner):** the separate **Scenery detail** (High / Medium / Low, default High: lawn spectator density 42 % vs 25 %) and **Crowd density** settings are content-density options, not render quality, and still offer their own levels.
+
+#### Racecourse trees: lighter, leafier canopies (race scenes only)
+- **Farm trees and the farm's palms are untouched:** no `farm*.js` file changed, `GFX.treeGeo` is unchanged (the farm's palms use it), and `farm-browser` gives identical draw-call and triangle figures old vs new (e.g. courtyard 163 calls / 239k tris; 34 / 34 passed).
+- **Old:** each gum / fig / plane / cypress was 4–9 separate noise-displaced spheres (about 600–700 triangles near, 140–180 far) drawn in one instanced mesh per species and cell, also cast into the shadow map.
+- **New** (`plantTrees` in `gfx.js`; palms keep the old path): a bare trunk and limbs plus **one shared canopy clump** (56 triangles near, 20 far, opaque, front faces only, a 128² leaf texture of 64 KB, no alpha or transparent layers).
+  - **Near LOD:** 3–5 instances of the shared clump per tree as ONE instanced mesh per cell, attached as a *child of that cell's near-LOD trunk mesh*, so it is drawn and casts its shadow exactly when the near LOD is. Each clump has its own scale (so its shape), yaw, tilt and colour tint; the species set the layout, size and hue (open grey-green gum with the canopy on the limb tips and the leaning trunk top, broad dark fig, round plane, tall narrow cypress). The gum limbs now attach to the leaning trunk (the old ones floated about 4 m off it, hidden by the blobs).
+  - **Far LOD (almost every tree on screen):** the trunk and a baked set of clumps in ONE geometry with the plain tree material: one draw call per species and cell, as before.
+  - First version: a separate canopy mesh set per cell gave **+6 % draw calls**; this version removes that by baking the far canopy (the owner's follow-up).
+- **Appearance:** same species, positions, counts (Medium keeps 70 % of the trees as before) and colours family, but visibly leafier and more irregular; colours were tuned to the old palette by eye on screenshots. Not pixel-identical (the random stream shifts per tree).
+- **Measured, Medium, same cameras, original `10922d2` vs final, alternating runs, 800 × 450, software GL (SwiftShader):**
+
+| View | Draw calls (original → final) | Triangles incl. shadow pass | Tree triangles | 
+|---|---|---|---|
+| Randwick, chase | 286 → 294 (+2.8 %) | 599k → 559k (−6.7 %) | |
+| Randwick, trackside at the densest trees | 450 → 460 (+2.2 %) | 749k → 704k (−5.9 %) | 57.9k → 32.3k (**−44 %**) |
+| Flemington, chase | 277 → 277 (0) | 543k → 523k (−3.6 %) | |
+| Flemington, trackside | 489 → 488 (−1) | 546k → 525k (−3.8 %) | 50.0k → 31.5k (**−37 %**) |
+| Country A, chase | 148 → 152 (+2.7 %) | 413k → 399k (−3.6 %) | |
+| Country A, trackside | 150 → 152 (+1.3 %) | 299k → 289k (−3.5 %) | 21.6k → 13.5k (**−38 %**) |
+
+  GPU objects (geometries / textures / shader programs) Randwick 527–580 / 107–124 / 47–48 → 595–596 / 125 / 49 (one leaf texture and one canopy program added; geometries are per-cell views of the two shared clump meshes). Flemington 638 / 120 / 50 → 650 / 121 / 51. The earlier all-separate-canopy version added 18–23 draw calls on Randwick; batching the far trees brought it to +8–10.
+- **Frame time (stated plainly):** headless software rendering cannot resolve this change. The CPU render-submit time on the chase camera is the same within noise (about 3–5 ms before and after). The synchronous raster time from fixed poses, repeated twice per build, moved −10 %, +22 %, −26 %, −27 %, +35 %, −1 % between the six view pairs, and two repeats of the *same* build differed by 15–40 %, so **no FPS gain or loss is claimed**. What is solid: fewer triangles (−3.5 to −6.7 % overall, −37 to −44 % for trees), draw calls within +3 %, no new transparency. The check that counts is the owner's, on the M2, with the benchmark.
+
+**Tests for this change (focused, as the owner asked; the full regression suite was stopped part-way and is not claimed):** `auto-quality-browser` 24/24 (incl. 6 new Medium-ceiling / migration / settings-UI checks); `career-core` 128/128, `single-browser` 8/8, `steering` 70/70, `start` 8/8, `replay-lunge` 9/9, `farm-browser` 34/34 (new and old), `phase11-browser` and `phase12-browser`, `presentation-browser` 11/11 ran green on the first draft of the canopy; the final-version re-run is listed in the closing message. **Not run:** the full Tier 3 suite, `scenes`, `farm-flow`, `race-hygiene`, `perflab` and `longrace` on the final code (the queue was stopped at the owner's request); the perf-lab and hygiene tests were updated for the new default preset but not re-run.
 
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
