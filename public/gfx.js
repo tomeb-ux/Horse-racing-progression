@@ -432,9 +432,9 @@ const GFX = (() => {
   function canopyTexture() {            // a tileable 128² greyscale leaf-cluster texture (the species colour comes from the instance colour); built once, 64 KB
     if (CANOPY.tex) return CANOPY.tex;
     const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d"), r = rand(77);
-    g.fillStyle = "#c9c9c9"; g.fillRect(0, 0, 128, 128);
-    for (let i = 0; i < 360; i++) {
-      const x = r() * 128, y = r() * 128, w = 2.5 + r() * 5, h = 1.6 + r() * 2.6, a = r() * Math.PI, v = r() < 0.22 ? 105 + r() * 40 : 190 + r() * 65;
+    g.fillStyle = "#cfcfcf"; g.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 900; i++) {
+      const x = r() * 128, y = r() * 128, w = 1.4 + r() * 2.6, h = 0.9 + r() * 1.5, a = r() * Math.PI, v = r() < 0.3 ? 150 + r() * 35 : 205 + r() * 50;
       g.fillStyle = "rgb(" + (v | 0) + "," + (v | 0) + "," + (v | 0) + ")";
       for (const ox of [-128, 0, 128]) for (const oy of [-128, 0, 128]) { const X = x + ox, Y = y + oy; if (X < -10 || X > 138 || Y < -10 || Y > 138) continue; g.save(); g.translate(X, Y); g.rotate(a); g.beginPath(); g.ellipse(0, 0, w, h, 0, 0, 6.283); g.fill(); g.restore(); }
     }
@@ -444,7 +444,7 @@ const GFX = (() => {
     const key = lo ? "lo" : "hi"; if (CANOPY[key]) return CANOPY[key];
     const g = new THREE.SphereGeometry(1, lo ? 5 : 7, lo ? 3 : 5), P = g.attributes.position, UV = g.attributes.uv;
     for (let i = 0; i < P.count; i++) {
-      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), n = fbm(x * 1.3 + 3.1, y * 1.2 + z * 1.1, 1e6, 41, 2), k = 0.74 + 0.5 * n, yy = y < 0 ? y * 0.5 : y;
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), n = fbm(x * 1.3 + 3.1, y * 1.2 + z * 1.1, 1e6, 41, 2), k = 0.74 + 0.5 * n, yy = y < 0 ? y * 0.78 : y;
       P.setXYZ(i, x * k, yy * k, z * k); UV.setXY(i, UV.getX(i) * 3, UV.getY(i) * 2);          // u × 3 (a whole number: the texture is continuous across the sphere's seam)
     }
     g.computeVertexNormals();
@@ -471,17 +471,17 @@ const GFX = (() => {
   }
   // per species: clump count, radius range (m, before the tree's own scale), (x, y, z) shape factors, height range, spread round the trunk top, base colour (linear), lean of the crown centre
   const CROWN = {
-    gum:     { n: 4, rad: [2.5, 3.5], flat: [1.2, 0.72, 1.12], y: [11.4, 15.2], spread: 3.0, lean: 0.0, col: [0.20, 0.27, 0.12] },
-    fig:     { n: 5, rad: [4.0, 5.2], flat: [1.22, 0.68, 1.22], y: [8.3, 10.8], spread: 4.4, lean: 0, col: [0.075, 0.15, 0.045] },
-    plane:   { n: 3, rad: [3.3, 4.4], flat: [1.0, 0.92, 1.0], y: [9.6, 12.4], spread: 2.0, lean: 0, col: [0.15, 0.27, 0.07] },
-    cypress: { n: 3, rad: [1.5, 1.9], flat: [0.95, 1.75, 0.95], y: [4.8, 10.8], spread: 0.25, lean: 0, col: [0.075, 0.15, 0.065] },
+    gum:     { n: 4, rad: [2.6, 3.6], flat: [1.2, 0.74, 1.12], y: [10.2, 14.4], spread: 3.0, lean: 3.0, col: [0.30, 0.38, 0.17] },
+    fig:     { n: 5, rad: [4.0, 5.2], flat: [1.22, 0.7, 1.22], y: [6.8, 9.6], spread: 4.4, lean: 0, col: [0.11, 0.21, 0.065] },
+    plane:   { n: 3, rad: [3.3, 4.4], flat: [1.0, 0.92, 1.0], y: [8.0, 11.0], spread: 2.0, lean: 0, col: [0.22, 0.38, 0.10] },
+    cypress: { n: 3, rad: [1.5, 1.9], flat: [0.95, 1.75, 0.95], y: [4.2, 10.2], spread: 0.25, lean: 0, col: [0.11, 0.21, 0.09] },
   };
   const _cm = new THREE.Matrix4(), _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _le = new THREE.Euler(), _lp = new THREE.Vector3(), _ls = new THREE.Vector3();
   function crownItems(sp, treeM, tx, ty, tz, r, out, cols) {   // the clumps of one tree as instance matrices (+ colours), appended to `out`
     const C = CROWN[sp];
     for (let k = 0; k < C.n; k++) {
       const a = k / C.n * 6.283 + r() * 0.9, d = k ? C.spread * (0.4 + 0.6 * r()) : C.spread * 0.15 * r(), t = C.n > 1 ? k / (C.n - 1) : 0.5;
-      const rad = C.rad[0] + (C.rad[1] - C.rad[0]) * r(), h = C.y[0] + (C.y[1] - C.y[0]) * (k === 0 ? 0.55 : 0.2 + 0.8 * r()) ;
+      const rad = C.rad[0] + (C.rad[1] - C.rad[0]) * r(), h = C.y[0] + (C.y[1] - C.y[0]) * (k === 0 ? 0 : 0.2 + 0.8 * r());
       _lp.set(Math.cos(a) * d + C.lean, h - (d / (C.spread + 0.01)) * (C.y[1] - C.y[0]) * 0.18, Math.sin(a) * d);
       _ls.set(rad * C.flat[0] * (0.88 + 0.26 * r()), rad * C.flat[1] * (0.85 + 0.3 * r()), rad * C.flat[2] * (0.88 + 0.26 * r()));
       _le.set((r() - 0.5) * 0.35, r() * 6.283, (r() - 0.5) * 0.35); _lq.setFromEuler(_le);
