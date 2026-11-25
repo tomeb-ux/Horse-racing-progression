@@ -71,7 +71,7 @@ A **farm map** (`M`) draws a top-down plan from the same layout and colliders: p
 
 **Race eligibility.** Rating minimums (as before) plus three new explained rules: **age** limits (two-year-olds, three-year-olds and under), **maiden** (no wins) and **benchmark class** caps (rating 70–76). A new horse can always enter a dozen or more races.
 
-**Winnable early races.** Two new pressure profiles: grassroots races (maidens, trials, age races) start the strongest rival ≈ 2.4 lengths above you; country class races ≈ 3.4 (metropolitan 5.0, first starts 6.0, finals 4.5). Measured with `tests/career_difficulty.js` (100 races each, a Hard-jockey proxy for a well-ridden horse): **maidens 25–29 % wins** (top-3 58–64 %), **country class 22–27 %** (top-3 51–59 %), against 11 % for Quick Race Hard; metropolitan / Group / crown races are unchanged (Kingsford Mile 21 %, Spring Final 11 %, Group 1 5 %, Everest 0 %, Melbourne Cup 0 %).
+**Winnable early races.** Two new pressure profiles: grassroots races (maidens, trials, age races) start the strongest rival ≈ 2.4 lengths above you; country class races ≈ 3.4 (metropolitan 5.0, first starts 6.0, finals 4.5). Measured with `tests/career_difficulty.js` (100 races each, a Hard-jockey proxy for a well-ridden horse): **maidens 23–35 % wins**, **country class races 14–37 %** (Country Cup 14–18 %, Kyneton Cup 21 %, Benchmark 58 Mile 37 %), against 11 % for Quick Race Hard — a well-ridden new horse wins roughly one start in four, not most of them; metropolitan / Group / crown races are unchanged (Kingsford Mile 21 %, Spring Final 11 %, Group 1 5 %, Everest 0 %, Melbourne Cup 0 %).
 
 **Time-of-day lighting.** Eight times of day (early morning, mid-morning, midday, afternoon, late afternoon, **golden hour**, dusk, and the lit evening at Randwick / Flemington for the big races) as one table (`atmosphere.js`): sun direction and colour, sky dome, warm horizon glow, stars at dusk, ambient, exposure, haze. The default (afternoon, clear) is **exactly the game's original look**, so a Quick Race is unchanged. The race and the farm both use it: the calendar's stored time of day is what the race runs with and what the farm shows on race day.
 
@@ -114,7 +114,66 @@ A **farm map** (`M`) draws a top-down plan from the same layout and colliders: p
 
 ## 7. Tests
 
-See `RESULTS_TABLE` below (filled from the last full run).
+The final full run (every Node and browser suite, one at a time):
+
+| Test | Result | Time |
+|---|---|---|
+| `browser tests/auto-quality-browser` | 12 passed, 0 failed | 17s |
+| `browser tests/career-browser` | 114 passed, 0 failed | 213s |
+| `browser tests/eleven-browser` | 12 passed, 0 failed | 105s |
+| `browser tests/farm-browser` | 34 passed, 0 failed | 121s |
+| `browser tests/farm-flow-browser` | 74 passed, 0 failed | 45s |
+| `browser tests/longrace-browser` | 5 passed, 0 failed | 382s |
+| `browser tests/phase10-browser` | 33 passed, 0 failed | 13s |
+| `browser tests/phase11-browser` | 11 passed, 0 failed | 27s |
+| `browser tests/phase12-browser` | 24 passed, 0 failed | 95s |
+| `browser tests/phase13-browser` | 23 passed, 0 failed | 11s |
+| `browser tests/phase14-browser` | 11 passed, 0 failed | 18s |
+| `browser tests/phase6-browser` | 104 passed, 1 failed (stale test, see notes) → fixed and rerun: **105 passed, 0 failed** | 88s |
+| `browser tests/phase8-browser` | 26 passed, 0 failed | 19s |
+| `browser tests/phase9-browser` | 33 passed, 0 failed | 12s |
+| `browser tests/presentation-browser` | 11 passed, 0 failed | 22s |
+| `browser tests/replay-lunge-browser` | 9 passed, 0 failed | 7s |
+| `browser tests/scenes-browser` | 38 passed, 0 failed | 185s |
+| `browser tests/start-browser` | 8 passed, 0 failed | 25s |
+| `browser tests/steering-browser` | 70 passed, 0 failed | 15s |
+| `node tests/avoid_public_sim.js` | 12 passed, 0 failed | 4s |
+| `node tests/career-core` | 128 passed, 0 failed | 2s |
+| `node tests/career_difficulty_100_3` | completed (prints a table of rates, no pass count — see below) | 345s |
+| `node tests/chaos_public_sim.js` | 25 passed, 0 failed | 16s |
+| `node tests/commentary-scenarios_160` | 1881 passed, 0 failed | 106s |
+| `node tests/commentary_36` | 164 passed, 0 failed | 35s |
+| `node tests/development` | 11 passed, 0 failed | 0s |
+| `node tests/economy` | 8 passed, 0 failed | 75s |
+| `node tests/eleven-plan` | 9 passed, 0 failed | 0s |
+| `node tests/flemington` | 46 passed, 0 failed | 22s |
+| `node tests/phase10-core` | 71 passed, 0 failed | 0s |
+| `node tests/phase11-core` | 41 passed, 0 failed | 0s |
+| `node tests/phase12-core` | 36 passed, 0 failed | 0s |
+| `node tests/phase6-core` | 43 passed, 0 failed | 0s |
+| `node tests/phase7-core` | 40 passed, 0 failed | 0s |
+| `node tests/phase8-core` | 37 passed, 0 failed | 0s |
+| `node tests/phase9-core` | 44 passed, 0 failed | 1s |
+| `node tests/progression` | completed (prints a table of rates, no pass count — see below) | 79s |
+| `node tests/randwick_2` | 41 passed, 0 failed | 24s |
+| `node tests/retirement` | 17 passed, 0 failed | 0s |
+| `node tests/riding-control` | 25 passed, 0 failed | 21s |
+| `node tests/season` | 64 passed, 0 failed | 0s |
+
+**Notes on the run.** `phase6-browser` failed once in this run (104 / 105) and again on its automatic rerun, because its quick-departure step reused a horse that had already raced that day — which is correct behaviour under the new once-a-day rule. The test now rests that horse first and passes **105 / 105** (rerun after the fix). `longrace-browser` had failed twice earlier **only while other heavy jobs were running**; it passes **5 / 5** on an idle machine (above). `single-browser` (the single-file build opened from disk) passes **8 / 8**. `career_difficulty` and `progression` print rate tables rather than pass counts; the win rates are in the section above. **Multiplayer suites (`tests/mp-*.js`) were not run — multiplayer is disabled by design.**
+
+**Smoothness before / after the Phase 11–14 work** (`tools/smooth.js`, Randwick, headless software GL, 60 Hz; "before" = the commit before the atmosphere work, "after" = final):
+
+| | before | after |
+|---|---|---|
+| horse speed / camera speed / stalls | 17.75 / 17.6 m/s / 0 | 17.75 / 17.6 m/s / 0 |
+| game update CPU p50 / p95 | 0.31–0.45 / 0.51–0.69 ms | 0.32–0.34 / 0.56–0.65 ms |
+| update + render p50 / p95 | 2.2–2.5 / 4.8–5.6 ms | 2.4–2.7 / 4.5–6.4 ms |
+| draw calls / triangles | 222 / 443k (chase), 202 / 486k (jockey) | identical |
+| JS allocation rate | 9.5 MB/s | 12.2 MB/s |
+
+Motion is identical (no new judder or stalls), draw calls and triangles are identical, and update CPU is unchanged. Update-plus-render p50 is about 0.2–0.3 ms higher in this software renderer (the sky shader is a little heavier). The allocation rate is about 2.7 MB/s higher after the atmosphere work. A direct 120-frame `renderer.render` loop shows no per-frame allocation difference and no rain is on in this test, so it is most likely one-off shader / environment set-up inside the measured window — **I did not prove that**, and none of this was measured on real hardware.
+
 
 ## 8. Known limitations (stated plainly)
 
