@@ -126,7 +126,25 @@ What this shows, and what it does not:
 Retained (normal): 269 geometries / 72 textures alive during a race, the farm alone 220 / 54. **Parked: −150 geometries and −26 textures at the race start (268 / 60 → 200 / 43); 269 → 201 geometries and 72 → 55 textures during the race.** Back on the farm: 2 horses in their boxes, 5 plaques, the same 534 scene objects, the character present, the same 145 draw calls, the career save byte-for-byte unchanged, GPU objects back to 275 / 69 (the same as the retained run). Ten further parked trips: geometries 275 → 275, textures 69 → 69, programs Δ0, JS heap Δ0.7 MB.
 
 #### Tests run (working tree, server `FF_TEST_HOOKS=1 PORT=8095`; a failed browser test is re-run once and both results are listed)
-@@TESTS@@
+| Test | Result | Count | Notes |
+|---|---|---|---|
+| `node tests/career-core.js` (Tier 1) | **passed** | 128 / 0 failed | |
+| `node tools/build-single.js` + `tests/single-browser.js` (Tier 1) | **passed** | build OK (8,957 KB, `perf.js` inlined); 8 / 0 failed | the single file boots from disk |
+| `tests/scenes-browser.js` (Tier 1) | **passed** | 38 / 0 failed | incl. 10 farm↔race trips, no growth (geometries 313 → 313, textures 90 → 90) and "AUTO fed on farm frames" (unchanged 2nd `autoTick` argument) |
+| `tests/farm-browser.js` | **passed** | 34 / 0 failed | budgets ≤ 250 draw calls / ≤ 500k triangles |
+| `tests/farm-flow-browser.js` | **passed** | 74 / 0 failed | |
+| `tests/steering-browser.js`, `start-browser.js`, `replay-lunge-browser.js` (racing smoke, Tier 1; run alone, nothing else running) | **passed** | 70 / 8 / 9, 0 failed | |
+| `tests/auto-quality-browser.js` (corrected) | **passed** | 12 / 0 failed | also 12/12 at `49aaed3`, `5139a6f` and pristine HEAD |
+| `tests/longrace-browser.js` | **passed** | 5 / 0 failed | |
+| `tests/phase12-browser.js` | **passed** | 24 / 0 failed | |
+| **`tests/scenes-browser.js` with the park switch on** (`FF_LAB={"park":"park",…}`) | **passed** | 38 / 0 failed | 10 trips: geometries 313 → 313, textures 90 → 90, programs Δ0, heap Δ0.6 MB; career data byte-identical. Park confirmed active with the same seeding: −150 geometries, −26 textures at race start |
+| **`tests/farm-flow-browser.js` with the park switch on** | **passed** | 74 / 0 failed | |
+| `tests/perflab-browser.js` (new) | **passed** | 47 / 0 failed | final run. During development of the test: run 3 = 44 / 3 failed and run 4 = 46 / 1 failed; all were harness expectations (storage keys AUTO legitimately writes, the character getter being under `_test`, the benchmark-cancel timer needing real time) plus **one real bug fixed**: pausing during a benchmark did not cancel it (the pause screen draws no frames, so no frame hook ran) |
+| `tests/race-hygiene-browser.js` (new) | **ran at 3 builds** | 32 pass + 4 expected fails (working tree and pristine HEAD, identical); 18 / 0 failed at `5139a6f` (+ 2 "afterfarm" runs **blocked**: no farm in that build) | the 4 fails are the afterfarm-chase mechanism row above (they are findings, not regressions; `INFO=1` keeps the exit code 0). First attempt aborted when a second page load hung (software GPU process left busy): fixed with a fresh browser per run |
+| `tools/smooth.js` before / after (F8 off) | **run** | 4 conditions × 2 before + 2 after | no measurable overhead (see above) |
+| `tools/bench.js`, `smooth.js`, `auto-quality` at `5139a6f` / `49aaed3` / HEAD | **run** | | none **blocked**: every corrected tool ran at all three builds (the one "blocked" item is the hygiene afterfarm scenario at `5139a6f`) |
+| Tier 3 full suite, `career-browser`, phase 6–11, 13, 14 browsers, `presentation`, `voice`, `eleven`, commentary, all multiplayer | **not run** | | deferred (see below); multiplayer disabled by design |
+
 
 #### Deferred (Tier 3, and why)
 Nothing in 15A touches race physics, results, `sim.js`, horse attributes or difficulty. The change set is diagnostics plus guarded one-line hooks in `gfx.js`, `commentary.js`, `farm.js` and the frame loop, all inert by default. Per the Testing policy the **Tier 3 full suite was therefore deferred** (not run): `career_difficulty.js`, `progression.js`, `economy.js`, `development.js`, `field/chaos/avoid/pileup/pushfall`, `randwick/flemington`, `commentary*`, `eleven-*`, `phase6–14` cores and browsers, `career-browser`, `presentation-browser`, `voice-browser`. Multiplayer tests: not run, multiplayer disabled by design. A Tier 3 run belongs to 15C/15D, when a fix touches `gfx.js` / the race path for real.

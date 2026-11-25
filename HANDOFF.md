@@ -6,6 +6,8 @@ Paste this file into a new Claude Code chat to continue work. All the code is in
 
 > **Post-Phase-14 roadmap (approved 2026-11-25): see `ROADMAP_P15.md` (plan, Phases 15–24) and `PROGRESS_P15.md` (running log). Phase 15 (racing micro-stutter) comes first.**
 
+> **Phase 15A status (instrumentation only, no stutter fix):** the hidden diagnostics are in `public/perf.js` (**F8** overlay additions, **Shift+F8** report / lab / benchmark race, `ff_lab` switches). Results, the owner measurement protocol and the next steps are in `PROGRESS_P15.md` → "Phase 15A". Waiting for the owner's real-device reports before 15B/15C.
+
 **What happened.** The original Career Mode expansion (14 phases, spec in `CAREER_EXPANSION_SPEC.md`, plan in `CAREER_PLAN.md`) is **fully implemented on the dev branch and covered by automated tests**. The owner approved Phases 1–4; Phases 5–14 are built and machine-tested but **have not been played and signed off** — treat "tests pass" and "approved" as different things. `main` was **not** touched by Phases 6–14 and has diverged (see `CAREER_PROGRESS.md` → FINAL STATE → D11). Do **not** merge into `main` without the owner's approval. Multiplayer is hidden by design (`FF_FEATURES.multiplayer = false`; code kept; `tests/mp-*.js` are reported "not run — multiplayer disabled by design").
 
 **The owner has stopped feature work** so you (the next planner) can review the finished game and plan the next major upgrades. **Do not start implementing before you have read this file and the FINAL STATE section of `CAREER_PROGRESS.md`.**
