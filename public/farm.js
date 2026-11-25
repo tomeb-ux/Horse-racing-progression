@@ -503,7 +503,7 @@ const FARM = (() => {
 
   // ---------------------------------------------------------------- scene lifecycle (registered with SCENES)
   function enter() {
-    stopShowcase();
+    unpark(); stopShowcase();
     if (built && builtName !== stableName()) dispose(true);             // the stable was renamed: the signs are rebuilt
     build(); active = true; VIEW.on = false; paused = false; panel = null; trans = null; trip = null; place = "out"; fscene.add(fig.root); refreshFigure();
     person = settings.person === 1 ? 1 : 3; camReady = false; applyAtmosphere(true);
@@ -529,10 +529,28 @@ const FARM = (() => {
   function startShowcase() {
     if (showcase || active) return; if (typeof SCENES !== "undefined" && SCENES.scene !== "menu") return;
     if (built && builtName !== stableName()) dispose(true);
-    resume = null; build(); showcase = true; place = "out"; if (!showDef && typeof ROSTER !== "undefined" && typeof settings !== "undefined") showDef = ROSTER[settings.playerHorse]; fig.root.visible = false; fcam.aspect = innerWidth / innerHeight; fcam.updateProjectionMatrix(); shadowOn = !(renderer.shadowMap.enabled && settings.shadows !== false);
+    unpark(); resume = null; build(); showcase = true; place = "out"; if (!showDef && typeof ROSTER !== "undefined" && typeof settings !== "undefined") showDef = ROSTER[settings.playerHorse]; fig.root.visible = false; fcam.aspect = innerWidth / innerHeight; fcam.updateProjectionMatrix(); shadowOn = !(renderer.shadowMap.enabled && settings.shadows !== false);
     resetRig(); stand(); sunFollow(0, -9); if (showDef) setShowHorse(showDef); window.addEventListener("resize", onResize);
   }
   function stopShowcase() { if (!showcase) return; showcase = false; window.removeEventListener("resize", onResize); unstand(); if (showHorse) { fscene.remove(showHorse); try { disposeHorse(showHorse); } catch (e) {} showHorse = null; } }
+  // Phase 15A (hidden performance lab, ff_lab "park"): park the property's GPU resources while a race runs. Only the GPU copies of the world's geometry,
+  // textures, instance buffers and the sun's shadow map are freed; every JS object, material (shader program), horse, the character and all career data stay,
+  // and three.js simply re-uploads whatever the next farm frame needs. `protect` (a Set of geometries / textures) is what the race also uses: left alone.
+  let parked = false;
+  function park(protect) {
+    if (!built || active || parked || !fscene) return null;
+    const prot = protect || new Set(), seen = new Set(), n = { geo: 0, tex: 0, instanced: 0, shadow: 0 };
+    const tex = t => { if (t && t.isTexture && !seen.has(t) && !prot.has(t) && t !== fscene.environment && t !== fscene.background) { seen.add(t); t.dispose(); n.tex++; } };
+    const visit = o => {
+      const g = o.geometry; if (g && !seen.has(g) && !prot.has(g)) { seen.add(g); g.dispose(); n.geo++; }
+      if (o.isInstancedMesh && typeof o.dispose === "function") { o.dispose(); n.instanced++; }
+      for (const m of [].concat(o.material || [])) { if (!m) continue; for (const k in m) if (k !== "envMap") tex(m[k]); if (m.uniforms) for (const k in m.uniforms) tex(m.uniforms[k] && m.uniforms[k].value); }
+      if (o.isLight && o.shadow && o.shadow.map) { o.shadow.map.dispose(); o.shadow.map = null; n.shadow++; }
+    };
+    fscene.traverse(visit); if (iscene) iscene.traverse(visit);
+    parked = true; return n;
+  }
+  function unpark() { if (!parked) return; parked = false; if (typeof PERFLAB !== "undefined") PERFLAB.ev("farm", "back on the farm: GPU resources re-upload over the next frames"); }
   // frees the whole property (low-memory mode, a rename, tests); the next enter() rebuilds it
   function dispose(force) {
     if (active && !force) return false;
@@ -544,7 +562,7 @@ const FARM = (() => {
     world.dispose(); for (const g of own.geo) g.dispose(); for (const m of own.mat) m.dispose(); own.geo = []; own.mat = [];
     if (fig) { FARMPEOPLE.dispose(fig); fig = null; }
     sunLight.shadow.map && sunLight.shadow.map.dispose(); if (hud) { hud.remove(); delete screens.farm; hud = null; }
-    fscene = null; fcam = null; world = null; built = false; return true;
+    fscene = null; fcam = null; world = null; built = false; parked = false; return true;
   }
   SCENES.register("farm", { enter, leave });
   SCENES.register("menu", { enter() { startShowcase(); }, leave() { stopShowcase(); } });
@@ -552,7 +570,7 @@ const FARM = (() => {
   function boot() { setTimeout(() => { try { if (!built && SCENES.scene === "menu" && !(window.FF_NO_SHOWCASE)) startShowcase(); } catch (e) { console.error("farm showcase", e); } }, 60); }
   if (document.readyState === "complete") boot(); else window.addEventListener("load", boot);
 
-  return { frame, dispose, enter, leave, view, arrive, setShowHorse, startShowcase, stopShowcase, setPerson, get person() { return person; }, get active() { return active; }, get showcase() { return showcase; }, get live() { return active || showcase; }, get built() { return built; }, get place() { return place; }, get paused() { return paused; }, get panel() { return panel; }, get tripOn() { return !!trip; },
+  return { frame, dispose, enter, leave, view, arrive, setShowHorse, startShowcase, stopShowcase, setPerson, get person() { return person; }, get active() { return active; }, get showcase() { return showcase; }, get live() { return active || showcase; }, get built() { return built; }, get parked() { return parked; }, park, get place() { return place; }, get paused() { return paused; }, get panel() { return panel; }, get tripOn() { return !!trip; },
     stats() { const i = renderer.info; return Object.assign({ calls: i.render.calls, tris: i.render.triangles, geos: i.memory.geometries, tex: i.memory.textures }, world ? world.stats() : {}); },
     info() { return { built, active, showcase, place, person, paused, panel, trip: !!trip, horses: horses.length, plaques: plaques.length, objects: fscene ? fscene.children.length : 0, x: P.x, z: P.z, y: P.y, face: P.face, speed: P.speed, yaw: CAM.yaw, pitch: CAM.pitch, camDist: CAM.cur, cam: fcam ? [fcam.position.x, fcam.position.y, fcam.position.z] : null, figure: fig ? fig.root.visible : false, near: near ? near.id : null, prompt: prompt && !prompt.hidden ? prompt.textContent : "", objective: objEl ? objEl.textContent : "", listeners: listeners.length, buildMs: world ? world.ms : 0, showHorse: !!showHorse }; },
     _test: { step(dt, n) { for (let i = 0; i < (n || 1); i++) frame(dt); }, ctx, setPos(x, z) { P.x = x; P.z = z; P.y = place === "in" ? 0 : (world ? world.heightAt(x, z) : 0); }, settle(x, z) { P.x = x; P.z = z; collide(); return { x: P.x, z: P.z }; }, interact, enterHouse, exitHouse, setPaused, openPanel, closePanel, startTrans, skipFade() { if (trans) { stepTrans(10); stepTrans(10); } }, look, get points() { return cur() ? cur().points : []; }, get TRAVEL() { return world ? world.points.find(p => p.id === "travel") : null; }, get colliders() { return world ? world.colliders : []; }, get segs() { return world ? world.segs : []; }, get stalls() { return world ? world.stalls : []; },

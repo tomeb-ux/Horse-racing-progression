@@ -474,7 +474,8 @@ body.touch #touchUI{display:flex;}
           <tr><td><kbd>C</kbd></td><td>Camera: chase / jockey / broadcast</td></tr>
           <tr><td><kbd>Tab</kbd></td><td>Detailed race stats</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
-          <tr><td><kbd>F8</kbd></td><td>Performance overlay: frame rate, frame times, draw calls, detail levels, AUTO graphics state</td></tr>
+          <tr><td><kbd>F8</kbd></td><td>Performance overlay: frame rate, on-time %, hitches, frame times, draw calls, detail levels, AUTO graphics state</td></tr>
+          <tr><td><kbd>Shift</kbd>+<kbd>F8</kbd></td><td>Performance report (copyable text), hidden performance lab and benchmark race</td></tr>
         </table>
         <p><b>Travelling well.</b> Every horse has a hidden efficiency zone — the lighter band on the effort bar. Inside it the horse cruises; above it stamina drains sharply and <b>fatigue</b> builds. Fatigue never recovers mid-race: it lowers top speed, dulls acceleration and blunts your finish. The zone shrinks as the horse tires. Stayers hold a higher zone than sprinters, which is why a sprinter must be nursed over a long trip.</p>
         <p><b>Sprint reserve</b> is the finishing burst. Hard effort, urging and driving unlock it, but it only improves how well the horse accesses what it has left — an exhausted horse cannot sprint, however hard you ride.</p>
@@ -4116,12 +4117,13 @@ function startRace(cfg) {
   riderInput.effort = race.player.effort;
   buildGates(race.route, race.gateCount);
   buildMarkers(race.route, race.dist);
-  try { const cc = cfg.career; GFX.setAtmosphere(cc && cc.tod ? ATMO.params(cc.tod, cc.wx) : null); } catch (e) { console.error(e); }      // the time of day and weather of the booked event (the original afternoon for a Quick Race)
+  try { const cc = cfg.career; GFX.setAtmosphere(cc && cc.tod && !(typeof PERFLAB !== "undefined" && PERFLAB.lab.light === "clear") ? ATMO.params(cc.tod, cc.wx) : null); } catch (e) { console.error(e); }      // the time of day and weather of the booked event (the original afternoon for a Quick Race)
   if (typeof VENUES !== "undefined") VENUES.use(race.trk, cfg);
   buildShots(race.trk); drawMinimapBase();
   spawnHorseMeshes(race);
   if (menuHorseMesh) { world.remove(menuHorseMesh); menuHorseMesh = null; }
   show("racing");
+  if (typeof PERFLAB !== "undefined") PERFLAB.raceStart(cfg);          // Phase 15A diagnostics: notes the race; parks the farm's GPU resources only if the hidden lab switch asks for it
   if (typeof COMM !== "undefined") COMM.begin(race, cfg);             // live commentary reads this race (never changes it)
   $("hDist").textContent = race.dist + " m " + DIST_LABEL[race.dist];
   $("hGoing").textContent = race.going.label + " going";
@@ -4439,6 +4441,7 @@ const _pfF = new THREE.Frustum(), _pfM = new THREE.Matrix4();
 function perfFrame(rawDt, jsMs) {
   PERF.ft[PERF.fi] = rawDt * 1000; PERF.fi = (PERF.fi + 1) % 300; PERF.fn = Math.min(300, PERF.fn + 1);
   PERF.simA += (PERF.sim - PERF.simA) * 0.1; PERF.jsA += (jsMs - PERF.jsA) * 0.1; PERF.renA += (PERF.render - PERF.renA) * 0.1;
+  if (typeof PERFLAB !== "undefined" && PERFLAB.rec) PERFLAB.frame(rawDt, jsMs);       // Phase 15A: hitch log + per-race stats (only while F8 / the benchmark / "record" is on)
   if (!PERF.on) return;
   perfGraph();
   if ((PERF.t -= rawDt) > 0) return; PERF.t = 0.25;
@@ -4460,6 +4463,7 @@ function perfFrame(rawDt, jsMs) {
     `shadows ${renderer.shadowMap.enabled ? sun.shadow.mapSize.x + "²" : "off"}   render ${cv.width}×${cv.height} @ ${renderer.getPixelRatio().toFixed(2)}×`,
     `preset ${settings.quality.toUpperCase()}${A && settings.quality === "auto" ? `   AUTO level ${A.level}/${GFX.AUTO_STEPS.length - 1}: ${GFX.AUTO_STEPS[A.level].note}${A.last ? "\n  last change: " + A.last : ""}${A.hold > 0 ? "  (settling)" : ""}` : "   (fixed — AUTO off)"}`,
   ];
+  if (typeof PERFLAB !== "undefined") PERFLAB.overlay(lines);
   $("perfOv").textContent = lines.join("\n");
 }
 // the last 300 frame times as a bar graph (green ≤ 1 frame at the median rate, amber ≤ 1.5×, red spikes); 16.7 ms line
@@ -4478,7 +4482,7 @@ function frame(now) {
   let dt = Math.min(0.1, rawDt); lastT = now;
   frameN++;
   PERF.sim = 0;
-  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm" || !!(typeof FARM !== "undefined" && FARM.showcase));
+  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm" || !!(typeof FARM !== "undefined" && FARM.showcase), !(ui.state === "farm" || (typeof FARM !== "undefined" && FARM.showcase)));
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
   // the farm: its own scene and camera; nothing of the race world is updated or drawn (and the farm is not touched during a race)
   if (ui.state === "farm" && typeof FARM !== "undefined" && FARM.active) { FARM.frame(dt); perfFrame(rawDt, performance.now() - tF0); return; }
@@ -4579,5 +4583,6 @@ else boot();
 <script src="farm.js"></script>
 <script src="career-core.js"></script>
 <script src="career.js"></script>
+<script src="perf.js"></script>
 
 </body></html>

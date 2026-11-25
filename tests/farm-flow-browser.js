@@ -15,7 +15,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
     const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
     if (fs.existsSync(__dirname + '/../public/vendor/three.min.js')) await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-    await ctx.addInitScript(() => { if (!sessionStorage.getItem('__ff_init')) { sessionStorage.setItem('__ff_init', '1'); } localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false'); localStorage.setItem('ff_autoReplay', 'false'); window.__noPresent = true; });
+    await ctx.addInitScript(lab => { if (!sessionStorage.getItem('__ff_init')) { sessionStorage.setItem('__ff_init', '1'); } if (lab) localStorage.setItem('ff_lab', lab); localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false'); localStorage.setItem('ff_autoReplay', 'false'); window.__noPresent = true; }, process.env.FF_LAB || null);   // FF_LAB='{"park":"park"}': the hidden "park the farm" switch on
     return ctx;
   };
   const errs = [];

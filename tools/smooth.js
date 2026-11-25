@@ -14,7 +14,7 @@ for (const track of ENV('TRACKS') || ['randwick', 'flemington']) for (const cam 
     const ctx = await b.newContext({ viewport: { width: 960, height: 540 } });
     await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-    await ctx.addInitScript(() => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_comm', '"off"'); window.__noPresent = true;
+    await ctx.addInitScript(() => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_commentary', JSON.stringify({ on: false, vol: 0.9, captions: false })); window.__noPresent = true;
       window.__rafQ = []; window.requestAnimationFrame = f => { window.__rafQ.push(f); return 1; }; });   // we drive the frames
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
     p.on('requestfailed', q => errs.push('failed: ' + q.url().slice(0, 120) + ' ' + (q.failure() || {}).errorText));

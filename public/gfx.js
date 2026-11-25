@@ -46,16 +46,17 @@ const GFX = (() => {
     { crowd: 2.8, trees: 2.8, rails: 2.4, shadow: 1024, pr: 1.25, note: "render scale 1.25" },
     { crowd: 3, trees: 3, rails: 2.4, shadow: 1024, pr: 1, horses: 1.35, note: "render scale 1.0, far horses simpler" },
   ];
-  const AUTO = { level: 0, win: [], winT: 0, bad: 0, good: 0, cool: 0, hold: 0, fails: {}, last: "", changes: 0, ms: 0, fps: 0, enabled: false };
+  const AUTO = { level: 0, win: [], winT: 0, bad: 0, good: 0, cool: 0, hold: 0, fails: {}, last: "", changes: 0, ms: 0, fps: 0, enabled: false, lab: "normal" };
   try { const l = +localStorage.getItem("ff_autoLevel"); if (l >= 0 && l < AUTO_STEPS.length) AUTO.level = l; } catch (e) {}
   const kindBias = { crowd: 1, trees: 1, shrubs: 1, "rail-posts": 1 };
   let horseBias = 1;
   function runtimeParams() {
-    const Q = q(), st = settings.quality === "auto" || !QUALITY[settings.quality] ? AUTO_STEPS[AUTO.level] : {};
+    const Q = q(), st = settings.quality === "auto" || !QUALITY[settings.quality] ? AUTO_STEPS[AUTO.lab === "off" ? 0 : AUTO.level] : {};   // lab "off" (PERFLAB, hidden): fixed High; the stored level is neither used nor changed
     return { pr: Math.min(Q.pr, st.pr || 9), shadow: Q.shadow ? Math.min(Q.shadow, st.shadow || 1e9) : 0, crowd: st.crowd || 1, trees: st.trees || 1, rails: st.rails || 1, horses: st.horses || 1 };
   }
   function applyQuality() {
     const R = runtimeParams();
+    if (typeof PERFLAB !== "undefined") PERFLAB.ev("applyQuality", "AUTO level " + AUTO.level + " · render ×" + R.pr + " · shadow " + R.shadow);   // diagnostics only (rare event)
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, R.pr));
     const want = R.shadow > 0 && settings.shadows, was = renderer.shadowMap.enabled;
     renderer.shadowMap.enabled = want; sun.castShadow = want;
@@ -69,7 +70,10 @@ const GFX = (() => {
     if (was !== want) scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); });
   }
   // called every frame with the real frame interval (seconds) while a race, replay or presentation is on screen
-  function autoTick(dt, active) {
+  function autoTick(dt, active, raceFrame) {
+    // `active` = any frame AUTO may judge (race, replay, presentation, farm, menu showcase: unchanged since Phase 3); `raceFrame` = false on a farm / menu frame (undefined = not told).
+    // Hidden lab switch (PERFLAB, ff_lab): "race" = farm and menu frames are ignored; "off" = nothing feeds AUTO (fixed High, nothing stored). Normal = exactly as before.
+    if (AUTO.lab === "off" || (AUTO.lab === "race" && raceFrame === false)) active = false;
     if (settings.quality !== "auto" || !active || document.hidden) { AUTO.win.length = 0; AUTO.winT = 0; AUTO.enabled = settings.quality === "auto"; return; }
     AUTO.enabled = true;
     if (AUTO.hold > 0) { AUTO.hold -= dt; return; }                     // just started / just changed: let it settle
@@ -126,7 +130,8 @@ const GFX = (() => {
   const v3 = (u, a) => u.value.set(a[0], a[1], a[2]);
   function envFor(p) {
     const key = p.key; let hit = A.env.get(key);
-    if (hit) { hit.t = performance.now(); return hit.rt.texture; }
+    if (hit) { hit.t = performance.now(); if (typeof PERFLAB !== "undefined") PERFLAB.ev("envFor", key + " (cached)"); return hit.rt.texture; }
+    if (typeof PERFLAB !== "undefined") PERFLAB.ev("envFor", key + " (BUILD: PMREM render)");
     const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene(), U = skyU(); U.sunDir.value = new THREE.Vector3().fromArray(p.sunDir); v3(U.uZen, p.sky.zen); v3(U.uMid, p.sky.mid); v3(U.uHor, p.sky.hor); v3(U.sunCol, p.sunColor); U.uGlow.value = p.glow; U.uEnv.value = 1; U.uSunDisc.value = p.hotSun ? 1 : 0;
     const em = new THREE.ShaderMaterial({ uniforms: U, vertexShader: `varying vec3 vW; void main() { vW = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false });
     es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 64, 32), em));
@@ -137,6 +142,7 @@ const GFX = (() => {
   }
   function setAtmosphere(p) {
     p = p || ATMO.params("afternoon", "clear"); if (A.p && A.p.tod === p.tod && A.p.wx === p.wx && skyMesh) return A.p; A.p = p;
+    if (typeof PERFLAB !== "undefined") PERFLAB.ev("setAtmosphere", p.tod + " / " + p.wx);
     SUN_DIR.fromArray(p.sunDir); v3(SKYU.uZen, p.sky.zen); v3(SKYU.uMid, p.sky.mid); v3(SKYU.uHor, p.sky.hor); v3(SKYU.sunCol, p.sunColor); SKYU.uGlow.value = p.glow; SKYU.uStars.value = p.tod === "evening" ? 1 : p.tod === "dusk" ? 0.35 * (1 - p.cloud) : 0;
     hemi.color.setHex(p.hemiSky); hemi.groundColor.setHex(p.hemiGround); hemi.intensity = p.hemiI; sun.color.setRGB(p.sunLight[0], p.sunLight[1], p.sunLight[2]); sun.intensity = p.lightI; fill.intensity = p.fillI;
     A.sunOff.set(p.lightDir[0], Math.max(p.lightDir[1], 0.13), p.lightDir[2]).normalize().multiplyScalar(263);

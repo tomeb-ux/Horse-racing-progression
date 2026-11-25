@@ -36,6 +36,7 @@ for (const f of ['farm-nav', 'farm-care', 'farm-drive', 'farm-train', 'farm-day'
 swap('<script src="farm.js"></script>', inline('farm.js'));
 swap('<script src="career-core.js"></script>', inline('career-core.js'));
 swap('<script src="career.js"></script>', inline('career.js'));
+swap('<script src="perf.js"></script>', inline('perf.js'));
 const out = path.join(__dirname, '..', 'dist', 'final-furlong-single.html');
 fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, html);
 console.log('wrote', path.relative(process.cwd(), out), (html.length / 1024).toFixed(0) + ' KB');

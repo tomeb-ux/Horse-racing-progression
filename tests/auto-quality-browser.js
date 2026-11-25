@@ -10,7 +10,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   const ctx = await b.newContext({ viewport: { width: 800, height: 450 } });
   await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  await ctx.addInitScript(() => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_comm', '"off"'); localStorage.removeItem('ff_quality'); localStorage.removeItem('ff_autoLevel'); window.__noPresent = true; });
+  await ctx.addInitScript(() => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_commentary', JSON.stringify({ on: false, vol: 0.9, captions: false })); localStorage.removeItem('ff_quality'); localStorage.removeItem('ff_autoLevel'); window.__noPresent = true; });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE, { waitUntil: 'domcontentloaded' }); await p.waitForFunction(() => typeof GFX !== 'undefined' && typeof startRace === 'function');
   await p.evaluate(() => { window.requestAnimationFrame = () => 0; renderer.render = () => {}; window.__feed = (ms, secs) => { const n = Math.round(secs * 1000 / ms); for (let i = 0; i < n; i++) GFX.autoTick(ms / 1000, true); return GFX.AUTO.level; }; });

@@ -615,6 +615,7 @@ const COMM = (() => {
     // must run inside a user gesture once: some browsers only allow speech after the player has interacted
     prime() { if (primed || !synth) return; primed = true; try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch (e) {} },
     begin(race, cfg) { this.silence(); if (!race) return;
+      if (typeof PERFLAB !== "undefined" && PERFLAB.lab.comm === "off") return;                      // hidden lab switch (ff_lab): no commentary, no clip decoding; the saved commentary settings are untouched
       if (typeof ELEVEN !== "undefined" && ELEVEN.active()) ELEVEN.prepare(race).catch(() => {});      // decode + fetch names now, not mid-race
       // the speaker is chosen per line (the recordings may finish loading, or the mode change, after the race starts)
       let curSp = null; const dyn = { speak: (t, prm, end, info) => { curSp = activeSpeaker(); curSp.speak(t, prm, end, info); }, cancel: () => { if (curSp) curSp.cancel(); } };

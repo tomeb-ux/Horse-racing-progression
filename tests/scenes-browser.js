@@ -22,7 +22,7 @@ const SPEECH_STUB = () => {            // headless Chromium has no voices: a rec
   const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
   if (fs.existsSync(__dirname + '/../public/vendor/three.min.js')) await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  await ctx.addInitScript(() => { localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_parade', '"off"'); window.__noPresent = true; });
+  await ctx.addInitScript(lab => { localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_parade', '"off"'); if (lab) localStorage.setItem('ff_lab', lab); window.__noPresent = true; }, process.env.FF_LAB || null);   // FF_LAB='{"park":"park"}' runs the whole suite with the hidden "park the farm's GPU resources" lab switch on
   await ctx.addInitScript(SPEECH_STUB);
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::/.test(m.text())) errs.push('console: ' + m.text()); });
   await p.goto(BASE); await p.waitForFunction(() => typeof CAREER !== 'undefined' && typeof SCENES !== 'undefined' && typeof FARM !== 'undefined' && typeof COMM !== 'undefined');
