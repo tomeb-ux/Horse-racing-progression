@@ -413,6 +413,8 @@ The roadmap's Phase 23 is "retuning from the owner's play-test notes" plus goals
 
 **Not done.** The farrier/vet visit, the horse that arrives on the float, foals growing up over the seasons, and anything that changes with the seasons beyond the weather. Residents do not interact with your horses (no sniffing over a fence).
 
+**Test status at this commit.** Passed: phase25-browser 34, farm-browser (34; overview 202 draw calls), farm-flow, phase8, phase17, phase18, phase19, phase20, scenes, single-browser 8. Race-facing suites were not re-run for this phase (nothing in the race path changed).
+
 **Tests.** `tests/phase25-browser.js` (34): the residents and where they wander, a horse coming to the fence and the pat, the dog following and sitting, hens scattering, the truck's day and hour (Monday yes, Wednesday no) with the driver, unloading and leaving, the rider's days and hours, staff chat, nothing left behind after three more visits. `farm-browser`'s idle-animation test now counts only the stall horses; its budget (overview ≤ 210) still holds.
 
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
