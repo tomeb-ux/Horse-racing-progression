@@ -40,9 +40,10 @@ const INIT = () => {
 
 (async () => {
   console.log(`race hygiene · ${LABEL} · ${SECS} race seconds per run (the first ${SETTLE} s are "settling", the rest must be clean)`);
-  const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const results = [];
   for (const scen of SCENS) for (const cam of CAMS) {
+    // a fresh browser per run: a software-rendered race can leave the GPU process busy long after its page closes (as tools/bench.js notes)
+    const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
     const ctx = await b.newContext({ viewport: { width: +(process.env.VW || 480), height: +(process.env.VH || 270) }, deviceScaleFactor: 1 });   // small by default: the counts do not depend on the size, software rendering does
     await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
@@ -52,7 +53,7 @@ const INIT = () => {
     await p.waitForFunction(() => typeof startRace === 'function' && typeof race !== 'undefined' && typeof GFX !== 'undefined', null, { timeout: 120000 });
     const hasFarm = await p.evaluate(() => typeof FARM !== 'undefined');
     console.log(`\n== ${scen} · camera ${['chase', 'jockey', 'broadcast'][cam]} ==`);
-    if (scen === 'afterfarm' && !hasFarm) { note('BLOCKED: this build has no farm (it predates the Career expansion), so there is no farm / menu showcase to run first'); results.push({ scen, cam, blocked: 'no farm in this build' }); await ctx.close(); continue; }
+    if (scen === 'afterfarm' && !hasFarm) { note('BLOCKED: this build has no farm (it predates the Career expansion), so there is no farm / menu showcase to run first'); results.push({ scen, cam, blocked: 'no farm in this build' }); await ctx.close(); await b.close(); continue; }
     const r = await p.evaluate(async ({ scen, cam, SECS, SETTLE }) => {
       const H = window.__hyg; let t = performance.now(); const step = dt => { t += dt; const q = window.__rafQ.splice(0); for (const f of q) f(t); };
       const out = { wrapperErrors: [H.noRenderer, H.noGfx].filter(Boolean) };
@@ -107,8 +108,8 @@ const INIT = () => {
     note(`uploads after ${SETTLE} s, per second: texture ${(clean('texUploads') / Math.max(1, secs - SETTLE)).toFixed(1)}/s (${clean('texUploads')} total) · buffer ${(clean('bufUploads') / Math.max(1, secs - SETTLE)).toFixed(1)}/s (${clean('bufUploads')} calls, ${(((r.bucket && Object.keys(r.bucket).filter(k => /^s\d+$/.test(k) && +k.slice(1) >= SETTLE).reduce((a, k) => a + (r.bucket[k].bufUploadsBytes || 0), 0)) || 0) / 1024).toFixed(0)} KB)`);
     ok(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''));
     results.push({ scen, cam, secs, clean: Object.fromEntries(KEYS.map(k => [k, clean(k)])), settling: Object.fromEntries(KEYS.map(k => [k, cnt(k, 0, SETTLE)])), pre: Object.fromEntries(KEYS.map(k => [k, (r.bucket.pre || {})[k] || 0])), autoChanges: autoCh, auto: [r.autoStart, r.autoAtGates, r.autoEnd], gpu: [r.gpuAtGates, r.gpuEnd] });
-    await ctx.close();
+    await ctx.close(); await b.close();
   }
   console.log('\nHYGIENE_JSON ' + JSON.stringify({ label: LABEL, results }));
-  console.log(`\n${pass} passed, ${fail} failed (${info} informational lines)`); await b.close(); process.exit(fail && !process.env.INFO ? 1 : 0);
+  console.log(`\n${pass} passed, ${fail} failed (${info} informational lines)`); process.exit(fail && !process.env.INFO ? 1 : 0);
 })();
