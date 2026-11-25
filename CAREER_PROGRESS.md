@@ -1,5 +1,7 @@
 # Career Mode expansion — progress
 
+> **Post-Phase-14 roadmap (approved 2026-11-25): see `ROADMAP_P15.md` (plan, Phases 15–24) and `PROGRESS_P15.md` (running log). This file remains the record of Phases 1–14.**
+
 Master specification: `CAREER_EXPANSION_SPEC.md` (saved verbatim; refer to it rather than asking for it again).
 Implementation plan (approved): `CAREER_PLAN.md`.
 **Rule: one approved phase at a time. After a phase: tests, git commit, playable build, update this file — then STOP and wait for the owner's review.**  *(Superseded for the final stretch: the owner authorised Phases 7–14 to be built in one run on the dev branch; all are now built but only 1–4 are approved — see the section below.)*
