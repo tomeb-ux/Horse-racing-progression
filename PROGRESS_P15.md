@@ -377,6 +377,18 @@ The shadow pass is separate: about 127 extra draws in the overview, not part of 
 
 **Tests.** `tests/phase21-core.js`, `tests/phase21-browser.js` (10: the board, price order, display-only, floodlights at evening and dusk but not midday or golden hour, three renderable objects).
 
+### Phase 22: regional venue looks and weather you can see
+
+**Six country looks** (was two). `venues.js buildCountry` takes a look from a table: tablelands, provincial, coastal, western district, plains, river. A look sets the turf / infield / ground tints, the stand length, seat colour, back wall and tote material, roof colour, the name-board colour, the tree mix (gum, plane, fig, cypress) and count, and the hills' colour and height. Coastal and river meetings also get **picnic bunting** along the stand fascia (one instanced mesh); the river course has a **lake** in the infield (one mesh). `SEASON.venueStyle` now gives each of the 22 regional venues a fixed look by region (e.g. Tamworth, Muswellbrook, Mudgee, Scone tablelands; Grafton, Port Macquarie, Casino, Gosford, Wyong, Newcastle, Kembla Grange coastal; Hamilton, Warrnambool, Ballarat, Geelong western district; Dubbo, Moree plains; Wagga Wagga, Echuca river; Toowoomba, Bendigo, Kyneton provincial). The crowd is a little bigger at a Cup, a picnic meeting or a carnival. The course geometry is still the generic oval, so physics is unchanged.
+
+**Weather on the track** (`public/weatherfx.js`, presentation only). **Wet-track spray**: on a wet or rainy day a spray of droplets is kicked up behind each runner above 8 m/s (8 particles per runner, one `Points` draw, created before the gates open and rewritten in place, nothing beyond 120 m from the camera is simulated). **Cloud shadows**: on a clear (faint) or partly cloudy (stronger) daytime race, soft shadows drift over the ground (one large transparent quad that follows the camera, the pattern anchored to the world); none in the rain, under overcast or at night. **On the farm**: puddles (one instanced mesh of 16) appear in the yard and by the gate when it is raining or wet.
+
+**Budget.** From a fixed camera pose the two original looks cost 63 and 72 draw calls; the six now cost 66, 73, 75, 74, 66 and 77 (at most +7 %; the roadmap allowed 10 %). Built looks stay cached and hidden (the venue cache, as before): building all six adds about 330 geometries; four rainy races in a row leak none.
+
+**Not done.** Per-town backdrops beyond the region look (a town is its region's look), tote/marquee variants beyond the wall/tote material swap, and any layout change (Phase 24).
+
+**Tests.** `tests/phase22-browser.js` (25), `phase11-core` (looks 0-5 all used; towns named by the caller) and `phase11-browser` updated for six looks.
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.

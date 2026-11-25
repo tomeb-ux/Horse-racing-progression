@@ -376,6 +376,7 @@ const FARM = (() => {
     fscene.fog.color.setRGB(0.74 * p.fogColor[0] / REF.fogColor[0], 0.83 * p.fogColor[1] / REF.fogColor[1], 0.90 * p.fogColor[2] / REF.fogColor[2]).convertSRGBToLinear(); fscene.fog.near = FARM_BASE.fogNear * p.fogMul; fscene.fog.far = FARM_BASE.fogFar * p.fogMul;
     renderer.toneMappingExposure = FARM_BASE.expo * p.expo / REF.expo;
     try { fscene.environment = GFX.envFor(p); } catch (e) {}
+    try { WEATHERFX.farmPuddles(fscene, world.heightAt, (p.wet || 0) > 0.3 || p.rain > 0.01); } catch (e) {}                          // Phase 22: puddles after rain
     if (!farmRain && p.rain > 0.01) { farmRain = GFX.createRain(); fscene.add(farmRain); } if (farmRain) farmRain.userData.set(p.rain);
     updateWx();
     if (sunLight && world) sunFollow(P.x, P.z);
@@ -572,7 +573,7 @@ const FARM = (() => {
     if (!built) return true;
     stopShowcase(); active = false; try { FARMCARE.leave(); } catch (e) {} unstand();
     if (farmRain) { try { farmRain.geometry.dispose(); farmRain.material.dispose(); } catch (e) {} farmRain = null; } farmP = null; farmDay = -1;
-    if (guide) { guide.dispose(); guide = null; } try { FARMLOOP.dispose(); FARMACTORS.dispose(); FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
+    if (guide) { guide.dispose(); guide = null; } try { WEATHERFX.farmDispose(); FARMLOOP.dispose(); FARMACTORS.dispose(); FARMLIFE.dispose(); FARMCARE.dispose(); FARMTRAIN.dispose(); } catch (e) {}
     if (iworld) { iworld.dispose(); iworld = null; iscene = null; }
     world.dispose(); for (const g of own.geo) g.dispose(); for (const m of own.mat) m.dispose(); own.geo = []; own.mat = [];
     if (fig) { FARMPEOPLE.dispose(fig); fig = null; }

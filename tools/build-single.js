@@ -21,6 +21,7 @@ swap('<script src="atmosphere.js"></script>', inline('atmosphere.js'));
 swap('<script src="gfx.js"></script>', inline('gfx.js'));
 swap('<script src="mp.js"></script>', inline('mp.js'));
 swap('<script src="venues.js"></script>', inline('venues.js'));
+swap('<script src="weatherfx.js"></script>', inline('weatherfx.js'));
 swap('<script src="presentation.js"></script>', inline('presentation.js'));
 swap('<script src="stable3d.js"></script>', inline('stable3d.js'));
 swap('<script src="scenes.js"></script>', inline('scenes.js'));

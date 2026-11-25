@@ -98,9 +98,11 @@ const SEASON = (() => {
   ];
   // the small country courses (the two cheap venue looks in venues.js): where a race is run decides which scenery it gets; the big city courses keep their own
   const REGIONAL_VENUES = ["Wyong", "Gosford", "Scone", "Kembla Grange", "Ballarat", "Bendigo", "Newcastle", "Geelong", "Muswellbrook", "Moree", "Mudgee", "Tamworth", "Dubbo", "Wagga Wagga", "Hamilton", "Echuca", "Kyneton", "Warrnambool", "Toowoomba", "Grafton", "Port Macquarie", "Casino"];
+  // Phase 22: which of the six country looks a town gets (0 tablelands, 1 provincial, 2 coastal, 3 western district, 4 plains, 5 river)
+  const TOWN_LOOK = { Muswellbrook: 0, Scone: 0, Tamworth: 0, Mudgee: 0, Gosford: 2, Wyong: 2, Newcastle: 2, "Kembla Grange": 2, Grafton: 2, "Port Macquarie": 2, Casino: 2, Toowoomba: 1, Bendigo: 1, Kyneton: 1, Dubbo: 4, Moree: 4, "Wagga Wagga": 5, Echuca: 5, Hamilton: 3, Warrnambool: 3, Ballarat: 3, Geelong: 3 };
   function venueStyle(name) {
     const n = String(name || "").trim(); if (!REGIONAL_VENUES.includes(n)) return null;
-    return { style: "country", variant: hashStr("venue/" + n) % 2, town: n };
+    return { style: "country", variant: TOWN_LOOK[n] != null ? TOWN_LOOK[n] : hashStr("venue/" + n) % 6, town: n };
   }
   const BY_ID = {};
   DIVS.forEach(d => d.rounds.forEach((r, i) => { r.div = d.id; r.round = i; r.field = r.field || d.field; BY_ID[r.id] = r; }));

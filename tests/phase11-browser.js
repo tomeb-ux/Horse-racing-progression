@@ -39,16 +39,16 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
   ok(s.ok, `booking a regional race works (${s.ref} at ${s.venue}, ${s.day} days away)`); const town = s.venue;
   await ev(() => { CAREER.startBooked(); }); await p.waitForFunction(() => typeof race !== 'undefined' && race && race.state, null, { timeout: 60000 }); await frames(6); await p.waitForTimeout(1500);
   s = await ev(() => ({ id: VENUES.id, generic: VENUE_GENERIC.visible, venue: race.cfg.career.venue, style: race.cfg.career.venueStyle, booth: typeof COMM !== 'undefined' ? 1 : 0, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }));
-  ok(/^country[01]$/.test(s.id) && !s.generic && s.style && s.style.style === 'country' && s.style.town === town, `the race is run at the country venue "${s.id}" (the Furlong Park scenery is hidden) for ${s.venue}`);
+  ok(/^country[0-5]$/.test(s.id) && !s.generic && s.style && s.style.style === 'country' && s.style.town === town, `the race is run at the country venue "${s.id}" (the Furlong Park scenery is hidden) for ${s.venue}`);
   ok(s.calls < 300, `and it is cheap to draw: ${s.calls} draw calls, ${(s.tris / 1000).toFixed(0)}k triangles`);
   s = await ev(() => { const g = VENUES.current; let meshes = 0; g.traverse(o => { if (o.isMesh || o.isInstancedMesh) meshes++; }); return { n: meshes, hasStand: !!g.getObjectByName('country stand'), crowd: !!g.userData.crowd, finish: (g.userData.finishNear || []).length }; });
   ok(s.hasStand && s.finish > 0 && s.n < 400, `a stand, rails, trees and a modest crowd (${s.n} meshes) — a fraction of a flagship`);
   s = await ev(tn => { const f = race; const ls = []; try { const b = new COMM.Booth(race, { name: 'x', venue: tn, official: true }, { speak() {}, cancel() {}, tick() {} }, { player: race.horses[0], log: () => {} }); return { v: b.venue }; } catch (e) { return { err: String(e) }; } }, town);
-  ok(s.v === 'neutral', 'the commentator treats a country town as a neutral venue — no "Furlong Park" (' + (s.v || s.err) + ')');
+  ok(s.v === town.toLowerCase().replace(/[^a-z]+/g, '_') || s.v === 'neutral', 'the commentator names a regional town (Phase 21) or treats another country venue as neutral — never "Furlong Park" (' + (s.v || s.err) + ')');
   // a second regional course gets the other look; a city course goes back to the original scenery
 
   s = await ev(() => { startRace(Object.assign(quickCfg(), { distance: 1200, field: 6, career: { id: 'x', name: 'Test', venue: 'Echuca', venueStyle: SEASON.venueStyle('Echuca'), grade: 'Maiden', tier: 1, official: false, rivalry: {} } })); return new Promise(r => setTimeout(() => r({ id: VENUES.id }), 1500)); });
-  ok(/^country[01]$/.test(s.id), 'another town also uses a country look (' + s.id + ')');
+  ok(/^country[0-5]$/.test(s.id), 'another town also uses a country look (' + s.id + ')');
   const first = s.id; s = await ev(() => { startRace(Object.assign(quickCfg(), { distance: 1200, field: 6, career: { id: 'y', name: 'Warwick', venue: 'Warwick Farm', venueStyle: SEASON.venueStyle('Warwick Farm'), grade: 'Maiden', tier: 1, official: false, rivalry: {} } })); return new Promise(r => setTimeout(() => r({ id: VENUES.id, gen: VENUE_GENERIC.visible }), 1500)); });
   ok(s.id == null && s.gen, 'a city course keeps the original venue (' + first + ' → generic)');
   ok(errs.length === 0, 'no page errors: ' + errs.slice(0, 3).join(' | '));

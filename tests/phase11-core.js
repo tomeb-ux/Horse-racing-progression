@@ -56,15 +56,15 @@ for (const m of S.OPTIONAL) for (const rq of m.req || []) if (!['rating', 'age',
 // ---------------------------------------------------------------- the venue styles
 { const metro = ['Randwick', 'Royal Randwick', 'Flemington', 'Caulfield', 'Rosehill', 'Warwick Farm', 'Moonee Valley', 'Sandown', 'Hawkesbury', 'Furlong Park', '', null];
   ok(metro.every(v => S.venueStyle(v) === null), 'the city courses keep their own scenery (no country style)');
-  ok(S.REGIONAL_VENUES.every(v => { const s = S.venueStyle(v); return s && s.style === 'country' && (s.variant === 0 || s.variant === 1) && s.town === v; }), 'every regional course gets a country style with its town name');
-  ok(new Set(S.REGIONAL_VENUES.map(v => S.venueStyle(v).variant)).size === 2, 'both country looks are used');
+  ok(S.REGIONAL_VENUES.every(v => { const s = S.venueStyle(v); return s && s.style === 'country' && (s.variant >= 0 && s.variant <= 5) && s.town === v; }), 'every regional course gets a country style with its town name');
+  ok(new Set(S.REGIONAL_VENUES.map(v => S.venueStyle(v).variant)).size === 6, 'all six country looks are used (Phase 22)');
   ok(S.venueStyle('Moree').variant === S.venueStyle('Moree').variant, 'a town always looks the same');
   ok(S.REGIONAL_VENUES.every(v => !/randwick|flemington/i.test(v)), 'no regional course is one of the two modelled flagships');
   const used = new Set(S.OPTIONAL.map(m => m.venue).concat(S.DIVS[0].rounds.map(r => r.venue))); ok(S.REGIONAL_VENUES.filter(v => !used.has(v)).length === 0, 'every listed regional course is used by at least one race'); }
 
 // ---------------------------------------------------------------- neutral commentary intros
 { const mkBooth = venue => { const r = new sim.Race({ distance: 1200, field: 6, diff: 'hard', playerHorse: 0, allBots: true, going: 'good', seed: 7 }); return new COMM.Booth(r, { name: 'Test', venue, major: false, crown: false, official: true }, { speak() {}, cancel() {}, tick() {} }, { player: r.horses[0], log: () => {} }); };
-  ok(mkBooth('Moree').venue === 'neutral' && mkBooth('Dubbo').venue === 'neutral' && mkBooth('Warwick Farm').venue === 'neutral', 'a country or other named course is called neutrally — never "Furlong Park"');
+  ok(mkBooth('Moree').venue === 'moree' && mkBooth('Dubbo').venue === 'dubbo' && mkBooth('Warwick Farm').venue === 'neutral' && mkBooth('Gosford').venue === 'neutral', 'a regional town is named (Phase 21), any other named course is called neutrally — never "Furlong Park"');
   ok(mkBooth('Royal Randwick').venue === 'randwick' && mkBooth('Flemington').venue === 'flemington' && mkBooth('Furlong Park').venue === 'generic' && mkBooth('').venue === 'generic', 'the flagships and the original course keep their own intros');
   const b = mkBooth('Moree'), seen = new Set(); for (let i = 0; i < 40; i++) { b.used = new Map(); const u = b.pickUnit('intro', { venue: b.venue }) || b.pickUnit('intro', {}); if (u) seen.add(u.id); }
   ok(seen.size >= 1 && [...seen].every(id => { const u = b.constructor && b.pickUnit && null; return true; }), 'a neutral intro is available'); }

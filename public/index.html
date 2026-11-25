@@ -4122,6 +4122,7 @@ function startRace(cfg) {
   if (typeof VENUES !== "undefined") VENUES.use(race.trk, cfg);
   buildShots(race.trk); drawMinimapBase();
   spawnHorseMeshes(race);
+  try { WEATHERFX.begin(race); } catch (e) { console.error(e); }                                  // Phase 22: wet-track spray and cloud shadows (built before the gates open)
   if (menuHorseMesh) { world.remove(menuHorseMesh); menuHorseMesh = null; }
   show("racing");
   if (typeof PERFLAB !== "undefined") PERFLAB.raceStart(cfg);          // Phase 15A diagnostics: notes the race; parks the farm's GPU resources only if the hidden lab switch asks for it
@@ -4499,7 +4500,7 @@ function frame(now) {
     if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), PRESENT.mode === "celebrate" ? 1 : 0);
     renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return;
   }
-  if (RP.on && ui.state === "replay") { updateReplay(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return; }
+  if (RP.on && ui.state === "replay") { updateReplay(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof WEATHERFX !== "undefined") WEATHERFX.update(dt, race, true); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return; }
   if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { updateVenue(dt); updateCrowd(dt, 0.6); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); } return; }
   if (race && ui.state === "racing") {
     handlePlayerInput(dt);
@@ -4525,9 +4526,10 @@ function frame(now) {
     audio.frame(dt);
     const remP = race.dist - race.player.progress;
     const exc = race.state === "running" ? clamp(1 - remP / 450, 0, 1) : race.state === "done" ? 0.6 : 0.1;
-    updateCrowd(dt, exc); if (typeof VENUES !== "undefined") VENUES.update(dt, exc);
+    updateCrowd(dt, exc); if (typeof VENUES !== "undefined") VENUES.update(dt, exc); if (typeof WEATHERFX !== "undefined") WEATHERFX.update(dt, race);
     if (msgTimer > 0) { msgTimer -= dt; if (msgTimer <= 0) raceMsgEl.textContent = ""; }
   } else if (menuHorseMesh) {
+    if (typeof WEATHERFX !== "undefined") WEATHERFX.hide();
     animateHorse(menuHorseMesh, 0, 0, 0, 0, 0, 0, dt, null);
     menuHorseMesh.rotation.y += dt * 0.25;
     updateCrowd(dt, 0);
@@ -4565,6 +4567,7 @@ else boot();
 <script src="gfx.js"></script>
 <script src="mp.js"></script>
 <script src="venues.js"></script>
+<script src="weatherfx.js"></script>
 <script src="presentation.js"></script>
 <script src="stable3d.js"></script>
 <script src="scenes.js"></script>
