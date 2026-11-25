@@ -4138,6 +4138,7 @@ function startRace(cfg) {
   for (const h of race.horses) { h._vOk = false; h._p0 = 0; h._l0 = 0; h._f0 = 0; }
   // compile every shader the course, horses and crowd need now (behind the loading/parade), not the first time each
   // comes into view mid-race — a first-sight compile is a classic one-frame hitch
+  if (typeof GFX !== "undefined") GFX.applyPending();                // an AUTO change queued during the last race lands here, behind the loading gates
   try { renderer.compile(scene, camera); } catch (e) {}
   if (typeof GFX !== "undefined") GFX.autoReset(3);                   // the first seconds compile shaders and upload: not judged
   if (typeof PRESENT !== "undefined" && PRESENT.wantParade(cfg)) PRESENT.parade(race);   // optional, skippable
@@ -4461,7 +4462,7 @@ function perfFrame(rawDt, jsMs) {
     `horses: near ${hl[0]} · mid ${hl[1]} · far ${hl[2]}${race ? "  (" + race.horses.length + " runners)" : ""}`,
     `crowd drawn: ${cr[0] + cr[1] + cr[2]} (near ${cr[0]} · mid ${cr[1]} · far ${cr[2]}) of ${crowdAll}`,
     `shadows ${renderer.shadowMap.enabled ? sun.shadow.mapSize.x + "²" : "off"}   render ${cv.width}×${cv.height} @ ${renderer.getPixelRatio().toFixed(2)}×`,
-    `preset ${settings.quality.toUpperCase()}${A && settings.quality === "auto" ? `   AUTO level ${A.level}/${GFX.AUTO_STEPS.length - 1}: ${GFX.AUTO_STEPS[A.level].note}${A.last ? "\n  last change: " + A.last : ""}${A.hold > 0 ? "  (settling)" : ""}` : "   (fixed — AUTO off)"}`,
+    `preset ${settings.quality.toUpperCase()}${A && settings.quality === "auto" ? `   AUTO level ${A.level}/${GFX.AUTO_STEPS.length - 1}: ${GFX.AUTO_STEPS[A.level].note}${A.last ? "\n  last change: " + A.last : ""}${A.hold > 0 ? "  (settling)" : ""}${A.pending ? "\n  QUEUED until after the race: level " + A.level + " → " + A.pending.to : ""}` : "   (fixed — AUTO off)"}`,
   ];
   if (typeof PERFLAB !== "undefined") PERFLAB.overlay(lines);
   $("perfOv").textContent = lines.join("\n");
@@ -4482,7 +4483,7 @@ function frame(now) {
   let dt = Math.min(0.1, rawDt); lastT = now;
   frameN++;
   PERF.sim = 0;
-  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm" || !!(typeof FARM !== "undefined" && FARM.showcase), !(ui.state === "farm" || (typeof FARM !== "undefined" && FARM.showcase)));
+  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm" || !!(typeof FARM !== "undefined" && FARM.showcase), !(ui.state === "farm" || (typeof FARM !== "undefined" && FARM.showcase)), ui.state === "racing" && !!race && (race.state === "running" || race.state === "done"));   // last: a race is LIVE (gates open until the results): AUTO queues its changes until after it
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
   // the farm: its own scene and camera; nothing of the race world is updated or drawn (and the farm is not touched during a race)
   if (ui.state === "farm" && typeof FARM !== "undefined" && FARM.active) { FARM.frame(dt); perfFrame(rawDt, performance.now() - tF0); return; }

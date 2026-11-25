@@ -34,6 +34,30 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
   ok(backoff[2] === backoff[1], `a level that just failed is not retried at once (${backoff.join(' → ')}; retry after 60 s, then 120 s…)`);
   const fixed = await p.evaluate(() => { settings.quality = 'high'; GFX.applyQuality(); const l = GFX.AUTO.level; __feed(60, 10); const R = GFX.runtimeParams(); const r = { same: GFX.AUTO.level === l, pr: R.pr, sh: R.shadow }; settings.quality = 'auto'; return r; });
   ok(fixed.same && fixed.pr === 2 && fixed.sh === 4096, 'manual High: AUTO never changes anything (full resolution, 4096 shadows)');
+  // Phase 15C: while a race is LIVE AUTO queues its changes (no applyQuality, no setPixelRatio, no ff_autoLevel write); a SEVERE slowdown still applies at once;
+  // the queued change lands at the next non-live frame, or at the start of the next race
+  const q = await p.evaluate(() => {
+    const A = GFX.AUTO, w = [], sp = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (k === 'ff_autoLevel') w.push(v); return sp.call(this, k, v); };
+    let pr = 0; const spr = renderer.setPixelRatio; renderer.setPixelRatio = function () { pr++; return spr.apply(this, arguments); };
+    const reset = l => { GFX.setAuto(l, 'test'); A.hold = 0; A.fails = {}; A.pending = null; A.bad = A.good = 0; A.win.length = 0; A.winT = 0; w.length = 0; pr = 0; };
+    const live = (ms, secs) => { const n = Math.round(secs * 1000 / ms); for (let i = 0; i < n; i++) GFX.autoTick(ms / 1000, true, true, true); };
+    const o = {};
+    reset(3); live(10, 30); o.up = { level: A.level, pending: A.pending && A.pending.to, writes: w.length, pr };            // plenty of headroom, live: queued
+    GFX.autoTick(0.0167, true, true, false); o.upApplied = { level: A.level, pending: A.pending, writes: w.slice(), pr, stored: localStorage.getItem('ff_autoLevel') };   // first non-live frame: applied once
+    reset(0); live(22, 12); o.mild = { level: A.level, pending: A.pending && A.pending.to, writes: w.length, pr };            // ~45 fps for 12 s, live: queued, not applied
+    live(45, 4); o.severe = { level: A.level, pending: A.pending, writes: w.length, pr };                                      // ~22 fps, live: applied at once
+    reset(4); A.pending = { to: 3, why: 'test', hold: 4 }; startRace(Object.assign(quickCfg(), { distance: 1000, field: 6, track: 'generic', incidents: 'off', allBots: true, seed: 9 }));
+    o.atStart = { level: A.level, pending: A.pending, writes: w.slice(), state: race.state }; quitToMenu();
+    reset(2); A.pending = { to: 1, why: 'test', hold: 4 }; settings.quality = 'high'; GFX.autoTick(0.0167, true, true, false); o.fixedPreset = { level: A.level, pending: A.pending }; settings.quality = 'auto';
+    Storage.prototype.setItem = sp; renderer.setPixelRatio = spr; return o;
+  });
+  ok(q.up.level === 3 && q.up.pending === 2 && q.up.writes === 0 && q.up.pr === 0, `live race, headroom: the up-step is queued (level ${q.up.level}, queued → ${q.up.pending}); no applyQuality / setPixelRatio (${q.up.pr}), no ff_autoLevel write (${q.up.writes})`);
+  ok(q.upApplied.level === 2 && q.upApplied.pending === null && q.upApplied.writes.join() === '2' && q.upApplied.pr === 1 && q.upApplied.stored === '2', `the first non-live frame applies it once (level 2, one setPixelRatio, one write, stored ${q.upApplied.stored})`);
+  ok(q.mild.level === 0 && q.mild.pending === 1 && q.mild.writes === 0 && q.mild.pr === 0, `live race, a mild slowdown (45 fps): queued, not applied (level ${q.mild.level}, queued → ${q.mild.pending})`);
+  ok(q.severe.level === 2 && q.severe.pending === null && q.severe.writes === 1 && q.severe.pr === 1, `live race, a severe slowdown (22 fps): still applied at once (level ${q.severe.level}, one change)`);
+  ok(q.atStart.level === 3 && q.atStart.pending === null && q.atStart.writes.join() === '3' && q.atStart.state === 'load', `a queued change is applied when the next race starts, behind the loading gates (level ${q.atStart.level}, race state ${q.atStart.state})`);
+  ok(q.fixedPreset.pending === null && q.fixedPreset.level === 2, 'a fixed preset (not AUTO) discards a queued change and never applies it');
+
   // physics independence: the same race at full quality and at the lowest AUTO level finishes identically
   const phys = await p.evaluate(() => {
     const run = lvl => { GFX.setAuto(lvl, 'test'); startRace(Object.assign(quickCfg(), { distance: 1600, field: 12, track: 'randwick', incidents: 'off', allBots: true, seed: 77 }));

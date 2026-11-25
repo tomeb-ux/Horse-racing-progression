@@ -46,7 +46,7 @@ const GFX = (() => {
     { crowd: 2.8, trees: 2.8, rails: 2.4, shadow: 1024, pr: 1.25, note: "render scale 1.25" },
     { crowd: 3, trees: 3, rails: 2.4, shadow: 1024, pr: 1, horses: 1.35, note: "render scale 1.0, far horses simpler" },
   ];
-  const AUTO = { level: 0, win: [], winT: 0, bad: 0, good: 0, cool: 0, hold: 0, fails: {}, last: "", changes: 0, ms: 0, fps: 0, enabled: false, lab: "normal" };
+  const AUTO = { level: 0, win: [], winT: 0, bad: 0, good: 0, cool: 0, hold: 0, fails: {}, last: "", changes: 0, ms: 0, fps: 0, enabled: false, lab: "normal", pending: null };
   try { const l = +localStorage.getItem("ff_autoLevel"); if (l >= 0 && l < AUTO_STEPS.length) AUTO.level = l; } catch (e) {}
   const kindBias = { crowd: 1, trees: 1, shrubs: 1, "rail-posts": 1 };
   let horseBias = 1;
@@ -70,10 +70,27 @@ const GFX = (() => {
     if (was !== want) scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); });
   }
   // called every frame with the real frame interval (seconds) while a race, replay or presentation is on screen
-  function autoTick(dt, active, raceFrame) {
+  /* Phase 15C: a quality change reallocates the drawing buffer (twice) and the shadow map: ~100 ms measured on a real device when it happened mid-race (an up-step to ×2).
+     While a race is LIVE (gates open until the results screen: `live` = true) an AUTO decision is therefore QUEUED, not applied, and applied at the next frame that is not
+     live (results, pause, replay, menu, farm) or at the start of the next race (behind the loading gates, see applyPending). A SEVERE slowdown (median over 28 ms) is still
+     applied at once. ff_autoLevel is written only when a level is really applied. Everything else about AUTO (thresholds, steps, back-off) is unchanged. */
+  function applyPending() {
+    const p = AUTO.pending; AUTO.pending = null;
+    if (!p || settings.quality !== "auto" || AUTO.lab === "off" || p.to === AUTO.level || p.to < 0 || p.to >= AUTO_STEPS.length) return false;
+    setAuto(p.to, p.why + " (applied between races)", p.hold); return true;
+  }
+  function change(live, severe, to, why, hold) {
+    if (live && !severe) {                                              // queue; a later mild slow-down replaces a queued up-step, nothing else replaces a queued change
+      if (!AUTO.pending || to > AUTO.level) { AUTO.pending = { to, why, hold }; if (typeof PERFLAB !== "undefined") PERFLAB.ev("auto-queued", "level " + AUTO.level + " → " + to + " held until after the race: " + why); }
+      AUTO.bad = 0; AUTO.good = 0; return;
+    }
+    AUTO.pending = null; setAuto(to, why, hold);
+  }
+  function autoTick(dt, active, raceFrame, live) {
     // `active` = any frame AUTO may judge (race, replay, presentation, farm, menu showcase: unchanged since Phase 3); `raceFrame` = false on a farm / menu frame (undefined = not told).
     // Hidden lab switch (PERFLAB, ff_lab): "race" = farm and menu frames are ignored; "off" = nothing feeds AUTO (fixed High, nothing stored). Normal = exactly as before.
     if (AUTO.lab === "off" || (AUTO.lab === "race" && raceFrame === false)) active = false;
+    if (AUTO.pending) { if (settings.quality !== "auto" || AUTO.lab === "off") AUTO.pending = null; else if (!live && !document.hidden) applyPending(); }       // safe point reached
     if (settings.quality !== "auto" || !active || document.hidden) { AUTO.win.length = 0; AUTO.winT = 0; AUTO.enabled = settings.quality === "auto"; return; }
     AUTO.enabled = true;
     if (AUTO.hold > 0) { AUTO.hold -= dt; return; }                     // just started / just changed: let it settle
@@ -87,10 +104,10 @@ const GFX = (() => {
     if ((AUTO.bad >= 2 || (severe && AUTO.bad >= 1)) && AUTO.level < AUTO_STEPS.length - 1) {
       AUTO.fails[AUTO.level] = { until: now + 60 * Math.pow(2, (AUTO.fails[AUTO.level] && AUTO.fails[AUTO.level].n) || 0), n: ((AUTO.fails[AUTO.level] && AUTO.fails[AUTO.level].n) || 0) + 1 };
       const to = Math.min(AUTO_STEPS.length - 1, AUTO.level + (severe ? 2 : 1));
-      setAuto(to, `slow (${med.toFixed(1)} ms) → ${AUTO_STEPS[to].note}`, severe ? 3 : 4);
+      change(live, severe, to, `slow (${med.toFixed(1)} ms) → ${AUTO_STEPS[to].note}`, severe ? 3 : 4);
     } else if (AUTO.good >= 8 && AUTO.level > 0) {
       const f = AUTO.fails[AUTO.level - 1];
-      if (!f || now > f.until) setAuto(AUTO.level - 1, `headroom (${med.toFixed(1)} ms) → trying ${AUTO_STEPS[AUTO.level - 1].note}`); else AUTO.good = 0;
+      if (!f || now > f.until) change(live, false, AUTO.level - 1, `headroom (${med.toFixed(1)} ms) → trying ${AUTO_STEPS[AUTO.level - 1].note}`); else AUTO.good = 0;
     }
   }
   function setAuto(l, why, hold) {
@@ -685,7 +702,7 @@ const GFX = (() => {
     for (let i = 0; i < uv.count; i++) { const nx = Math.abs(N.getX(i)), ny = Math.abs(N.getY(i)); const a = nx > 0.5 ? P.getZ(i) : P.getX(i), b = ny > 0.5 ? P.getZ(i) : P.getY(i); uv.setXY(i, a / t, b / t); }
     return g;
   }
-  return { applyQuality, buildSky, setAtmosphere, envFor, fogRange, setWet, createRain, get atmo() { return A.p; }, get sunOffset() { return A.sunOff; }, get fogMul() { return A.fogMul; }, atmosphere: A, turfMaterial, turfTextures, plantTrees, treeGeo, shrubs, rail, crowd, update, chunked, addLOD, LODS, setCrowdAnim, get lodBias() { return lodBias; }, set lodBias(v) { lodBias = v; }, get horseBias() { return horseBias; }, AUTO, AUTO_STEPS, autoTick, autoReset, setAuto, runtimeParams, mats, glassMat, wallBox, merge, paint, lin, fbm, pnoise, hash, rand, dataTex, QUALITY, q, uTime, crowdU, get envMap() { return envRT && envRT.texture; } };
+  return { applyQuality, buildSky, setAtmosphere, envFor, fogRange, setWet, createRain, get atmo() { return A.p; }, get sunOffset() { return A.sunOff; }, get fogMul() { return A.fogMul; }, atmosphere: A, turfMaterial, turfTextures, plantTrees, treeGeo, shrubs, rail, crowd, update, chunked, addLOD, LODS, setCrowdAnim, get lodBias() { return lodBias; }, set lodBias(v) { lodBias = v; }, get horseBias() { return horseBias; }, AUTO, AUTO_STEPS, autoTick, autoReset, setAuto, applyPending, runtimeParams, mats, glassMat, wallBox, merge, paint, lin, fbm, pnoise, hash, rand, dataTex, QUALITY, q, uTime, crowdU, get envMap() { return envRT && envRT.texture; } };
 })();
 // start-up: sky + environment lighting, quality preset, and the original course's turf upgraded to the new material
 (function gfxInit() {
