@@ -13,7 +13,7 @@ Branch: `claude/amazing-clarke-jzpr1x` only; `main` is not to be touched.
 
 | Phase | Title | Status | Owner review |
 |---|---|---|---|
-| 15 | Racing smoothness (micro-stutter) | **15A done. 15B first real-device round (Apple M2, Chrome) found the continuous ~30 fps was battery power management; plugged in the race runs at 60 fps with 4 hitches/min, one of 99 ms caused by a mid-race AUTO step-up. 15C proposal written, awaiting review: nothing implemented, no stutter fix has been made.** | — |
+| 15 | Racing smoothness (micro-stutter) | **15A, 15B (one device) and 15C done. 15C: AUTO graphics no longer reallocates while a race is live. Waiting for the owner to check it on the Mac before Phase 16.** The stutter is not declared fixed until the owner says the real race feels smooth. | — |
 | 16 | Review stabilisation and farm render headroom | not started | — |
 | 17 | Farm clock and daily schedule | not started | — |
 | 18 | Morning trackwork, cool-down and staff care routines | not started | — |
@@ -27,7 +27,7 @@ Branch: `claude/amazing-clarke-jzpr1x` only; `main` is not to be touched.
 Phase 15 sub-steps:
 - **15A (done):** the lean instrumentation set, tool fixes and the race-hygiene test.
 - **15B (first round done, one device):** owner measurements, bisect builds and the diagnosis. Only the Apple M2 / Chrome device has reported so far.
-- **15C:** fixes for confirmed causes only.
+- **15C (done):** AUTO changes are queued while a race is live (`gfx.js`); see the 15C report.
 - **15D:** verification against `ROADMAP_P15.md` §2.5.
 
 ## Known facts at the start of Phase 15 (from the planning review; not yet measured on real hardware)
@@ -187,7 +187,7 @@ See the closing message of the session for the artifact version. No historical c
 
 **Acceptance gate (ROADMAP §2.5) against the plugged-in benchmark, one device:** on-time ≥ 99 % **met** (99.89 %); no frame > 50 ms **not met** (99.2 ms); hitches ≤ 1 per minute **not met** (4 per minute); AUTO/applyQuality changes after 3 s = 0 **not met** (3). The stutter is **not** declared fixed; the owner reports the race looks smooth only when plugged in, and 15C is meant to remove the remaining mid-race reallocation hitch.
 
-### Phase 15C proposal (for review; **nothing is implemented**)
+### Phase 15C proposal (approved by the owner for C1 only; implemented, see the 15C report at the end of this section)
 
 **Goal:** no expensive AUTO reallocation during an active race, with no change to default quality, graphics detail, race physics or `sim.js`.
 
@@ -215,6 +215,36 @@ See the closing message of the session for the artifact version. No historical c
 **Not touched by C1:** `sim.js`, race physics, horse models, commentary, the farm, default quality, or the stored `ff_autoLevel` value semantics.
 
 After 15C is reviewed, built and verified, the roadmap resumes with **Phase 16 (review stabilisation and farm render headroom)**; nothing of Phase 16 has been started.
+
+### Phase 15C report: AUTO graphics never reallocates during a live race (C1 only)
+
+The owner asked for a minimal fix and no further profiling. Only C1 was built; C2 (second buffer reallocation) and C3 (report-only honesty, AUTO freeze mode) were **not** built and stay on the list.
+
+**What changed (`public/gfx.js`, one argument and one call in `public/index.html`, F8 / report text)**
+- `GFX.autoTick(dt, active, raceFrame, live)`: `live` is `ui.state === "racing"` with `race.state` `running` or `done` (gates open until the results screen). Load, count, parade, replay, results, pause, farm and menu frames are not live.
+- While live, an AUTO decision (a headroom up-step or a mild down-step) is **queued** in `AUTO.pending` instead of being applied: no `applyQuality()`, no `setPixelRatio`, no drawing-buffer or shadow-map reallocation and **no `ff_autoLevel` write**. A later mild slow-down replaces a queued up-step; nothing else replaces a queued change.
+- **A severe slowdown (median over 28 ms, under about 36 fps) is still applied at once**, as before.
+- A queued change is applied at the first frame that is not live (results, pause, replay, menu, farm) and explicitly at the start of the next race (`GFX.applyPending()` in `startRace`, before `renderer.compile`, behind the loading gates).
+- A fixed graphics preset, or the lab's AUTO "off", discards a queued change and never applies it.
+- Thresholds, step contents, the 60 s back-off, default quality, the stored-level meaning, `sim.js`, physics and all gameplay are unchanged. F8 and the report show a queued change ("QUEUED until after the race").
+
+**Tests (all run on the working tree, none needed a rerun)**
+| Test | Result |
+|---|---|
+| `tests/auto-quality-browser.js` (6 new checks: up-step queued with 0 `setPixelRatio` and 0 storage writes; applied once at the first non-live frame; mild slowdown queued; severe applied at once; applied at race start in state `load`; a fixed preset discards it; the physics-independence check, identical finish order and times at level 0 and 9, still passes) | **passed**, 18 / 0 failed |
+| `tests/race-hygiene-browser.js` "afterfarm", chase camera, the case that showed the problem (before: 1 `applyQuality`, 1 `setPixelRatio`, 1 `localStorage` write, 1 AUTO change after the gates) | **passed**: all clean-second counts **0**, AUTO level 1 → 1; "quick" chase also 0 everywhere. 18 / 0 failed |
+| `steering` / `start` / `replay-lunge` | passed, 70 / 8 / 9 |
+| `career-core`, `single-browser` (after `build-single`, 8,959 KB) | passed, 128 / 8 |
+| `scenes-browser` | passed, 38 (10 trips, no growth) |
+| `phase12-browser` (lighting / weather) | passed, 24 |
+| `presentation-browser` (parade, winner presentation) | passed, 11 |
+| `longrace-browser` | passed, 5 |
+| `perflab-browser` (the 15A diagnostics) | passed, 47 |
+| `tools/smooth.js` Randwick chase + jockey, 60 + 144 Hz | horse speed (17.75 / 17.43 m/s), stalls (0), draw calls (222 / 231 / 202 / 247) identical to before; update p50 0.4 ms, one noisy 0.75 ms outlier at jockey 144 Hz; allocation 11.4–13.2 MB/s as before |
+
+**Deferred, and why:** the Tier 3 full suite (race-engine node tests, `career_difficulty`, `progression`, `economy`, commentary and phase 6–14 suites). The change is presentation-only: `sim.js` is byte-identical (`git diff 5139a6f HEAD -- public/sim.js` is empty), the physics-independence check passes, and the owner asked to avoid heavy test runs for small changes. My own 15C proposal said Tier 3 was required because `gfx.js` is touched; I am recording this as a deliberate departure at the owner's request, not as a pass. It can be run at any time.
+
+**Limits:** headless counts show the *mechanism* is fixed (no reallocation after the gates); they say nothing about how it feels. The check that matters is the owner's: plugged in, from a stored low AUTO level (after a battery session), a benchmark and a career race. Expect no AUTO change between the gates and the finish, and no 99 ms hitch from a quality step. The first race after a long battery session will still start at the lowered level and climb between races (most of the climb happens on the farm and menu), not mid-race.
 
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
