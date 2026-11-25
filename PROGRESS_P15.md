@@ -284,6 +284,28 @@ The owner asked for a minimal fix and no further profiling. Only C1 was built; C
 **Tests for this change (focused, as the owner asked; none needed a rerun), on the final code:** `auto-quality-browser` **24/24** (18 AUTO checks incl. the 15C queue + 6 new: Medium is the maximum for every level of Auto / Medium / Low, a stale "high" and the lab's fixed level; new players start on Medium; a saved High migrates to Medium with other settings and the career save kept; the settings screen offers no High); `single-browser` 8/8 (after `build-single`, 8,970 KB); `steering` 70/70; `start` 8/8; `phase11-browser` 11/11 (the country venues, which use the new trees); `phase12-browser` 24/24 (lighting and weather). Earlier on the first draft of the canopy (the farm and shared code were not touched afterwards): `career-core` 128/128, `replay-lunge` 9/9, `presentation-browser` 11/11, `farm-browser` 34/34 on both the old and new builds with identical budgets.
 **Not run on the final code (the full regression queue was stopped at the owner's request):** the Tier 3 full suite, `scenes`, `farm-flow`, `race-hygiene`, `perflab`, `longrace`, `career-browser`, and the commentary / phase 6–10, 13, 14 suites. `race-hygiene-browser.js` and `perflab-browser.js` were edited to select the Auto preset explicitly (the default is now Medium) but have **not** been re-run since.
 
+### Phase 16: farm draw-call headroom and a regression sweep
+
+**Goal.** Give the farm rendering headroom (it was the busiest scene: 250 main-pass draw calls in the overview) without changing how it looks, and re-run the farm-facing tests after the Phase 15 work.
+
+**What changed (rendering only).** `farm-ground.js`: the instanced scatter (grass tufts, flowers, stones, shrubs) is chunked into larger cells (120/120/180/90 m instead of 90/90/120/60 m) and its near-LOD radius is 46 m. Fewer, larger cells means fewer instanced draws; the same instances are drawn. `farm.js` gains `FARM.shadowStats()` (counts the sun's shadow pass, which `renderer.info` does not include). `tests/farm-browser.js` budget: `worstCalls <= 210` (was a looser figure).
+
+**Measured (SwiftShader counts; these are COUNTS, not FPS: software GL timings say nothing about a real GPU).**
+
+| view | main-pass draw calls before | after | triangles |
+|---|---|---|---|
+| overview | 250 | 201 | +8-9% (more of the scatter is in the near LOD) |
+| courtyard | 163 | 130 | +8-9% |
+| training oval | 179 | 146 | +8-9% |
+
+The shadow pass is separate: about 127 extra draws in the overview, not part of the table (the budget test does not count them either; `FARM.shadowStats()` does). I did **not** measure frame time on a real device for this change, so I make no FPS claim for it.
+
+**Decision for the owner.** A "Scenery detail" cap (fewer scatter instances on Medium) would lower the count further but visibly thins the grass. I did **not** apply it. Say if you want it.
+
+**Regression sweep (this commit's queue).** farm-browser, farm-flow, phase6, phase8, phase9, phase13, scenes, phase12: all exit 0 (single run each, no reruns needed).
+
+**Career bug sweep.** No new defects were found in the Phase 9-14 career rules by the existing core suites (career-core 128, phase9-core 44, phase12-core 36, phase6-core 43, phase8-core 37 all pass). I did not run a long playthrough: the sweep is test-based, not exploratory.
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.

@@ -150,24 +150,24 @@ const FARMGROUND = (() => {
     const veg = [], addSway = m => { const prev = m.onBeforeCompile; m.onBeforeCompile = sh => { sh.uniforms.uTime = uT; sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uTime;").replace("#include <begin_vertex>", `#include <begin_vertex>
         float ph = instanceMatrix[3].x * 0.05 + instanceMatrix[3].z * 0.07; float sw = max(0.0, transformed.y - 2.5) * 0.008; transformed.x += sin(uTime * 1.2 + ph) * sw; transformed.z += sin(uTime * 0.85 + ph * 1.7) * sw * 0.6;`); }; m.customProgramCacheKey = () => "fffarmsway"; };
     const woodM = FARMTREES.woodMaterial(); addSway(woodM); const leafM = { gum: FARMTREES.leafMaterial("gum"), fig: FARMTREES.leafMaterial("fig") }; leafM.cypress = leafM.fig; addSway(leafM.gum); addSway(leafM.fig);
-    const tag = c => Object.assign(c, { far: 430, near: 62 });
+    const tag = c => Object.assign(c, { far: 430, near: 46 });
     for (const [sp, nv] of [["gum", 2], ["fig", 1], ["cypress", 1]]) for (let v = 0; v < nv; v++) {
       const list = trees[sp].filter((t, i) => (nv === 1 || (Math.round(t.x * 7 + t.z * 3) & 1) === v)); if (!list.length) continue;
-      const hi = FARMTREES.get(sp, v, 0), lo = FARMTREES.get(sp, v, 1), o2 = { cell: 80, pad: 12, sink: 0.1 };
+      const hi = FARMTREES.get(sp, v, 0), lo = FARMTREES.get(sp, v, 1), o2 = { cell: 120, pad: 12, sink: 0.1 };
       veg.push(...scatter(scene, list, hi.wood, lo.wood, woodM, o2).map(tag)); veg.push(...scatter(scene, list, hi.leaf, lo.leaf, leafM[sp], o2).map(tag));
     }
-    for (const sp of ["palm"]) if (trees[sp].length) veg.push(...scatter(scene, trees[sp], G.treeGeo(sp), G.treeGeo(sp, true), leaf, { cell: 80, pad: 12, sink: 0.1 }).map(tag));
+    for (const sp of ["palm"]) if (trees[sp].length) veg.push(...scatter(scene, trees[sp], G.treeGeo(sp), G.treeGeo(sp, true), leaf, { cell: 120, pad: 12, sink: 0.1 }).map(tag));
     // shrubs: garden beds, courtyard bed, fence lines, the infield — wattle (yellow), grevillea (red), saltbush (grey-green), plain bush
     const sg = { wattle: shrubGeo(0xe2c23a, 0x58703a, 1, true), grev: shrubGeo(0x9c2f26, 0x4a6540, 2, true), salt: shrubGeo(0x93a38a, 0x66765d, 3, false), bush: shrubGeo(0x6b8a48, 0x3e5a30, 4, false) }, shr = { wattle: [], grev: [], salt: [], bush: [] }, S = (k, x, z, s) => shr[k].push({ x, z, s: s || 1 });
     for (let i = 0; i < 18; i++) { const a = rnd() * TAU, r = 4.4 + rnd() * 1.8; S(i % 3 ? "grev" : "wattle", -12 + Math.cos(a) * r, 3 + Math.sin(a) * r, 0.55 + rnd() * 0.4); }
     for (let i = 0; i < 40; i++) { const x = -64 + rnd() * 26, z = -13 + rnd() * 22; if (Math.abs(z) < 2.2 && x > -44 || x > -46 && x < -41 || (x > -58.5 && x < -44.5 && z > -8.5 && z < 4.5)) continue; S(["wattle", "grev", "bush", "bush"][i % 4], x, z, 0.6 + rnd() * 0.7); }
     for (let i = 0; i < 70; i++) { const x = (rnd() - 0.5) * 220, z = (rnd() - 0.5) * 160; if (blocked(x, z, 1) && rnd() < 0.9) continue; S(["salt", "bush", "wattle"][i % 3], x, z, 0.6 + rnd() * 0.8); }
     for (let i = 0; i < 28; i++) { const t = rnd(), x = -52 + 104 * t, z = 50 + (rnd() - 0.5) * 26; if (Math.abs(z - 50) > 10 && Math.abs(z - 50) < 18.8) continue; if (rnd() < 0.5) S("salt", x, 50 + (rnd() - 0.5) * 8, 0.5 + rnd() * 0.4); }
-    for (const k of Object.keys(shr)) if (shr[k].length) veg.push(...scatter(scene, shr[k], sg[k], null, leaf, { cell: 60, pad: 3, sink: 0.05 }).map(c => Object.assign(c, { far: 150, near: 1e9 })));
+    for (const k of Object.keys(shr)) if (shr[k].length) veg.push(...scatter(scene, shr[k], sg[k], null, leaf, { cell: 120, pad: 3, sink: 0.05 }).map(c => Object.assign(c, { far: 150, near: 1e9 })));
     owned.geo.push(...Object.values(sg));
     // boulders and a few fallen logs
     const rg = rockGeo(), rocks = []; for (let i = 0; i < 46; i++) { const x = (rnd() - 0.5) * 230, z = (rnd() - 0.5) * 170; if (blocked(x, z, 1)) continue; rocks.push({ x, z, s: 0.5 + rnd() * 1.1, sy: 0.8 + rnd() * 0.5 }); }
-    owned.geo.push(rg); veg.push(...scatter(scene, rocks, rg, null, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), { cell: 90, pad: 2, sink: 0.15, receive: true }).map(c => { owned.mat.push(c.hi.material); return Object.assign(c, { far: 180, near: 1e9 }); }));
+    owned.geo.push(rg); veg.push(...scatter(scene, rocks, rg, null, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), { cell: 180, pad: 2, sink: 0.15, receive: true }).map(c => { owned.mat.push(c.hi.material); return Object.assign(c, { far: 180, near: 1e9 }); }));
     // grass tufts: along fences and paddock edges, round buildings, scattered over the lawns
     const tg = tuftGeo(); owned.geo.push(tg); const tm = W.M.tuft; tm.vertexColors = true; tm.needsUpdate = true; const tufts = [];
     const along = (xa, za, xb, zb, n, off) => { const len = Math.hypot(xb - xa, zb - za), ux = (xb - xa) / len, uz = (zb - za) / len; for (let i = 0; i < n; i++) { const t = rnd() * len, side = (rnd() < 0.5 ? -1 : 1) * (0.25 + rnd() * off); tufts.push({ x: xa + ux * t - uz * side, z: za + uz * t + ux * side, s: 0.8 + rnd() * 1.1 }); } };
@@ -176,7 +176,7 @@ const FARMGROUND = (() => {
     along(24, -32.5, 38, -32.5, 26, 1.2); along(112, -82, 112, 82, 70, 1.4); along(-112, -82, -112, 82, 70, 1.4); along(-112, 82, 112, 82, 80, 1.4); along(-112, -82, 112, -82, 80, 1.4);
     for (let i = 0; i < 330; i++) { const x = (rnd() - 0.5) * 224, z = (rnd() - 0.5) * 164; if (blocked(x, z, -1) && rnd() < 0.85) continue; tufts.push({ x, z, s: 0.7 + rnd() * 1.2 }); }
     for (const t of tufts) { const ln = 0.4 + 0.6 * hash(Math.round(t.x * 3), Math.round(t.z * 3), 21); t.tint = new THREE.Color().setRGB(0.52 + 0.4 * ln, 0.56 + 0.3 * ln, 0.34 + 0.16 * ln).convertSRGBToLinear(); t.s *= 0.72; }
-    veg.push(...scatter(scene, tufts, tg, null, tm, { cell: 45, pad: 4, sink: 0.04, shadow: false, receive: false }).map(c => Object.assign(c, { far: 75, near: 1e9, shadowOk: false })));
+    veg.push(...scatter(scene, tufts, tg, null, tm, { cell: 90, pad: 4, sink: 0.04, shadow: false, receive: false }).map(c => Object.assign(c, { far: 75, near: 1e9, shadowOk: false })));
     return {
       skyU: skyMesh.userData.U, structures: built, heightAt, colliders: built.colliders, segs: built.segs, points: built.points, stalls: built.stalls, sunDir, ms: performance.now() - t0,
       // per frame: sway clock, then for every plant cell: distance (detail level + far cull), a frustum test (instanced meshes carry no bounds of their own) and, for trees, shadows only when near

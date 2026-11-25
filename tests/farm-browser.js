@@ -95,7 +95,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' �
   const stats = {}; for (const v of ['courtyard', 'stalls', 'farmhouse', 'paddock', 'training', 'overview', 'float']) { await p.evaluate(v => FARM.view(v), v); await frames(4); stats[v] = await p.evaluate(() => FARM.stats()); }
   await p.evaluate(() => FARM.view(null)); await frames(4); stats.walking = await p.evaluate(() => FARM.stats());
   const worstCalls = Math.max(...Object.values(stats).map(s => s.calls)), worstTris = Math.max(...Object.values(stats).map(s => s.tris));
-  ok(worstCalls <= 250 && worstTris <= 500000, `across ${Object.keys(stats).length} camera positions: at most ${worstCalls} draw calls (budget 250) and ${(worstTris / 1000).toFixed(0)}k triangles (budget 500k) — ` + Object.entries(stats).map(([k, s]) => `${k} ${s.calls}/${(s.tris / 1000).toFixed(0)}k`).join(' · '));
+  ok(worstCalls <= 210 && worstTris <= 500000, `across ${Object.keys(stats).length} camera positions: at most ${worstCalls} draw calls (budget 210 since Phase 16, leaving about 40 for walking horses and staff) and ${(worstTris / 1000).toFixed(0)}k triangles (budget 500k) — ` + Object.entries(stats).map(([k, s]) => `${k} ${s.calls}/${(s.tris / 1000).toFixed(0)}k`).join(' · '));
   ok(stats.overview.buildMeshes < 120 && stats.overview.instances > 800, `the whole property is ${stats.overview.buildMeshes} merged meshes plus ${stats.overview.instances} instanced trees, shrubs, tufts and rocks`);
 
   console.log('\n— nothing is animated that can\'t be seen');
