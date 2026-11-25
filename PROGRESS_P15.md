@@ -389,6 +389,14 @@ The shadow pass is separate: about 127 extra draws in the overview, not part of 
 
 **Tests.** `tests/phase22-browser.js` (25), `phase11-core` (looks 0-5 all used; towns named by the caller) and `phase11-browser` updated for six looks.
 
+### Phase 23: season goals (the part that does not need an owner play-through)
+
+The roadmap's Phase 23 is "retuning from the owner's play-test notes" plus goals, client horses, rival storylines and difficulty presets. **I have no play-test notes**, and retuning the economy blind would be a guess, so I did **not** retune purses, fees, pace or regional pressure, and I did not build client horses (the roadmap itself flags exploit risk), rival storylines, difficulty presets or "new career+". Those wait for your notes.
+
+**What was built: season goals.** The career hub has a **Season goals** card: run 3 starts ($1,500), win a race ($3,000), finish in the first three 5 times ($4,000), win 3 races ($6,000), earn $60,000 in prize money ($5,000), race in a championship round ($2,500) and, once you have two horses, win with two different horses ($5,000): at most $27,000 a season, small next to prize money. `CORE.goalsOf` computes progress from the horses' own race histories for the current season (read-only); `CORE.claimGoals` pays each completed goal once, through the ledger with the key `goal:s<season>:<id>`, so it cannot be paid twice however often it runs. After a race the results panel names any goal just paid. Goals never gate anything.
+
+**Tests.** `tests/phase23-core.js` (14, including a fuzz of 300 random careers: no goal paid twice, ledger healthy) and `tests/phase23-browser.js` (6). `career-core` 128 unchanged. I did **not** re-run `tests/economy.js` / `development.js` / `career_difficulty.js` simulations with the goal income: it adds at most $27,000 a season and I did not measure its effect on the difficulty bands.
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.

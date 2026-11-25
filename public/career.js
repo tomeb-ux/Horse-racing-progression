@@ -410,6 +410,7 @@ const CAREER = (() => {
         </div>
       </div>
       ${nextHtml}
+      ${(() => { try { const gv = CORE.goalsOf(C); return `<div class="car-panel"><div class="car-row" style="justify-content:space-between"><div class="car-sub">Season goals</div><div class="car-sub">${money(gv.earned)} of ${money(gv.total)} earned</div></div><div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px">${gv.goals.map(g => `<div style="font-size:12.5px;opacity:${g.paid ? 0.65 : 1}">${g.paid ? "✓" : "○"} ${esc(g.label)} <span style="color:var(--fg-dim)">${g.paid ? "+" + money(g.reward) : g.target > 999 ? money(g.value) + " / " + money(g.target) + " · " + money(g.reward) : g.value + "/" + g.target + " · " + money(g.reward)}</span></div>`).join("")}</div></div>`; } catch (e) { return ""; } })()}
       <div class="car-2col">
         <div class="car-panel"><div class="car-row" style="justify-content:space-between"><div class="car-sub">Championship standings</div><button class="car-chip" id="hubStand">Full table</button></div>
           <table class="car-tbl" style="margin-top:6px"><tr><th>#</th><th>Stable</th><th>Pts</th><th class="hide-s">Wins</th><th>Gap</th></tr>
@@ -1404,11 +1405,12 @@ const CAREER = (() => {
       if (P.kind === "off" && meta.major && !C.trophies.some(t => t.raceId === meta.id && t.season === P.season)) { C.trophies.push({ raceId: meta.id, race: meta.name, horse: h.name, season: P.season, t: Date.now() }); trophy = true; h.majors++; }
     }
     const repGain = dnf ? 0 : CORE.addRep(C, place, meta, P.kind === "off"), bonus = !dnf && place >= 1 ? CORE.milestones(C, place, meta) : [];
+    let goalPaid = []; try { goalPaid = CORE.claimGoals(C); } catch (e) { console.error(e); }                  // Phase 23: season goals pay once each
     CORE.afterRace(C, h, meta, { going: r.cfg.going, dnf });         // post-race fitness + the date of the run (no effect on racing yet)
     if (P.kind === "opt") CORE.afterOptional(C);                      // an optional race takes a day (never past the next open round)
     save();
     // feedback on the results screen
-    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy, prize, repaid, bonus, repGain, fee: P.fee || 0 });
+    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy, prize, repaid, bonus, repGain, goalPaid, fee: P.fee || 0 });
     if (trophy) setTimeout(() => showMsg((meta.crown ? "★ " : "") + "YOU'VE WON THE " + meta.name.toUpperCase() + "!", 2.6), 900);
   }
   function renderPanel(o) {
@@ -1416,7 +1418,7 @@ const CAREER = (() => {
     if (!el) { el = document.createElement("div"); el.id = "resCareerPanel"; el.className = "panel"; const row = document.getElementById("resAgain").parentElement; row.parentElement.insertBefore(el, row); }
     el.hidden = false;
     const gain = `XP +${o.xp} · Training +${o.tp}${o.lv ? " · Level " + o.h.lvl : ""}${o.fee ? ` · Entry −${money(o.fee)}` : ""}${o.prize ? ` · Prize +${money(o.prize)}${o.repaid ? ` (−${money(o.repaid)} repaid to the club)` : ""}` : ""}${(o.bonus || []).map(b => ` · ★ ${b.label} +${money(b.amount)}`).join("")} · Cash ${money(C.cash)}`;
-    if (o.P.kind === "opt") { el.innerHTML = `<div class="cp-sub">${esc(o.meta.name)} · optional race</div><div class="cp-pts">${gain}</div><div class="cp-sub">No championship points — the season is unchanged.</div>`; return; }
+    if (o.P.kind === "opt") { el.innerHTML = `<div class="cp-sub">${esc(o.meta.name)} · optional race</div><div class="cp-pts">${gain}</div><div class="cp-sub">No championship points — the season is unchanged.</div>${(o.goalPaid || []).map(g => `<div class="cp-sub" style="color:var(--good)">🎯 Season goal: ${esc(g.label)} · +${money(g.reward)}</div>`).join("")}`; return; }
     const s = o.summary, list = SEASON.standings(C), lead = list[0];
     const behind = s.behind ? `${s.behind} POINT${s.behind === 1 ? "" : "S"} BEHIND ${esc(lead.name).toUpperCase()}` : (list[1] ? `LEADING BY ${lead.pts - list[1].pts} POINT${lead.pts - list[1].pts === 1 ? "" : "S"}` : "LEADING");
     const seasonOver = !s.next;
@@ -1424,7 +1426,7 @@ const CAREER = (() => {
       <div class="cp-pos">CHAMPIONSHIP POSITION: ${ordinal(s.before).toUpperCase()} → ${ordinal(s.after).toUpperCase()}</div>
       <div class="cp-pts">+${s.pts} POINT${s.pts === 1 ? "" : "S"} · ${s.total} TOTAL · ${behind}</div>
       <div class="cp-sub">${seasonOver ? "That was the final round — the season is complete. Continue to see the final standings." : `Next: ${esc(s.next.name)} · ${esc(s.next.venue)} · ${fmtDist(s.next.dist)}`}</div>
-      <div class="cp-sub">${gain}${o.trophy ? " · 🏆 Trophy won" : ""}</div>`;
+      <div class="cp-sub">${gain}${o.trophy ? " · 🏆 Trophy won" : ""}</div>${(o.goalPaid || []).map(g => `<div class="cp-sub" style="color:var(--good)">🎯 Season goal: ${esc(g.label)} · +${money(g.reward)}</div>`).join("")}`;
   }
   function hidePanel() { const el = document.getElementById("resCareerPanel"); if (el) el.hidden = true; }
 

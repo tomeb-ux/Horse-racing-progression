@@ -861,6 +861,29 @@ const CORE = (() => {
     const out = []; for (const h of (C.horses || []).slice()) if ((h.age | 0) >= HOF.MAX_AGE && C.horses.length > 1 && !(C.booking && C.booking.hid === h.id)) { const r = retireHorse(C, h.id, "aged"); if (r.ok) out.push(r); } return out;
   }
 
+  // ---------- Phase 23: season goals. Modest, one-off cash rewards for things you do anyway; computed from the horses' own race histories (nothing new is stored but the ledger key of each
+  // reward, so a goal can be paid at most once per season however often this is called). The rewards are small next to prize money and never gate anything.
+  const GOALS = [
+    { id: "start3", label: "Run 3 starts this season", target: 3, reward: 1500, f: e => 1 },
+    { id: "win1", label: "Win a race this season", target: 1, reward: 3000, f: e => e.place === 1 ? 1 : 0 },
+    { id: "place5", label: "Finish in the first three 5 times", target: 5, reward: 4000, f: e => e.place >= 1 && e.place <= 3 ? 1 : 0 },
+    { id: "win3", label: "Win 3 races this season", target: 3, reward: 6000, f: e => e.place === 1 ? 1 : 0 },
+    { id: "prize60", label: "Earn $60,000 in prize money", target: 60000, reward: 5000, f: e => finite(e.prize) ? Math.max(0, e.prize) : 0 },
+    { id: "champ1", label: "Race in a championship round", target: 1, reward: 2500, f: e => e.off ? 1 : 0 },
+  ];
+  function goalsOf(C) {
+    const sn = seasonOfDay(C.day), hs = (C.horses || []).filter(h => h && Array.isArray(h.history)), out = [];
+    const mine = []; for (const h of hs) for (const e of h.history) if (e && finite(e.day) && seasonOfDay(e.day) === sn) mine.push({ hid: h.id, place: e.dnf ? 0 : e.place | 0, prize: e.prize, off: !!e.off });
+    for (const g of GOALS) { const v = mine.reduce((a, e) => a + g.f(e), 0), key = "goal:s" + sn + ":" + g.id; out.push({ id: g.id, label: g.label, value: Math.min(v, g.target), target: g.target, reward: g.reward, done: v >= g.target, paid: applied(C, key), key }); }
+    // a goal that needs two different winners (only offered once there is more than one horse)
+    if ((C.horses || []).length > 1) { const w = new Set(mine.filter(e => e.place === 1).map(e => e.hid)).size, key = "goal:s" + sn + ":twowin"; out.push({ id: "twowin", label: "Win with two different horses this season", value: Math.min(w, 2), target: 2, reward: 5000, done: w >= 2, paid: applied(C, key), key }); }
+    return { season: sn, goals: out, total: out.reduce((a, g) => a + g.reward, 0), earned: out.filter(g => g.paid).reduce((a, g) => a + g.reward, 0) };
+  }
+  // pay every completed, unpaid goal of this season (idempotent: the ledger key is per season and goal)
+  function claimGoals(C) {
+    const v = goalsOf(C), paid = []; for (const g of v.goals) if (g.done && !g.paid) { const r = apply(C, g.key, g.reward, "goal", g.label); if (r.ok) paid.push({ id: g.id, label: g.label, reward: g.reward }); }
+    return paid;
+  }
   // ---------- Phase 17: the farm day. A PURE schedule: what each horse is doing at which hour of the farm clock (never stored, always derived from the real career data) ----------
   // The farm clock is ambience: it sets the light and what the staff do with horses that are NOT with the player. It never advances the calendar.
   const CLOCK = { start: 5.5, dusk: 19, secPerDay: 600 };                                   // 05:30 → 19:00 in about ten real minutes
@@ -903,7 +926,7 @@ const CORE = (() => {
   // the farm clock's saved state: { day, t }. Reads and repairs; never advances anything
   function clockOf(C) { const f = isObj(C.farm) ? C.farm : (C.farm = { state: "default" }), c = f.clock; if (!isObj(c) || c.day !== dayInt(C.day) || !finite(c.t) || c.t < CLOCK.start || c.t > CLOCK.dusk) f.clock = { day: dayInt(C.day), t: CLOCK.start }; return f.clock; }
   return { HOF, hofEntry, retireHorse, retirePrompt, autoRetire, retireWhy, MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
-    CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, postWork, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
+    CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, postWork, GOALS, goalsOf, claimGoals, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
     apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
     conditions, placeSeason, syncCalendar, roundEvent, roundStatus, upcoming, nextMeeting, nextOpenRoundDay, skipsBetween,
