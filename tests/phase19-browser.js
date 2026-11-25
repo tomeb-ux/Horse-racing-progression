@@ -35,7 +35,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   ok(await ev(() => [...document.querySelectorAll('button[data-r]')].length === 5), 'the five regions are on screen');
   await hold(0.6); s = await loop(); ok(s.prog[0] > 0.4 && s.prog[0] < 0.7, `holding Space rinses the selected region (${s.prog[0]})`);
   await p.keyboard.press('d'); await run(0.2); s = await loop(); ok(s.sel === 1, 'D moves to the next region'); await p.keyboard.press('a'); await run(0.2);
-  await hold(1.6); s = await loop(); ok(s.prog[0] === 1 && s.sel === 1, 'a finished region moves you on to the next one');
+  await hold(0.9); s = await loop(); ok(s.prog[0] === 1 && s.sel === 1, 'a finished region moves you on to the next one');
   for (let i = 0; i < 12 && (await loop()).prog.filter(x => x === 1).length < 4; i++) await hold(0.3); s = await loop(); ok(s.on && s.prog.filter(x => x === 1).length === 4, 'four regions done, one to go');
   await hold(1.4); await run(2.5); const sumTxt = await ev(() => (document.getElementById('farmScreen').innerText.match(/Post-work[\s\S]{0,300}/) || [''])[0].replace(/\n+/g, ' | ')); await run(9); s = await loop(); ok(!s.on, 'rinsing the last region finishes the wash by itself'); ok((await comp()) === c0 + 3 && (await fit()) === f0 + 1, `the reward is the normal wash: composure +3, fitness +1 (${c0} â†’ ${await comp()})`);
   ok(await ev(() => !document.querySelector('button[data-a=hold]') || document.querySelector('button[data-a=hold]').closest('div[style*="bottom"]').hidden), 'the loop panel is gone');

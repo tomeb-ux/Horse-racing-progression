@@ -373,6 +373,8 @@ The shadow pass is separate: about 127 extra draws in the overview, not part of 
 
 **Not done.** Crowd audio layers: the crowd noise beds were deliberately muted in an earlier phase ("read as static on most speakers", `audio.roar` returns at once) and making new crowd audio needs sound effects I have no tool to record, so I left it. The float arrival and a separate mounting-yard scene (the parade already is the mounting yard), new replay angles, "return to scale", and a trophy tier by grade beyond the one above.
 
+**Test status at this commit.** Passed: phase20-browser 13, phase21-core 88, phase21-browser 10, eleven-plan 9, commentary 164, presentation-browser, replay-lunge-browser, phase12-browser, farm-browser, farm-flow, phase8, phase17, phase18, phase19 (21; one timing-sensitive step was made deterministic), scenes. **Not run for these two phases:** `race-hygiene-browser` (I stopped it after 14 minutes to free the machine; it is re-run at the end of Phase 22, which changes the venue and race scene more), `smooth.js` before/after (the race animation loop was not changed, so there is nothing for it to compare).
+
 **Tests.** `tests/phase21-core.js`, `tests/phase21-browser.js` (10: the board, price order, display-only, floodlights at evening and dusk but not midday or golden hour, three renderable objects).
 
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
