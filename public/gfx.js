@@ -474,6 +474,21 @@ const GFX = (() => {
     for (let k = 0; k < 3; k++) { const a = k * 2.1 + r(), th = 0.6 + r() * 0.3, y0 = 8 + k; out.push([0.6 * y0 * y0 / 11 - 6 * Math.sin(th) * Math.cos(a), y0 + 6 * Math.cos(th) + 0.6, 6 * Math.sin(th) * Math.sin(a), 2.6 + 0.35 * k]); }
     out.push([6.6, 12.2, 0, 3.0]); return out;
   })();
+  // far LOD (a tree under ~260 px tall, the vast majority of race-course trees): the trunk and the species' clumps baked into ONE geometry, drawn with the plain tree material: one draw call per
+  // species and cell, exactly as before. Only the near LOD gets the instanced, textured canopy (below), so the shared canopy adds draw calls only for the few cells close to the camera.
+  function raceTreeFar(sp) {
+    const key = "far_" + sp; if (TREE[key]) return TREE[key];
+    const C = CROWN[sp], its = [], cols = [], parts = [raceTrunkGeo(sp, true).clone()], id = new THREE.Matrix4(), cr = rand(11 + sp.length * 31);
+    crownItems(sp, id, 0, 0, 0, cr, its, cols);
+    its.forEach((it, k) => {
+      const g = canopyClump(true).clone(); g.applyMatrix4(it.m); g.deleteAttribute("uv");
+      const lift = 0.47 * (cols[k * 3] / C.col[0]);                                 // the clump's own tint, relative to the species colour
+      paint(g, (c, x, y, z, nx, ny) => { const t = clamp(0.5 + ny * 0.5, 0, 1); c.setRGB(C.col[0], C.col[1], C.col[2]).multiplyScalar(lift * (0.55 + 0.9 * t) * (0.92 + 0.16 * hash(Math.round(x * 5), Math.round(y * 5 + z * 7), 23))); });
+      parts.push(g);
+    });
+    parts.forEach(g => g.deleteAttribute("uv"));
+    return (TREE[key] = merge(parts));
+  }
   // per species: clump count, radius range (m, before the tree's own scale), (x, y, z) shape factors, height range, spread round the trunk top, base colour (linear), lean of the crown centre
   const CROWN = {
     gum:     { n: 4, rad: [2.6, 3.6], flat: [1.2, 0.74, 1.12], y: [10.2, 14.4], spread: 3.0, lean: 0, col: [0.30, 0.38, 0.17], anchors: GUM_ANCHORS },
@@ -501,16 +516,23 @@ const GFX = (() => {
   function plantTrees(group, list) {
     const keep = q().trees, by = {}, dm = new THREE.Object3D(), col = new THREE.Color(), r = rand(list.length + 3);
     list.forEach((t, i) => { if (keep < 1 && hash(i, 7, 3) > keep && !t.keep) return; (by[t.sp || "plane"] = by[t.sp || "plane"] || []).push(t); });
-    const canopyItems = [], canopyCols = [];
     for (const sp in by) {
       // chunked by ~160 m, each chunk with a low-detail twin (same trees, coarser canopy) used once a tree is under ~70 px tall
-      const L = by[sp], items = [], colors = new Float32Array(L.length * 3), crown = !!CROWN[sp];
+      const L = by[sp], items = [], colors = new Float32Array(L.length * 3), crown = !!CROWN[sp], crowns = [];
       L.forEach((t, i) => { dm.position.set(t.x, t.y || 0, t.z); dm.rotation.set(0, t.rot != null ? t.rot : r() * 6.28, 0); const s = t.s || 1; dm.scale.set(s * (0.9 + r() * 0.2), s, s * (0.9 + r() * 0.2)); dm.updateMatrix();
         items.push({ m: dm.matrix.clone(), x: t.x, y: t.y || 0, z: t.z }); col.setRGB(0.86 + r() * 0.22, 0.86 + r() * 0.22, 0.82 + r() * 0.2); colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
-        if (crown) crownItems(sp, dm.matrix, t.x, t.y || 0, t.z, r, canopyItems, canopyCols); });
-      chunked(group, items, crown ? [raceTrunkGeo(sp), raceTrunkGeo(sp, true)] : [treeGeo(sp), treeGeo(sp, true)], treeMat(), { cell: 260, colors, cy: 8, rad: 10, px: [260], size: 14, shadow: true, shadowLo: false, name: "trees" });
+        if (crown) { const cl = [], cc = []; crownItems(sp, dm.matrix, t.x, t.y || 0, t.z, r, cl, cc); crowns.push({ cl, cc }); } });
+      const cells = chunked(group, items, crown ? [raceTrunkGeo(sp), raceTreeFar(sp)] : [treeGeo(sp), treeGeo(sp, true)], treeMat(), { cell: 260, colors, cy: 8, rad: 10, px: [260], size: 14, shadow: true, shadowLo: false, name: "trees" });
+      if (!crown) continue;
+      for (const cell of cells) {            // the shared canopy clump, instanced, as a CHILD of this cell's near-LOD trunk mesh: it is drawn (and casts its shadow) exactly when the near LOD is
+        let n = 0; for (const i of cell.idx) n += crowns[i].cl.length;
+        const im = new THREE.InstancedBufferAttribute(new Float32Array(n * 16), 16), cc = new Float32Array(n * 3); let j = 0;
+        for (const i of cell.idx) { const cw = crowns[i]; cw.cl.forEach((it, k) => { it.m.toArray(im.array, j * 16); cc[j * 3] = cw.cc[k * 3]; cc[j * 3 + 1] = cw.cc[k * 3 + 1]; cc[j * 3 + 2] = cw.cc[k * 3 + 2]; j++; }); }
+        const sph = cell.sphere.clone(); sph.center.y += 3; sph.radius += 8;
+        const cm = new THREE.InstancedMesh(shareGeo(canopyClump(), sph), canopyMat(), n); cm.instanceMatrix = im; cm.instanceColor = new THREE.InstancedBufferAttribute(cc, 3);
+        cm.castShadow = true; cm.receiveShadow = false; cm.name = "canopy"; cell.levels[0].add(cm);
+      }
     }
-    if (canopyItems.length) chunked(group, canopyItems, [canopyClump(), canopyClump(true)], canopyMat(), { cell: 260, colors: new Float32Array(canopyCols), cy: 12, rad: 12, px: [260], size: 18, shadow: true, shadowLo: false, name: "canopy" });
   }
 
   /* ---------- hedges, flower beds, roses ---------- */
