@@ -68,9 +68,9 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   const c0 = await ev(() => CAREER.data.horses[1].composure);
   await key('2', 0.05, 8); s = await ev(() => ({ act: FARMCARE.acting, arm: FARM._test.figure.parts.armR.sh.rotation.x, prop: FARM._test.figure.props.brush.visible, fig: FARM.info().figure }));
   ok(s.act === 'groom' && s.arm < -0.8 && s.prop && s.fig, 'Groom plays the brushing animation (arm raised, brush in hand) â€” not just a menu');
-  await run(6); s = await ev(() => ({ comp: CAREER.data.horses[1].composure, st: CAREER.care.status('h1'), act: FARMCARE.acting, menu: FARMCARE.menuOpen }));
+  await key('Enter', 0.05, 2); await run(6); s = await ev(() => ({ comp: CAREER.data.horses[1].composure, st: CAREER.care.status('h1'), act: FARMCARE.acting, menu: FARMCARE.menuOpen }));       // Phase 19: grooming is a loop; Enter hands it to the stable hand
   ok(s.comp === c0 + 4 && s.st.groomed && !s.act && s.menu, `after the brushing: composure ${c0} â†’ ${s.comp} (+4), the menu is back`);
-  await key('2', 0.05, 2); await run(6); ok(await ev(() => CAREER.data.horses[1].composure) === c0 + 4, 'grooming again the same day gives nothing more (no free repeat)');
+  await key('2', 0.05, 2); await key('Enter', 0.05, 2); await run(6); ok(await ev(() => CAREER.data.horses[1].composure) === c0 + 4, 'grooming again the same day gives nothing more (no free repeat)');
   const cash0 = await ev(() => CAREER.data.cash);
   await key('3', 0.05, 2); await key('2', 0.05, 8); ok(await ev(() => FARMCARE.acting === 'feed' && FARM._test.figure.props.bucket.visible), 'Feed shows the bucket and the horse lowers its head to eat');
   await run(5); s = await ev(() => ({ cash: CAREER.data.cash, st: CAREER.care.status('h1'), led: CAREER.data.ledger[CAREER.data.ledger.length - 1] }));
@@ -226,7 +226,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   for (let i = 0; i < 12; i++) { await p.keyboard.press(' '); await step(0.05, 4); } await run(25); s = await ev(() => { const R = FARMTRAIN.state; return R && { res: R.result, over: R.over }; }); ok(s && s.res && s.res.grade >= 0 && s.res.grade <= 1, `the drill ends with a score: ${s && s.res ? Math.round(s.res.grade * 100) + '% â€” ' + s.res.detail : 'no result'}`);
   const pts1 = await ev(() => CAREER.data.horses[0].xpFrac + CAREER.data.horses[0].trainPts); const fit1 = await ev(() => CAREER.data.horses[0].fitness); await run(1.3); await key('Enter', 0.05, 3); await run(1.6);
   s = await ev(() => ({ on: FARMTRAIN.on, vis: FARM._test.horses[0].visible, fig: FARM.info().figure, busy: FARMCARE.busy, kids: FARM._test.ctx.scene.children.length })); ok(!s.on && s.vis && s.fig && !s.busy, 'Enter returns to the farm: your horse is back in its box and you are back on foot');
-  await ev(() => FARMACTORS.setSpeed('paused'));          // the farm clock is not what this test is about: keep every horse in its box
+  await ev(() => FARMACTORS.setSpeed('paused'));          // the farm clock is not what this test is about
   // oval drills: acceleration (reward), then the same day again (no reward), settling and sprint
   await ev(() => { const pt = FARMTRAIN.POINTS[1]; FARM._test.setPos(pt.x, pt.z); FARM._test.step(0.05, 3); }); const kids0 = await ev(() => FARM._test.ctx.scene.children.length);
   await key('e', 0.05, 3); await key('2', 0.05, 2); await key('a', 0.05, 2); await key('Enter', 0.05, 6); await run(1.6); ok(await ev(() => FARMTRAIN.on && FARMTRAIN.state.drill === 'accel' && FARMTRAIN.state.tRef > 5), 'the acceleration drill starts (with an ideal run of the same horse as the benchmark)');
