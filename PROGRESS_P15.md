@@ -387,6 +387,8 @@ The shadow pass is separate: about 127 extra draws in the overview, not part of 
 
 **Not done.** Per-town backdrops beyond the region look (a town is its region's look), tote/marquee variants beyond the wall/tote material swap, and any layout change (Phase 24).
 
+**Test status at this commit.** `race-hygiene-browser`: **36 passed, 0 failed** (nothing uploaded, compiled or stored mid-race; the Phase 22 venue and weather objects are all built before the gates open). phase22-browser 25, phase11-core and phase11-browser (updated for six looks), phase12-browser, presentation-browser, phase21-browser, single-browser 8 all pass. Race-hygiene and the farm/career suites were run before Phase 23's goals card was added to the hub; `phase23-core` 14, `phase23-browser` 6 and `career-core` 128 pass after it.
+
 **Tests.** `tests/phase22-browser.js` (25), `phase11-core` (looks 0-5 all used; towns named by the caller) and `phase11-browser` updated for six looks.
 
 ### Phase 23: season goals (the part that does not need an owner play-through)
