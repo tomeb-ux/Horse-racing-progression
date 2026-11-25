@@ -1,5 +1,8 @@
 # Final Furlong — Career Mode & 3D Stable Empire: implementation plan
 
+> **STATUS AT HANDOFF (read first):** all 14 phases of this plan are implemented on the dev branch `claude/amazing-clarke-jzpr1x` and covered by automated tests; only Phases 1–4 have been approved by the owner. The highest-priority open issue is a racing micro-stutter regression (cause unknown). See `CAREER_PROGRESS.md` → "FINAL STATE" and `HANDOFF.md`. This plan is kept as written for intent; where it differs from what was built, the progress file wins.
+
+
 ## Context
 The user supplied a master specification (40 sections) to turn Career Mode into an Australian stable-management game:
 - a walkable 3D farm with a third-person character;

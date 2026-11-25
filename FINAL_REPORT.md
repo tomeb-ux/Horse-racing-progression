@@ -187,3 +187,8 @@ Motion is identical (no new judder or stalls), draw calls and triangles are iden
 * The regional purses and the market prices are **first-pass balance** values backed by the simulations above, not a long play test with real players.
 * `longrace-browser` fails on a loaded machine (commentary-line counting is timing-sensitive); it passes 5 / 5 when run alone.
 * Performance figures are from a **software renderer**: they prove relative cost and the absence of leaks, not frame rate on real hardware.
+
+
+---
+## Addendum (handoff verification)
+`phase7-browser` was **missing from the final full run above**. Run afterwards, it had one stale expectation (an empty box now opens the Horse Market since Phase 10, not the creator); the test was updated and passes **19 / 0**. `career-core` (128) and `retirement` (17) were re-run and pass. The racing micro-stutter the owner has reported is **not** explained by anything in this report — see `CAREER_PROGRESS.md` → FINAL STATE → E; the smoothness table above covers only a headless, software-rendered measurement and **cannot** rule out a real-hardware regression.
