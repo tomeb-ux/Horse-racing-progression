@@ -32,7 +32,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
 
   console.log('\nâ€” the property is alive');
   s = await ev(() => ({ npcs: FARMLIFE.npcs.map(n => n.d.role), signs: !!FARM._test.ctx.scene.children.find(o => o.material && o.material.map && o.material.vertexColors && o.frustumCulled === false && o.geometry.attributes.uv) }));
-  ok(s.npcs.join() === 'hand,hand2,groom,trainer', `two stable hands, your groom and your trainer are on the property (${s.npcs.join(', ')})`); ok(s.signs, 'facility signs (with level pips) stand at the facilities');
+  ok(s.npcs.join() === 'hand,hand,groom,trainer', `two stable hands, your groom and your trainer are on the property (${s.npcs.join(', ')})`); ok(s.signs, 'facility signs (with level pips) stand at the facilities');
   await ev(() => { FARM._test.setPos(-6, -15); }); await run(1);
   const pos0 = await ev(() => FARMLIFE.npcs.map(n => [n.x, n.z, n.d.role])); await run(25); const pos1 = await ev(() => FARMLIFE.npcs.map(n => [n.x, n.z, n.d.role]));
   ok(pos0.some((a, i) => Math.hypot(a[0] - pos1[i][0], a[1] - pos1[i][1]) > 2), 'they move about doing their jobs (the people walk between their stations)');

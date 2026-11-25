@@ -153,9 +153,9 @@ const FARMLIFE = (() => {
   function frame(dt) { if (!F) return; if (upMesh) upMesh.visible = F.cam.position.y < 16;      // the signs are small: not drawn from the high whole-property views
     stepAnim(dt); stepOut(dt); stepNpcs(dt); }
   // Phase 17: the staff-led turnout hands horses over / takes them back
-  function placeOut(g, k) { place(g, k); setTurnout(g.userData.hid, k); }
-  function adoptOut(g, k) { const P = padInfo(k), hid = g.userData.hid; setTurnout(hid, k); g.userData.out = true; g.userData.padK = k; out[hid] = { g, k, mode: "graze", t: 5, gx: P.inside.x, gz: P.inside.z, gait: 0, sp: 0 }; }
-  function releaseOut(hid) { const o = out[hid]; if (!o) return null; delete out[hid]; setTurnout(hid, null); return o.g; }
+  function placeOut(g, k, derived) { place(g, k); if (!derived) setTurnout(g.userData.hid, k); }
+  function adoptOut(g, k, derived) { const P = padInfo(k), hid = g.userData.hid; if (!derived) setTurnout(hid, k); g.userData.out = true; g.userData.padK = k; out[hid] = { g, k, mode: "graze", t: 5, gx: P.inside.x, gz: P.inside.z, gait: 0, sp: 0 }; }
+  function releaseOut(hid) { const o = out[hid]; if (!o) return null; delete out[hid]; if (hid in care()) setTurnout(hid, null); return o.g; }
   const stations = role => STN[role] || STN.hand;
   return { init, enter, leave, dispose, frame, points, interact, buildUpgrades, isOut, placeOut, adoptOut, releaseOut, stations, padInfo, get anim() { return anim; }, get out() { return out; }, get npcs() { return npcs; }, setTurnout, GATE, padInfo, WASH };
 })();

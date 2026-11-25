@@ -46,7 +46,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   ok(seen.job, 'a stable hand starts the job at 10:00'); ok(seen.door, 'the door opens'); ok(seen.rope, 'the horse is on a rope'); ok(seen.led, 'the horse is led across the yard');
   s = await st(); ok(s.out[0] && s.uOut[0], 'the horse ends up in the paddock (' + s.t.toFixed(2) + ')'); ok(s.doorOpen.every(d => !d), 'its door is shut again');
   for (let i = 0; i < 1500 && (await ev(() => FARMACTORS.jobs.length + FARMACTORS.queue.length)) > 0; i++) await step(0.1, 2); s = await st(); ok(s.jobs === 0 && await ev(() => FARMLIFE.npcs.every(n => !n.job)), 'the hands are free again ' + JSON.stringify(await ev(() => FARMACTORS.jobs.map(j => [j.hid, j.dir, j.stage, +j.t.toFixed(1), j.pi, j.path && j.path.length]))));
-  ok(await ev(() => CAREER.data.farm.turnout && CAREER.data.farm.turnout.h0 != null), 'the turn-out is saved with the career');
+  ok(await ev(() => !(CAREER.data.farm.turnout && CAREER.data.farm.turnout.h0 != null)), 'a scheduled turn-out is not written into the save (it is derived again when you come back)');
   ok(await ev(() => { const g = FARM._test.horses.find(x => x.userData.hid === 'h0'), P = FARMLIFE.padInfo(FARMLIFE.out.h0.k); return g.position.x >= P.x0 - 4 && g.position.x <= P.x1 + 4 && g.position.z >= P.z0 - 6 && g.position.z <= P.z1 + 4; }), 'the horse is inside its paddock');
 
   console.log('\nâ€” and bring it back in');

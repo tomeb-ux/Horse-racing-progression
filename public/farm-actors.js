@@ -16,10 +16,10 @@ const FARMACTORS = (() => {
   const horseOf = hid => F && F.horses.find(g => g.userData.hid === hid);
 
   // ---------------------------------------------------------------- the clock
-  // The running clock lives here (not in the career data) so that merely walking about never changes the save; it is written back when you leave the farm or skip.
+  // The running clock lives here and ONLY here: it is ambience, so it is never written into the career save (a reload starts the day at 05:30).
   let K = null;
-  const clock = () => { const c = C(); if (!c) return null; if (!K || K.day !== c.day) K = Object.assign({}, CORE.clockOf(c)); return K; };
-  function flush() { const c = C(); if (c && K && K.day === c.day) Object.assign(CORE.clockOf(c), K); }
+  const clock = () => { const c = C(); if (!c) return null; if (!K || K.day !== c.day) K = { day: c.day, t: CORE.CLOCK.start }; return K; };
+  function flush() {}                                              // the clock is session-only: it is never written into the career save
   const hour = () => { const k = clock(); return k ? k.t : CORE.CLOCK.start; };
   // is the clock driving the light? Not on a race day (the farm keeps the race's own time of day) and not in the showcase / without a career
   const live = () => { const c = C(); return !!(F && c && c.farm && !raceDay(c) && F.place() === "out" && !(F.settings && F.settings.farmClock === "off")); };
@@ -123,7 +123,7 @@ const FARMACTORS = (() => {
         j.gait += 1.25 * dt / 1.75; PRESENT.animateWalk(g, j.gait % 1, dt, { rest: 1, look: 0 }); FARMPEOPLE.act(w.fig, "lead"); ropeUpdate(j); placeWorker(j, dt);
         if (u >= 1) { doorOf(i, false); const P = FARMLIFE.padInfo(j.k); j.path = route([w.x, w.z], [P.gate.x, P.gate.z]); j.path = j.path.concat(route([P.gate.x, P.gate.z], [P.inside.x, P.inside.z]).slice(1)); j.pi = 0; j.stage = 3; j.t = 0; }
       } else if (j.stage === 3) {                                                // led to the paddock gate and in
-        const done = walk(j, dt, 1.45); placeWorker(j, dt); trail(j, dt); if (done || j.t > 90) { j.stage = 4; j.t = 0; FARMLIFE.adoptOut(g, j.k); FARMPEOPLE.act(w.fig, null); dropRope(j); const P = FARMLIFE.padInfo(j.k); j.path = route([w.x, w.z], [P.gate.x, P.gate.z + 1.5]); j.pi = 0; }
+        const done = walk(j, dt, 1.45); placeWorker(j, dt); trail(j, dt); if (done || j.t > 90) { j.stage = 4; j.t = 0; FARMLIFE.adoptOut(g, j.k, true); FARMPEOPLE.act(w.fig, null); dropRope(j); const P = FARMLIFE.padInfo(j.k); j.path = route([w.x, w.z], [P.gate.x, P.gate.z + 1.5]); j.pi = 0; }
       } else { const done = walk(j, dt, 1.8); placeWorker(j, dt); if (done || j.t > 60) finishJob(j, true); }
     } else {
       if (j.stage === 0) { if (walk(j, dt, 1.8) || j.t > 60) { j.stage = 1; j.t = 0; } placeWorker(j, dt); }
@@ -141,6 +141,11 @@ const FARMACTORS = (() => {
   const stationFor = w => { const st = FARMLIFE.stations(w.d.role); return st[(w.ri || 0) % st.length]; };
 
   // ---------------------------------------------------------------- snapping: put every horse where the schedule says (entering the farm, skipping time)
+  // the player wants this horse (a drill, a lead): the staff let go of it and it is back in its box
+  function release(hid) {
+    try { FARMWORK.stop(hid); } catch (e) {} queue = queue.filter(q => q.hid !== hid);
+    const j = jobs.find(x => x.hid === hid); if (j) { const g = j.g; jobs = jobs.filter(x => x !== j); dropRope(j); doorOf(j.i, false); const w = j.w; w.job = null; w.mode = "walk"; w.t = 2; FARMPEOPLE.act(w.fig, null); if (j.dir === "out" || j.stage > 0) { try { FARMCARE.untake(g); } catch (e) {} g.userData.out = false; } }
+  }
   function cancelJobs() { try { FARMWORK.clear(); } catch (e) {} for (const j of jobs.slice()) { const w = j.w; w.job = null; w.mode = "walk"; w.t = 2; FARMPEOPLE.act(w.fig, null); dropRope(j); doorOf(j.i, false); const s = stationFor(w); w.x = s.x; w.z = s.z; } jobs = []; queue = []; }
   function snap() {
     if (!F) return; cancelJobs(); const p = schedule(true); if (!p) return;
@@ -148,7 +153,7 @@ const FARMACTORS = (() => {
       const hid = g.userData.hid; if (!hid || g.userData.stallI == null) continue; if (FARMCARE.led && FARMCARE.led.hid === hid) continue;
       const e = p.horses.find(x => x.hid === hid), w = want(hid); last[hid] = w; if (isManual(hid)) continue;
       if (w === "work" && e && e.work) { if (FARMLIFE.isOut(hid)) { FARMLIFE.releaseOut(hid); FARMCARE.untake(g); } FARMWORK.startWork(hid, e, { snap: true, frac: (hour() - e.work.from) / Math.max(0.1, e.work.to - e.work.from) * 0.9 }); continue; }
-      if (w === "paddock" && e && e.turnout) { if (!FARMLIFE.isOut(hid)) { FARMCARE.untake(g); FARMLIFE.placeOut(g, e.turnout.paddock); } else if (FARMLIFE.out[hid].k !== e.turnout.paddock) { FARMLIFE.releaseOut(hid); FARMLIFE.placeOut(g, e.turnout.paddock); } }
+      if (w === "paddock" && e && e.turnout) { if (!FARMLIFE.isOut(hid)) { FARMCARE.untake(g); FARMLIFE.placeOut(g, e.turnout.paddock, true); } else if (FARMLIFE.out[hid].k !== e.turnout.paddock) { FARMLIFE.releaseOut(hid); FARMLIFE.placeOut(g, e.turnout.paddock, true); } }
       else if (FARMLIFE.isOut(hid)) { FARMLIFE.releaseOut(hid); FARMCARE.untake(g); g.userData.out = false; }
     }
   }
@@ -163,7 +168,7 @@ const FARMACTORS = (() => {
   }
 
   // ---------------------------------------------------------------- skipping: the player chooses to jump to the next activity or to the evening
-  function skipTo(t) { const k = clock(); if (!k) return; k.t = Math.max(k.t, Math.min(CORE.CLOCK.dusk, t)); flush(); snap(); applyLight(true); try { CAREER.care.save && CAREER.care.save(); } catch (e) {} }
+  function skipTo(t) { const k = clock(); if (!k) return; k.t = Math.max(k.t, Math.min(CORE.CLOCK.dusk, t)); for (const h in manual) delete manual[h]; snap(); applyLight(true); }
   function skipNext() { const k = clock(), n = k && nextEvent(k.t); if (!n) { skipTo(18); return "evening"; } skipTo(n.at + 0.02); return n.what; }
   const skipEvening = () => skipTo(18);
 
@@ -174,10 +179,10 @@ const FARMACTORS = (() => {
   const kit = { horseOf, doorOf, frontOf, inside, route, freeWorker, walk, placeWorker, trail, dropRope, ropeUpdate };
   function init(ctx) { F = ctx; try { FARMWORK.init(ctx); } catch (e) {} }
   function enter() {
-    queue = []; jobs = []; last = {}; plan = null; K = null; hourShown = -1; lightHour = -9; dusked = false; lastDay = null; const c = C(); if (c) { try { speedKey = (typeof store !== "undefined" && store.get("farmClock", "normal")) || "normal"; if (SPEEDS[speedKey] == null) speedKey = "normal"; } catch (e) {} lastDay = c.day; }
-    try { FARMWORK.enter(); } catch (e) { console.error(e); } if (!live() && !(c && c.farm)) return; snap(); applyLight(true); updateLabel();
+    queue = []; jobs = []; last = {}; plan = null; hourShown = -1; lightHour = -9; dusked = false; lastDay = null; const c = C(); if (c) { try { speedKey = (typeof store !== "undefined" && store.get("farmClock", "normal")) || "normal"; if (SPEEDS[speedKey] == null) speedKey = "normal"; } catch (e) {} lastDay = c.day; }
+    try { const t = (c && c.farm && c.farm.turnout) || {}; for (const hid in t) manual[hid] = c.day; } catch (e) {} try { FARMWORK.enter(); } catch (e) { console.error(e); } if (!live() && !(c && c.farm)) return; snap(); applyLight(true); updateLabel();
   }
-  function leave() { try { flush(); } catch (e) {} try { FARMWORK.leave(); } catch (e) {} K = null; cancelJobsSafe(); for (const r of ropes.slice()) { try { F.scene.remove(r); r.geometry.dispose(); r.material.dispose(); } catch (e) {} } ropes = []; }
+  function leave() { try { FARMWORK.leave(); } catch (e) {} cancelJobsSafe(); for (const r of ropes.slice()) { try { F.scene.remove(r); r.geometry.dispose(); r.material.dispose(); } catch (e) {} } ropes = []; }
   function cancelJobsSafe() { try { jobs = []; queue = []; } catch (e) {} }
   function dispose() { leave(); try { FARMWORK.dispose(); } catch (e) {} F = null; }
 
@@ -195,7 +200,7 @@ const FARMACTORS = (() => {
   }
   let stepTimer = 0;
 
-  return { init, enter, leave, dispose, frame, flush, kit, noteBox, noteManual, horseOf, hour, live, label, schedule, want, entry, todayLines, nextEvent, busyHid, snap, skipTo, skipNext, skipEvening, setSpeed, SPEEDS, LABEL,
+  return { init, enter, leave, dispose, frame, flush, release, kit, noteBox, noteManual, horseOf, hour, live, label, schedule, want, entry, todayLines, nextEvent, busyHid, snap, skipTo, skipNext, skipEvening, setSpeed, SPEEDS, LABEL,
     get speed() { return speedKey; }, get held() { return held; }, get jobs() { return jobs; }, get queue() { return queue; }, raceDay: () => { const c = C(); return !!c && raceDay(c); } };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = FARMACTORS;

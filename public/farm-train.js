@@ -87,6 +87,7 @@ const FARMTRAIN = (() => {
   // ---------------------------------------------------------------- the run
   function start(hid, drill) {
     const D = DRILLS[drill], def = CAREER.defOf(hid); if (!def || R) return;
+    try { FARMACTORS.release(hid); } catch (e) {}                           // a horse out on trackwork or with a hand is called back to its box first
     const info = CAREER.horseInfo(hid); const fromGate = drill === "gate";
     const g = F.horses.find(h => h.userData.hid === hid); const led = FARMCARE.ledHid() === hid;
     let mesh; try { mesh = buildHorse(def, 0); } catch (e) { console.error(e); return; }
