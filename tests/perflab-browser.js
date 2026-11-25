@@ -143,7 +143,7 @@ const BENCHCFG = "Object.assign(quickCfg(), { distance: 1600, field: 12, track: 
   // the straight-after-launch variant and cancelling
   await p.evaluate(() => { PERFLAB.close(); PERFLAB.benchmark.secs = 4; PERFLAB.runBench('now'); });
   ok(await stepUntil(() => PERFLAB.benchmark.phase === 'run', 20000) && await p.evaluate(() => PERFLAB.benchmark.variant === 'now'), 'the "straight after launching" variant starts the race at once');
-  await p.evaluate(() => { handleEsc(); }); await p.evaluate(() => { for (let i = 0; i < 5; i++) step(16.667); });
+  await p.evaluate(() => { handleEsc(); }); await sleep(700);      // the pause screen draws no frames: a 250 ms timer notices the race was left
   ok(await p.evaluate(() => !PERFLAB.benchmark.on && !PERFLAB.rec && settings.cam === window.__s0.cam && settings.parade === window.__s0.parade), 'leaving the race (pause) cancels the benchmark and restores the camera / parade settings');
   ok(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''));
   await ctx.close();
