@@ -142,7 +142,7 @@ function buildTableTrack(def) {
   const marks = {}; { let s = 0; for (const p of spec) { const L = p.straight || (p.r * p.ang + (p.ease || 0)); if (p.tag && marks[p.tag] == null) marks[p.tag] = s; if (p.tag) marks[p.tag + "_end"] = s + L; s += L; } }
   const K = d => { d = ((d % lap) + lap) % lap; const f = d / TRK_DS, i = Math.min(tb.n - 2, Math.floor(f)), u = f - i; return tb.K[i] + (tb.K[i + 1] - tb.K[i]) * u; };
   const finishD = 0, homeStraight = def.homeStraight, finalBend = homeStraight + (marks.homeTurn_end - marks.homeTurn);
-  const trk = { id: def.id, name: def.name, lap, W: def.W, finishD, homeStraight, finalBend, cw: def.cw, analytic: false, def, solved: v, spec, marks, tb,
+  const trk = { id: def.id, name: def.name, character: def.character || "", country: !!def.country, lap, W: def.W, finishD, homeStraight, finalBend, cw: def.cw, analytic: false, def, solved: v, spec, marks, tb,
     point, kIn: K, isTurn: d => K(d) > 1 / 900, isHome: d => { d = ((d % lap) + lap) % lap; return d > lap - homeStraight - 30 || d < (marks.runout_end || 0); },
     chutes: {}, starts: def.starts };
   // chutes: straight extensions behind a point of the loop, joining it tangentially
@@ -221,6 +221,38 @@ const TRACK_DEFS = {
     chutes: [{ id: "straight", joinAt: "home", straightCourse: true, len: 1200 - 450 + 20 },   // the Straight Six
              { id: "c2000", joinAt: "back", len: 300 }],                                         // a short chute so the 2000 m start is not on a bend
     starts: { 1000: { chute: "straight" }, 1100: { chute: "straight" }, 1200: { chute: "straight" }, 1400: {}, 1600: {}, 2000: { chute: "c2000" }, 2400: {}, 2500: {}, 3200: { chute: "straight" } },
+  },
+  /* Phase 24: five regional (country) layouts. ESTIMATES in the spirit of the small provincial courses: they are not surveys of real tracks, but they differ in the ways that change tactics:
+     lap length, bend radius and straight length, direction, and shape. Every loop is solved to close at exactly its stated circumference. Starts have no chutes (a country course races from the lap). */
+  c_tight: {
+    country: true, id: "c_tight", name: "Tight turning circuit", cw: false, lap: 1150, W: 24, homeStraight: 200, character: "tight, turning 1,150 m circuit, 200 m straight",
+    free: [{ init: 260, step: 0.5 }, { init: 91, step: 0.2 }, { init: 91, step: 0.2 }],     // back straight, first-turn radius, home-turn radius
+    spec: v => [{ straight: 60, tag: "runout" }, { bend: true, r: v[1], ang: Math.PI, ease: 28, tag: "topTurn" }, { straight: v[0], tag: "back" }, { bend: true, r: v[2], ang: Math.PI, ease: 28, tag: "homeTurn" }, { straight: 200, tag: "home" }],
+    chutes: [], starts: { 1000: {}, 1100: {}, 1200: {}, 1400: {}, 1600: {}, 2000: {}, 2400: {} },
+  },
+  c_long: {
+    country: true, id: "c_long", name: "Long-straight course", cw: true, lap: 2100, W: 26, homeStraight: 520, character: "galloping 2,100 m course, long 520 m straight",
+    free: [{ init: 620, step: 0.5 }, { init: 140, step: 0.2 }, { init: 140, step: 0.2 }],
+    spec: v => [{ straight: 100, tag: "runout" }, { bend: true, r: v[1], ang: Math.PI, ease: 45, tag: "topTurn" }, { straight: v[0], tag: "back" }, { bend: true, r: v[2], ang: Math.PI, ease: 45, tag: "homeTurn" }, { straight: 520, tag: "home" }],
+    chutes: [], starts: { 1000: {}, 1100: {}, 1200: {}, 1400: {}, 1600: {}, 2000: {}, 2400: {} },
+  },
+  c_pear: {
+    country: true, id: "c_pear", name: "Pear-shaped course", cw: false, lap: 1850, W: 24, homeStraight: 330, character: "pear-shaped 1,850 m course: tight top turn, long sweeping home turn, 330 m straight",
+    free: [{ init: 190, step: 0.5 }, { init: 166, step: 0.05 }, { init: 300, step: 0.5 }],
+    spec: v => { const a1 = v[1] * Math.PI / 180, a3 = (360 - v[1]) * Math.PI / 180; return [{ straight: v[0], tag: "runout" }, { bend: true, r: 100, ang: a1, ease: 35, tag: "topTurn" }, { straight: v[2], tag: "back" }, { bend: true, r: (700 - 70) / a3, ang: a3, ease: 70, tag: "homeTurn" }, { straight: 330, tag: "home" }]; },
+    chutes: [], starts: { 1000: {}, 1100: {}, 1200: {}, 1400: {}, 1600: {}, 2000: {}, 2400: {} },
+  },
+  c_dogleg: {
+    country: true, id: "c_dogleg", name: "Dog-leg course", cw: true, lap: 1700, W: 24, homeStraight: 380, character: "1,700 m course with a kink on the back straight, 380 m straight",
+    free: [{ init: 330, step: 0.5 }, { init: 150, step: 0.2 }, { init: 160, step: 0.2 }],
+    spec: v => [{ straight: 90, tag: "runout" }, { bend: true, r: v[1], ang: 172 * Math.PI / 180, ease: 40, tag: "topTurn" }, { straight: v[0], tag: "back" }, { bend: true, r: 380, ang: 16 * Math.PI / 180, ease: 25, tag: "dogleg" }, { straight: 60, tag: "kink" }, { bend: true, r: v[2], ang: 172 * Math.PI / 180, ease: 55, tag: "homeTurn" }, { straight: 380, tag: "home" }],
+    chutes: [], starts: { 1000: {}, 1100: {}, 1200: {}, 1400: {}, 1600: {}, 2000: {}, 2400: {} },
+  },
+  c_sweep: {
+    country: true, id: "c_sweep", name: "Wide sweeping course", cw: false, lap: 2000, W: 28, homeStraight: 300, character: "wide, sweeping 2,000 m course, 300 m straight",
+    free: [{ init: 400, step: 0.5 }, { init: 190, step: 0.2 }, { init: 190, step: 0.2 }],
+    spec: v => [{ straight: 100, tag: "runout" }, { bend: true, r: v[1], ang: Math.PI, ease: 60, tag: "topTurn" }, { straight: v[0], tag: "back" }, { bend: true, r: v[2], ang: Math.PI, ease: 60, tag: "homeTurn" }, { straight: 300, tag: "home" }],
+    chutes: [], starts: { 1000: {}, 1100: {}, 1200: {}, 1400: {}, 1600: {}, 2000: {}, 2400: {} },
   },
 };
 function getTrack(id) {

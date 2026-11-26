@@ -748,6 +748,12 @@ const VENUES = (() => {
       }
       if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); GFX.fogRange(FOG0[0], FOG0[1]); return;
     }
+    if (trk.country) {                                                              // Phase 24: a country course with its own layout: the same country look, laid out along ITS route
+      const vs = (cfg && cfg.career && cfg.career.venueStyle) || { variant: 0, town: "Country" }, vi = Math.max(0, Math.min(LOOKS.length - 1, vs.variant | 0)), key = "country" + vi + "_" + trk.id;
+      if (!built[key]) { built[key] = buildCountry(trk, vi); world.add(built[key]); }
+      built[key].userData.setTown(vs.town); for (const k in built) built[k].visible = k === key; if (generic) generic.visible = false; current = built[key]; currentId = key;
+      GFX.fogRange(FOG0[0], FOG0[1]); const cr = current.userData.crowd, c = cfg && cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && /picnic|cup|carnival/i.test(c.name || "") ? 0.62 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); syncFlood(); return;
+    }
     GFX.fogRange(650, 5600);                                   // a clear day: the city skyline shows through the haze
     if (!built[trk.id]) { built[trk.id] = trk.id === "flemington" ? buildFlemington(trk) : buildRandwick(trk); world.add(built[trk.id]); }
     for (const k in built) built[k].visible = k === trk.id;

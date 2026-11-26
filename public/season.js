@@ -100,9 +100,11 @@ const SEASON = (() => {
   const REGIONAL_VENUES = ["Wyong", "Gosford", "Scone", "Kembla Grange", "Ballarat", "Bendigo", "Newcastle", "Geelong", "Muswellbrook", "Moree", "Mudgee", "Tamworth", "Dubbo", "Wagga Wagga", "Hamilton", "Echuca", "Kyneton", "Warrnambool", "Toowoomba", "Grafton", "Port Macquarie", "Casino"];
   // Phase 22: which of the six country looks a town gets (0 tablelands, 1 provincial, 2 coastal, 3 western district, 4 plains, 5 river)
   const TOWN_LOOK = { Muswellbrook: 0, Scone: 0, Tamworth: 0, Mudgee: 0, Gosford: 2, Wyong: 2, Newcastle: 2, "Kembla Grange": 2, Grafton: 2, "Port Macquarie": 2, Casino: 2, Toowoomba: 1, Bendigo: 1, Kyneton: 1, Dubbo: 4, Moree: 4, "Wagga Wagga": 5, Echuca: 5, Hamilton: 3, Warrnambool: 3, Ballarat: 3, Geelong: 3 };
+  // Phase 24: the course layout each town races on (table tracks in sim.js; null = the original oval). Tight and turning, long-straight, pear-shaped, dog-leg, wide and sweeping.
+  const TOWN_LAYOUT = { Moree: "c_tight", Muswellbrook: "c_tight", Casino: "c_tight", Mudgee: "c_tight", Kyneton: "c_tight", Gosford: "c_tight", Dubbo: "c_long", "Wagga Wagga": "c_long", Toowoomba: "c_long", Warrnambool: "c_pear", Echuca: "c_pear", Grafton: "c_pear", "Port Macquarie": "c_pear", Tamworth: "c_dogleg", Scone: "c_dogleg", Bendigo: "c_dogleg", Wyong: "c_dogleg", Ballarat: "c_dogleg", Geelong: "c_sweep", Newcastle: "c_sweep", "Kembla Grange": "c_sweep", Hamilton: "c_sweep" };
   function venueStyle(name) {
     const n = String(name || "").trim(); if (!REGIONAL_VENUES.includes(n)) return null;
-    return { style: "country", variant: TOWN_LOOK[n] != null ? TOWN_LOOK[n] : hashStr("venue/" + n) % 6, town: n };
+    return { style: "country", variant: TOWN_LOOK[n] != null ? TOWN_LOOK[n] : hashStr("venue/" + n) % 6, town: n, layout: TOWN_LAYOUT[n] || null };
   }
   const BY_ID = {};
   DIVS.forEach(d => d.rounds.forEach((r, i) => { r.div = d.id; r.round = i; r.field = r.field || d.field; BY_ID[r.id] = r; }));
@@ -547,7 +549,7 @@ const SEASON = (() => {
     return C;
   }
 
-  return { PLAYER_NAMES, HORSE_NAMES, DIVS, OPTIONAL, REGIONAL_VENUES, venueStyle, LIFT, racePower, ptsPerLength, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
+  return { PLAYER_NAMES, HORSE_NAMES, DIVS, OPTIONAL, REGIONAL_VENUES, TOWN_LAYOUT, venueStyle, LIFT, racePower, ptsPerLength, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
     commitRound, skipRound, closeSeason, eligibility, checkReq, migrate, hRating, sprintIdx, stayIdx, goingFor, hashStr, rngOf, ensureWorld, stablesOf, rival, rivalDef, rRating,
     recordResult, recordH2H, h2hFor, formGuide, suitability, xpFor, upgCost, XP_PER_PT, retireRivals, raceField, racePressure, racePower, ptsPerLength, LIFT };
 })();

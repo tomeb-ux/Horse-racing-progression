@@ -417,6 +417,26 @@ The roadmap's Phase 23 is "retuning from the owner's play-test notes" plus goals
 
 **Tests.** `tests/phase25-browser.js` (34): the residents and where they wander, a horse coming to the fence and the pat, the dog following and sitting, hens scattering, the truck's day and hour (Monday yes, Wednesday no) with the driver, unloading and leaving, the rider's days and hours, staff chat, nothing left behind after three more visits. `farm-browser`'s idle-animation test now counts only the stall horses; its budget (overview ≤ 210) still holds.
 
+### Phase 24: distinct regional course layouts (owner approved the `sim.js` edit)
+
+**What changed in `sim.js` (additive only).** Five new table tracks in `TRACK_DEFS`, built by the same machinery as Randwick and Flemington (`solveCourse` closes each loop exactly at its stated length), plus two read-only fields on the built track (`country`, `character`). Nothing that existed was edited: the generic oval, Randwick and Flemington are byte-identical in behaviour (their own suites, below, are unchanged and pass).
+
+| id | course | direction | lap | home straight | tightest bend | width |
+|---|---|---|---|---|---|---|
+| `c_tight` | tight, turning circuit | anticlockwise | 1,150 m | 200 m | about 91 m | 24 m |
+| `c_long` | long-straight galloping course | clockwise | 2,100 m | 520 m | about 123 m | 26 m |
+| `c_pear` | pear-shaped: tight top turn, long sweeping home turn | anticlockwise | 1,850 m | 330 m | 100 m | 24 m |
+| `c_dogleg` | kink on the back straight | clockwise | 1,700 m | 380 m | about 97 m | 24 m |
+| `c_sweep` | wide, sweeping | anticlockwise | 2,000 m | 300 m | about 172 m | 28 m |
+
+(The original oval: 1,654 m lap, 450 m straight, 120 m radius, 26 m wide.) These are **estimates in the spirit of small provincial courses, not surveys of real tracks.** Each width is at least the 22.6 m the twelfth lane needs. Starts have no chutes: a country course races from the lap.
+
+**Where they are used.** `SEASON.TOWN_LAYOUT` gives each of the 22 regional venues a layout (tight: Moree, Muswellbrook, Casino, Mudgee, Kyneton, Gosford; long-straight: Dubbo, Wagga Wagga, Toowoomba; pear: Warrnambool, Echuca, Grafton, Port Macquarie; dog-leg: Tamworth, Scone, Bendigo, Wyong, Ballarat; sweeping: Geelong, Newcastle, Kembla Grange, Hamilton), and a career race there is run on it (`competitiveCfg`). The Phase 22 look (palette, stand, trees) is independent of the layout, so a town keeps its look. The country venue kit is laid out along the layout's own route (`VENUES.use` builds it per look and layout and caches it, so a second visit builds nothing). The calendar's event screen and the departure panel now say what the course is like ("Course: tight, turning 1,150 m circuit, 200 m straight"). The minimap fits any course, the broadcast shots are built from the course's own geometry, and the caller names the town as before. The roadmap's "horses develop course preferences" is not built.
+
+**Measured.** `tests/country-tracks.js` (154 checks, 70 races): every layout closes smoothly, is the right handedness, has smooth curvature and exact route lengths for every start distance 1,000-2,400 m, gates square across the direction of racing, lane-width ground loss exact; the five differ (five laps, five straights, radii 91-172 m, both directions); full-incident AI races on every course at every distance: no horse leaves the surface or crosses a rail, no teleports, no hung race, and winning times stay within 7 % of the original oval's (same physics); the last 400 m of one race takes measurably different times on the tight and the long-straight courses. In the game (`tests/phase24-browser.js`, 21 checks) each course is built along its route (draw calls 74-96 from a fixed pose), the minimap fits, 18-22 camera positions are generated, a field of eight finishes (winner 67-68 s for 1,200 m) and a second visit to every course builds nothing.
+
+**Not done.** Genuine rises and falls (the engine's route model is flat), AI tuning per layout (none was needed in the tests), and the course-preference display. I did not run the multiplayer suites (online racing is hidden and still uses only the original oval).
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.

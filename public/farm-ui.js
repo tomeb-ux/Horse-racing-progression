@@ -145,7 +145,7 @@ const FARMUI = (() => {
   }
   function drawDeparture() {
     const s = st.sum, h = s.horse, bar = (v, c) => `<div style="height:7px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden"><i style="display:block;height:100%;width:${Math.max(2, Math.min(100, v))}%;background:${c}"></i></div>`;
-    frame(`<div class="fu" style="max-width:640px"><div class="top"><div><h2>Ready to go?</h2><div class="sub">${esc(s.name)} · ${esc(s.venue)} · ${esc(s.date)}${s.daysAway ? ` (${s.daysAway} day${s.daysAway === 1 ? "" : "s"} away)` : " (today)"}</div></div></div>
+    frame(`<div class="fu" style="max-width:640px"><div class="top"><div><h2>Ready to go?</h2><div class="sub">${esc(s.name)} · ${esc(s.venue)} · ${esc(s.date)}${s.daysAway ? ` (${s.daysAway} day${s.daysAway === 1 ? "" : "s"} away)` : " (today)"}</div></div>${s.course ? `<div class="sub" style="margin-top:3px">Course: ${esc(s.course)}</div>` : ""}</div></div>
       <div class="card"><div class="lab" style="font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9">Your runner</div>
         <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:19px">${esc(h.name)}</b><span class="sub">rating ${h.rating}${h.form && h.form !== "—" ? " · form " + esc(h.form) : ""}</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px"><div><div class="sub">Fitness ${h.fitness}</div>${bar(h.fitness, h.fitness >= 85 ? "#7bd88f" : h.fitness >= 70 ? "#e8c35a" : "#e25b4a")}</div><div><div class="sub">Composure ${h.composure}</div>${bar(h.composure, "#7cc6e8")}</div><div><div class="sub">Readiness ${h.readiness}</div>${bar(h.readiness, "#e8c35a")}</div></div>

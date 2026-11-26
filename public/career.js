@@ -378,6 +378,8 @@ const CAREER = (() => {
   }
 
   // ---------- HUB / DASHBOARD ----------
+  // Phase 24: what a regional course is like, from its layout (empty for the original oval and the two city courses)
+  function courseNote(venue) { try { const l = (SEASON.venueStyle(venue) || {}).layout; return l && typeof getTrack === "function" ? getTrack(l).character || "" : ""; } catch (e) { return ""; } }
   function openHub() {
     style(); CORE.syncCalendar(C);
     const el = screen("hub"), h = activeHorse(), s = S(), D = div(), list = SEASON.standings(C), me = list.find(r => r.you);
@@ -495,6 +497,7 @@ const CAREER = (() => {
         <h3>${meta.crown ? "★ " : ""}${esc(meta.name)}</h3>
         <div class="car-kv"><span><b>${esc(meta.venue)}</b></span><span><b>${fmtDist(meta.dist)}</b> ${distLbl(meta.dist)}</span><span><b>${going(g)}</b> going</span><span>${esc(meta.grade)}</span><span>Field <b>${meta.field}</b></span>${optional ? optBits(meta.id) : evBits(idx)}${CORE.purseLabel(meta) !== "—" ? `<span>Prize <b>${CORE.purseLabel(meta)}</b></span><span>Entry <b>${money(CORE.entryFee(meta))}</b></span>` : ""}${optional ? "" : `<span>Stable standing <b>${posTxt(me.rank)}</b> · ${me.pts} pts</span>`}</div>
         ${meta.note ? `<div style="font-size:12.5px;margin-top:6px;color:var(--accent)">${esc(meta.note)}</div>` : ""}
+        ${courseNote(meta.venue) ? `<div style="font-size:12.5px;margin-top:6px;color:var(--fg-dim)">Course: ${esc(courseNote(meta.venue))}</div>` : ""}
         <div class="car-sub" style="margin-top:10px">Entry requirements</div>${reqHtml}
         ${optional ? "" : `<div style="font-size:12px;color:var(--fg-dim);margin-top:6px">One horse represents ${esc(C.stable)} in this round. Points: 1st 15 · 2nd 12 · 3rd 10 · 4th 8 · 5th 6 · 6th 5 · 7th 4 · 8th 3 · 9th 2 · 10th 1. Chaos Mode is never used in championship racing.</div>`}
       </div>
@@ -1282,7 +1285,7 @@ const CAREER = (() => {
     return Object.assign({
       distance: meta.dist, field: meta.field, diff: "hard", playerDef: toDef(h), oppDefs,   // every career rider is a Hard jockey
       going: goingKey || "good", incidents: settings.incidents, chaos: false, assist: false, unlimited: false, topSpeed: null,
-      track: /randwick/i.test(meta.venue || "") ? "randwick" : /flemington/i.test(meta.venue || "") ? "flemington" : "generic",   // the two modelled venues race on their real courses; other venues use the generic course
+      track: /randwick/i.test(meta.venue || "") ? "randwick" : /flemington/i.test(meta.venue || "") ? "flemington" : ((SEASON.venueStyle(meta.venue) || {}).layout || "generic"),   // the two modelled venues race on their real courses; other venues use the generic course
       champ: false, fixedOpponents: null,
     }, extra);
   }
@@ -1545,7 +1548,7 @@ const CAREER = (() => {
       if (h.fitness < 70) warn.push(h.name + " is only " + (h.fitness < 50 ? "half" : "partly") + " fit — he will race about " + Math.round(ra.pen * 1000) / 10 + "% below his ratings");
       if (dv.sore > 0) warn.push(h.name + " is sore — he should rest before racing");
       if (C.cash < fee) warn.push("The entry fee is " + money(fee) + " and the stable has " + money(C.cash));
-      return { eid: b.eid, name: b.name, venue: b.venue, grade: meta.grade, dist: meta.dist, date: CORE.fmtDate(e.day), daysAway: Math.max(0, e.day - C.day), tod: CORE.TOD_LABEL[e.tod] || "", weather: CORE.WX_LABEL[e.forecast && e.forecast.weather] || "", going, prize: meta.prize || "", fee, cash: C.cash, afford: C.cash >= fee,
+      return { eid: b.eid, name: b.name, venue: b.venue, course: courseNote(b.venue), grade: meta.grade, dist: meta.dist, date: CORE.fmtDate(e.day), daysAway: Math.max(0, e.day - C.day), tod: CORE.TOD_LABEL[e.tod] || "", weather: CORE.WX_LABEL[e.forecast && e.forecast.weather] || "", going, prize: meta.prize || "", fee, cash: C.cash, afford: C.cash >= fee,
         horse: { name: h.name, fitness: h.fitness, composure: h.composure, readiness: CORE.readiness(C, h), pen: ra.pen, peak: !!ra.peak, sore: dv.sore, rating: rating(h), form: formStr(h, 5) }, warnings: warn };
     },
     // the save-then-travel gate: refuses (changing nothing) if the career can't be stored; the farm only lets the horse leave when this says ok
