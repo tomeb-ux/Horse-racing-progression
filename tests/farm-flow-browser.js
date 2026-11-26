@@ -85,7 +85,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   await p.click('#btnCareer'); await p.waitForFunction(() => ui.state === 'farm' && FARM.active, null, { timeout: 30000 }); await frames(p, 4);
   s = await p.evaluate(() => ({ i: FARM.info(), scene: SCENES.scene, input: SCENES.input, hubShown: !!document.getElementById('car_hub') && !document.getElementById('car_hub').hidden, keys: Object.keys(keys).filter(k => keys[k]) }));
   ok(s.i.active && s.scene === 'farm' && s.input === 'farm' && !s.hubShown && s.i.place === 'out' && s.i.person === 3 && s.i.figure, 'Career Mode loads straight into the farm in third person with your character on the property (no hub screen)');
-  ok(/calendar/i.test(s.i.objective), `the objective points you to the calendar: "${s.i.objective}"`);
+  ok(/calendar|race board/i.test(s.i.objective), `the objective points you to the race board (Phase 27) or the calendar: "${s.i.objective}"`);
   ok(s.i.listeners >= 8 && s.i.horses === 3, 'the farm listens for keys and mouse only while it is active');
 
   // =========================================================== 4. walking, first / third person, look, pull-in
@@ -225,7 +225,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   await p.click('#resCareer'); await p.waitForFunction(() => ui.state === 'farm' && FARM.active, null, { timeout: 30000 }); await frames(p, 4);
   s = await p.evaluate(() => ({ i: FARM.info(), hub: !document.getElementById('car_hub') || document.getElementById('car_hub').hidden, resHidden: document.getElementById('resultsScreen').hidden, cash: CAREER.data.cash }));
   ok(s.i.active && s.i.place === 'out' && Math.abs(s.i.x - 31.5) < 3 && s.hub && s.resHidden, `after the race you are back on the property by the float (x ${s.i.x.toFixed(1)}), not on a menu`);
-  ok(/calendar/i.test(s.i.objective) && s.i.horses === 3, 'the objective is back to "check the calendar" and all three horses are in their boxes');
+  ok(/calendar|race board/i.test(s.i.objective) && s.i.horses === 3, 'the objective is back to "check the calendar" and all three horses are in their boxes');
   // skip: Space jumps to the end of the sequence
   await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'round' && e.round === 1); CAREER.book(ev.id, 'h0'); const T = FARM._test.TRAVEL; FARM._test.setPos(T.x, T.z); }); await frames(p, 4);
   await p.keyboard.press('e'); await frames(p, 3); await p.evaluate(() => { const l = document.getElementById('fuLeave'); if (l) l.click(); }); await frames(p, 3); ok((await I(p)).trip, 'a second booking (round 2) can be made and the sequence started');
