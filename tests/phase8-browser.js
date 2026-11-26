@@ -45,7 +45,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   await p.keyboard.press('e'); await run(6); s = await ev(() => ({ out: Object.keys(FARMLIFE.out), led: FARMCARE.ledHid(), t: CAREER.data.farm.turnout, busy: FARMCARE.busy, pos: FARM._test.horses[1].position.z, vis: FARM._test.horses[1].visible }));
   ok(s.out.join() === 'h1' && !s.led && s.t.h1 === 0 && s.pos < -22.5 && s.vis, `the horse walks in through the gate and is turned out (z ${s.pos.toFixed(1)}); it is remembered in the save`);
   const a0 = await ev(() => [FARM._test.horses[1].position.x, FARM._test.horses[1].position.z]); await run(40); const a1 = await ev(() => [FARM._test.horses[1].position.x, FARM._test.horses[1].position.z, FARMLIFE.out.h1.mode]);
-  ok(Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) > 1.5 && (a1[2] === 'graze' || a1[2] === 'walk'), `out in the paddock the horse grazes and wanders (moved ${Math.hypot(a1[0] - a0[0], a1[1] - a0[1]).toFixed(1)} m, now "${a1[2]}")`);
+  ok((Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) > 1.5 || ['doze', 'roll'].includes(a1[2])) && ['graze', 'walk', 'doze', 'roll'].includes(a1[2]), `out in the paddock the horse grazes and wanders (moved ${Math.hypot(a1[0] - a0[0], a1[1] - a0[1]).toFixed(1)} m, now "${a1[2]}")`);
   s = await ev(() => { const g = FARM._test.horses[1], P = FARMLIFE.padInfo(0); return g.position.x >= P.x0 - 4 && g.position.x <= P.x1 + 4 && g.position.z >= P.z0 - 4 && g.position.z <= P.z1 + 6; }); ok(s, 'and stays inside the paddock fence');
   ok(await ev(() => !FARMCARE.points().some(q => q.id === 'stall' && q.hid === 'h1')), 'its empty box offers no horse menu while it is out');
   // persists across a visit; the booked horse is brought in

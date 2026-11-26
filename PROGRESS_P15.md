@@ -437,6 +437,30 @@ The roadmap's Phase 23 is "retuning from the owner's play-test notes" plus goals
 
 **Not done.** Genuine rises and falls (the engine's route model is flat), AI tuning per layout (none was needed in the tests), and the course-preference display. I did not run the multiplayer suites (online racing is hidden and still uses only the original oval).
 
+### Phase 26: a training board beside each box, and slightly harder career races (owner request)
+
+**Training board.** Each box now has a small board on the wall beside its door ("TRAINING", the horse's points to spend, its name; one mesh and one texture for all five, refreshed when points change). **E** beside it opens a **training panel on the farm** (no Esc, no hub): the eight attributes with bars to potential, what each does, the cost of the next point, **+1** buttons, and **Undo last**. It is the Training screen's own logic exposed as `CAREER.training` (`view`, `up`, `undo`, `points`): same `SEASON.upgCost` costs, same potential ceilings, same per-horse undo session, same `save()`; the earning of points is untouched. (I read "the slowed training point like it was before" as "the same training point system as before"; tell me if you meant something else.) The farm overview went from 202 to 203 draw calls (budget 210).
+
+**Harder races.** Non-final career fields are lifted a little further over your horse (`CAREER_HARDER` = 0.55 lengths for the three strongest rivals, 70 % of that for the rest of the strong end, 60 % for the depth of the field; `season.js`). Finals, the crown races, the major-race ceiling and Quick Race are unchanged. Measured with the real race engine, 160 races per condition, the Hard AI jockey riding your horse:
+
+| race | win % before → after | avg place before → after |
+|---|---|---|
+| new horse · maiden | 27 → 24 | 3.9 → 3.9 |
+| new horse · country cup | 28 → 18 | 3.9 → 4.3 |
+| new horse · midweek 1600 | 20 → 19 | 3.9 → 4.0 |
+| 6th start · Newcastle Mile | 23 → 19 | 4.0 → 4.0 |
+| metro · Kingsford Mile | 24 → 23 | 4.2 → 4.3 |
+| new horse · Picnic Maiden | 23 → 15 | 3.3 → 3.7 |
+| new horse · 3yo Maiden | 28 → 21 | 3.2 → 3.5 |
+| 2nd start · Country Maiden Plate | 34 → 29 | 3.3 → 3.5 |
+| 3rd start · Country Cup (Scone) | 18 → 12 | 4.4 → 4.7 |
+| 5th start · Benchmark 58 Mile | 31 → 32 | 3.3 → 3.3 |
+| 8th start · Kyneton Cup | 21 → 21 | 4.3 → 4.3 |
+
+Across those races the average win rate drops from 23 % to 19.5 % and the average finishing place goes from 4.0 to 4.1: a nudge, still a field a well-ridden horse beats about one time in five. If you want it a touch harder or easier, `CAREER_HARDER` in `season.js` is the single knob (0.55 now; 0 restores the old fields). I did not re-run `economy.js` / `progression.js`.
+
+**Tests.** `tests/phase26-browser.js` (16).
+
 ### Owner measurement protocol for the 15A diagnostic build (conditions A, B, D, E, F, G of `ROADMAP_P15.md` §2.2)
 
 **What you need:** a desktop or laptop browser (Chrome preferred: it has the traces and `chrome://gpu`), the diagnostic build in the claude.ai artifact (the existing link, new version) and, for condition E, the same build as a file (`final-furlong-single.html`) opened in its own tab.
