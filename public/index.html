@@ -435,6 +435,7 @@ body.touch #touchUI{display:flex;}
         <div class="opt-label">Farm: default view</div><div class="opt-row" id="optPerson"></div>
         <div class="opt-label">Farm: mouse look sensitivity</div><div class="opt-row" id="optLook"></div>
         <div class="opt-label">Farm: click to capture the mouse</div><div class="opt-row" id="optLock"></div>
+        <div class="opt-label">Farm: guidance lines (the glowing route to your next objective)</div><div class="opt-row" id="optGuide"></div>
         <div class="opt-label">Race commentary voice</div><div class="opt-row" id="optComm" style="flex-wrap:wrap;justify-content:center"></div>
         <div id="optElevenStatus" style="font-size:12px;color:var(--fg-dim);max-width:480px;text-align:center;line-height:1.45"></div>
         <div class="opt-row" id="optElevenOpts" style="flex-wrap:wrap;justify-content:center"></div>
@@ -473,7 +474,8 @@ body.touch #touchUI{display:flex;}
           <tr><td><kbd>C</kbd></td><td>Camera: chase / jockey / broadcast</td></tr>
           <tr><td><kbd>Tab</kbd></td><td>Detailed race stats</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
-          <tr><td><kbd>F8</kbd></td><td>Performance overlay: frame rate, frame times, draw calls, detail levels, AUTO graphics state</td></tr>
+          <tr><td><kbd>F8</kbd></td><td>Performance overlay: frame rate, on-time %, hitches, frame times, draw calls, detail levels, AUTO graphics state</td></tr>
+          <tr><td><kbd>Shift</kbd>+<kbd>F8</kbd></td><td>Performance report (copyable text), hidden performance lab and benchmark race</td></tr>
         </table>
         <p><b>Travelling well.</b> Every horse has a hidden efficiency zone — the lighter band on the effort bar. Inside it the horse cruises; above it stamina drains sharply and <b>fatigue</b> builds. Fatigue never recovers mid-race: it lowers top speed, dulls acceleration and blunts your finish. The zone shrinks as the horse tires. Stayers hold a higher zone than sprinters, which is why a sprinter must be nursed over a long trip.</p>
         <p><b>Sprint reserve</b> is the finishing burst. Hard effort, urging and driving unlock it, but it only improves how well the horse accesses what it has left — an exhausted horse cannot sprint, however hard you ride.</p>
@@ -655,7 +657,8 @@ const settings = {
   shadows: store.get("shadows", true),
   parade: ["majors", "always", "off"].includes(store.get("parade", "majors")) ? store.get("parade", "majors") : "majors",
   celebrate: store.get("celebrate", true),
-  quality: ["auto", "high", "medium", "low"].includes(store.get("quality", "auto")) ? store.get("quality", "auto") : "auto",
+  // Medium is the maximum graphics quality and the default; a saved "high" (the removed preset) is migrated to Medium once. Nothing else is touched.
+  quality: (() => { let v = store.get("quality", "medium"); if (v === "high") { v = "medium"; store.set("quality", v); } return ["auto", "medium", "low"].includes(v) ? v : "medium"; })(),
   crowd: store.get("crowd", "full"),
   scenery: store.get("scenery", "high"),
   chaos: store.get("chaos", false),
@@ -670,6 +673,7 @@ const settings = {
   person: store.get("person", 3) === 1 ? 1 : 3,
   lookSens: [0.5, 0.75, 1, 1.5, 2].includes(store.get("lookSens", 1)) ? store.get("lookSens", 1) : 1,
   lockMouse: store.get("lockMouse", true) !== false,
+  guide: ["full", "subtle", "off"].includes(store.get("guide", "full")) ? store.get("guide", "full") : "full",
   assist: store.get("assist", false),
   steer: store.get("steer", "assisted"),
   autoReplay: store.get("autoReplay", true),
@@ -706,6 +710,7 @@ addEventListener("resize", resize); resize();
 
 /* Lights */
 const hemi = new THREE.HemisphereLight(0xd9e9ff, 0x56703f, 0.72); scene.add(hemi);
+const SUNV0 = { x: 120, y: 220, z: 80 }, sunOff = () => (typeof GFX !== "undefined" && GFX.sunOffset) || SUNV0;     // where the sun stands relative to the camera (the atmosphere moves it)
 const sun = new THREE.DirectionalLight(0xfff0d6, 1.7);
 sun.position.set(180, 260, 120);
 sun.castShadow = settings.shadows;
@@ -2700,8 +2705,8 @@ function broadcastFrame(dt, p) {
       const q = rt.point(aheadP, turn ? W + 70 : -64, _bv.q); sh.x = q.x; sh.z = q.z; sh.y = turn ? 24 : 15; sh.anchor = aheadP;
     } else if (want === "headon") {               // a long lens from beyond the winning post, looking back down the straight
       const q = rt.point(r.dist + 170, W * 0.45, _bv.q); sh.x = q.x; sh.z = q.z; sh.y = 18;
-    } else if (want === "finish") {               // side-on at the line, from the infield (stands and crowd behind)
-      sh.side = -34; sh.y = 6.5;
+    } else if (want === "finish") {               // side-on at the line, from the infield (stands and crowd behind); every other race a high finish-line camera (Phase 21)
+      BC.nFin = (BC.nFin || 0) + 1; if (BC.nFin % 2 === 0) { sh.side = -30; sh.y = 17; sh.high = true; } else { sh.side = -34; sh.y = 6.5; }
     } else if (want === "start") {
       sh.side = -42; sh.y = 9;
     } else { sh.side = r.trk.cw === false ? -46 : -46; sh.y = 7.5; }   // tracking vehicle on the infield
@@ -2862,7 +2867,7 @@ function updateCamera(dt) {
   camera.fov = cam.fov; camera.updateProjectionMatrix();
   // shadow camera follows player (or menu horse)
   const focus = racing ? p.pos : menuHorsePos;
-  sun.position.set(focus.x + 120, 220, focus.z + 80);
+  sun.position.set(focus.x + sunOff().x, sunOff().y, focus.z + sunOff().z);
   sun.target.position.set(focus.x, 0, focus.z);
   sun.target.updateMatrixWorld();
 }
@@ -3686,7 +3691,7 @@ function buildSettings() {
   chipRow($("optShadow"), [true, false], settings.shadows, v => { settings.shadows = v; store.set("shadows", v); renderer.shadowMap.enabled = v; sun.castShadow = v; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }, v => v ? "On" : "Off");
   chipRow($("optParade"), ["majors", "always", "off"], settings.parade, v => { settings.parade = v; store.set("parade", v); }, v => ({ majors: "Feature races", always: "Every race", off: "Off" })[v]);
   chipRow($("optCeleb"), [true, false], settings.celebrate, v => { settings.celebrate = v; store.set("celebrate", v); }, v => v ? "On" : "Off");
-  chipRow($("optQuality"), ["auto", "high", "medium", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ auto: "Auto (recommended)", high: "High (fixed)", medium: "Medium", low: "Low (integrated graphics)" })[v]);
+  chipRow($("optQuality"), ["medium", "auto", "low"], settings.quality, v => { settings.quality = v; store.set("quality", v); if (typeof GFX !== "undefined") GFX.applyQuality(); }, v => ({ auto: "Auto (adapts, never above Medium)", medium: "Medium (best, recommended)", low: "Low (integrated graphics)" })[v]);
   chipRow($("optCrowd"), ["full", "light", "off"], settings.crowd, v => { settings.crowd = v; store.set("crowd", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
   chipRow($("optScenery"), ["high", "medium", "low"], settings.scenery, v => { settings.scenery = v; store.set("scenery", v); }, v => v.charAt(0).toUpperCase() + v.slice(1) + " (on reload)");
 
@@ -3696,6 +3701,7 @@ function buildSettings() {
   chipRow($("optPerson"), [3, 1], settings.person, v => { settings.person = v; store.set("person", v); }, v => v === 1 ? "First person" : "Third person");
   chipRow($("optLook"), [0.5, 0.75, 1, 1.5, 2], settings.lookSens, v => { settings.lookSens = v; store.set("lookSens", v); }, v => ({ 0.5: "Slow", 0.75: "Gentle", 1: "Normal", 1.5: "Quick", 2: "Fast" })[v]);
   chipRow($("optLock"), [true, false], settings.lockMouse, v => { settings.lockMouse = v; store.set("lockMouse", v); }, v => v ? "On (Esc releases it)" : "Off (drag to look)");
+  chipRow($("optGuide"), ["full", "subtle", "off"], settings.guide, v => { settings.guide = v; store.set("guide", v); }, v => ({ full: "Full route", subtle: "Subtle (nearby only)", off: "Off" })[v]);
   chipRow($("optReplay"), [true, false], settings.autoReplay, v => { settings.autoReplay = v; store.set("autoReplay", v); }, v => v ? "On" : "Off");
   buildCommSettings();
 }
@@ -3921,7 +3927,7 @@ function updateReplay(dt) {
       camera.setViewOffset(W0, H0, ox, oy, w, hh); camera.updateProjectionMatrix();
     }
   }
-  sun.position.set(camera.position.x + 120, 220, camera.position.z + 80); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
+  sun.position.set(camera.position.x + sunOff().x, sunOff().y, camera.position.z + sunOff().z); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
   // overlays: the finishing line and the focus horses' names
   const W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio, 2);
   if (rpCanvas.width !== Math.round(W * dpr) || rpCanvas.height !== Math.round(H * dpr)) { rpCanvas.width = Math.round(W * dpr); rpCanvas.height = Math.round(H * dpr); }
@@ -4064,7 +4070,7 @@ function updateHighlights(dt) {
   camPos.x += (tx - camPos.x) * kp; camPos.y += (ty - camPos.y) * kp; camPos.z += (tz - camPos.z) * kp;
   camLook.x += (lx - camLook.x) * kl; camLook.y += (ly - camLook.y) * kl; camLook.z += (lz - camLook.z) * kl;
   camera.position.copy(camPos); camera.lookAt(camLook); camera.fov = fov; camera.updateProjectionMatrix();
-  sun.position.set(camera.position.x + 120, 220, camera.position.z + 80); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
+  sun.position.set(camera.position.x + sunOff().x, sunOff().y, camera.position.z + sunOff().z); sun.target.position.set(camera.position.x, 0, camera.position.z); sun.target.updateMatrixWorld();
   $("rpSlow").className = "rp-slow" + (slow < 1 ? " on" : ""); $("rpSlow").textContent = slow < 1 ? "Slow motion" : "";
 }
 
@@ -4112,11 +4118,14 @@ function startRace(cfg) {
   riderInput.effort = race.player.effort;
   buildGates(race.route, race.gateCount);
   buildMarkers(race.route, race.dist);
+  try { const cc = cfg.career; GFX.setAtmosphere(cc && cc.tod && !(typeof PERFLAB !== "undefined" && PERFLAB.lab.light === "clear") ? ATMO.params(cc.tod, cc.wx) : null); } catch (e) { console.error(e); }      // the time of day and weather of the booked event (the original afternoon for a Quick Race)
   if (typeof VENUES !== "undefined") VENUES.use(race.trk, cfg);
   buildShots(race.trk); drawMinimapBase();
   spawnHorseMeshes(race);
+  try { WEATHERFX.begin(race); } catch (e) { console.error(e); }                                  // Phase 22: wet-track spray and cloud shadows (built before the gates open)
   if (menuHorseMesh) { world.remove(menuHorseMesh); menuHorseMesh = null; }
   show("racing");
+  if (typeof PERFLAB !== "undefined") PERFLAB.raceStart(cfg);          // Phase 15A diagnostics: notes the race; parks the farm's GPU resources only if the hidden lab switch asks for it
   if (typeof COMM !== "undefined") COMM.begin(race, cfg);             // live commentary reads this race (never changes it)
   $("hDist").textContent = race.dist + " m " + DIST_LABEL[race.dist];
   $("hGoing").textContent = race.going.label + " going";
@@ -4131,6 +4140,7 @@ function startRace(cfg) {
   for (const h of race.horses) { h._vOk = false; h._p0 = 0; h._l0 = 0; h._f0 = 0; }
   // compile every shader the course, horses and crowd need now (behind the loading/parade), not the first time each
   // comes into view mid-race — a first-sight compile is a classic one-frame hitch
+  if (typeof GFX !== "undefined") GFX.applyPending();                // an AUTO change queued during the last race lands here, behind the loading gates
   try { renderer.compile(scene, camera); } catch (e) {}
   if (typeof GFX !== "undefined") GFX.autoReset(3);                   // the first seconds compile shaders and upload: not judged
   if (typeof PRESENT !== "undefined" && PRESENT.wantParade(cfg)) PRESENT.parade(race);   // optional, skippable
@@ -4434,6 +4444,7 @@ const _pfF = new THREE.Frustum(), _pfM = new THREE.Matrix4();
 function perfFrame(rawDt, jsMs) {
   PERF.ft[PERF.fi] = rawDt * 1000; PERF.fi = (PERF.fi + 1) % 300; PERF.fn = Math.min(300, PERF.fn + 1);
   PERF.simA += (PERF.sim - PERF.simA) * 0.1; PERF.jsA += (jsMs - PERF.jsA) * 0.1; PERF.renA += (PERF.render - PERF.renA) * 0.1;
+  if (typeof PERFLAB !== "undefined" && PERFLAB.rec) PERFLAB.frame(rawDt, jsMs);       // Phase 15A: hitch log + per-race stats (only while F8 / the benchmark / "record" is on)
   if (!PERF.on) return;
   perfGraph();
   if ((PERF.t -= rawDt) > 0) return; PERF.t = 0.25;
@@ -4453,8 +4464,9 @@ function perfFrame(rawDt, jsMs) {
     `horses: near ${hl[0]} · mid ${hl[1]} · far ${hl[2]}${race ? "  (" + race.horses.length + " runners)" : ""}`,
     `crowd drawn: ${cr[0] + cr[1] + cr[2]} (near ${cr[0]} · mid ${cr[1]} · far ${cr[2]}) of ${crowdAll}`,
     `shadows ${renderer.shadowMap.enabled ? sun.shadow.mapSize.x + "²" : "off"}   render ${cv.width}×${cv.height} @ ${renderer.getPixelRatio().toFixed(2)}×`,
-    `preset ${settings.quality.toUpperCase()}${A && settings.quality === "auto" ? `   AUTO level ${A.level}/${GFX.AUTO_STEPS.length - 1}: ${GFX.AUTO_STEPS[A.level].note}${A.last ? "\n  last change: " + A.last : ""}${A.hold > 0 ? "  (settling)" : ""}` : "   (fixed — AUTO off)"}`,
+    `preset ${settings.quality.toUpperCase()}${A && settings.quality === "auto" ? `   AUTO level ${A.level}/${GFX.AUTO_STEPS.length - 1}: ${GFX.AUTO_STEPS[A.level].note}${A.last ? "\n  last change: " + A.last : ""}${A.hold > 0 ? "  (settling)" : ""}${A.pending ? "\n  QUEUED until after the race: level " + A.level + " → " + A.pending.to : ""}` : "   (fixed — AUTO off)"}`,
   ];
+  if (typeof PERFLAB !== "undefined") PERFLAB.overlay(lines);
   $("perfOv").textContent = lines.join("\n");
 }
 // the last 300 frame times as a bar graph (green ≤ 1 frame at the median rate, amber ≤ 1.5×, red spikes); 16.7 ms line
@@ -4473,7 +4485,7 @@ function frame(now) {
   let dt = Math.min(0.1, rawDt); lastT = now;
   frameN++;
   PERF.sim = 0;
-  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm" || !!(typeof FARM !== "undefined" && FARM.showcase));
+  if (typeof GFX !== "undefined") GFX.autoTick(rawDt, !!(race && (ui.state === "racing" || ui.state === "replay")) || !!(typeof PRESENT !== "undefined" && PRESENT.mode) || ui.state === "farm" || !!(typeof FARM !== "undefined" && FARM.showcase), !(ui.state === "farm" || (typeof FARM !== "undefined" && FARM.showcase)), ui.state === "racing" && !!race && (race.state === "running" || race.state === "done"));   // last: a race is LIVE (gates open until the results): AUTO queues its changes until after it
   if (ui.state === "pause" || document.hidden) { renderer.render(scene, camera); return; }
   // the farm: its own scene and camera; nothing of the race world is updated or drawn (and the farm is not touched during a race)
   if (ui.state === "farm" && typeof FARM !== "undefined" && FARM.active) { FARM.frame(dt); perfFrame(rawDt, performance.now() - tF0); return; }
@@ -4488,7 +4500,7 @@ function frame(now) {
     if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), PRESENT.mode === "celebrate" ? 1 : 0);
     renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return;
   }
-  if (RP.on && ui.state === "replay") { updateReplay(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return; }
+  if (RP.on && ui.state === "replay") { updateReplay(dt); updateVenue(dt); updateCrowd(dt, 0.75); if (typeof WEATHERFX !== "undefined") WEATHERFX.update(dt, race, true); if (typeof VENUES !== "undefined") VENUES.update(dt, 0.75); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); return; }
   if (HL.on && ui.state === "replay") { updateHighlights(dt); if (HL.on) { updateVenue(dt); updateCrowd(dt, 0.6); if (typeof GFX !== "undefined") GFX.update(dt, gfxExcite(), gfxFocus(), 0.5); renderer.render(scene, camera); perfFrame(rawDt, performance.now() - tF0); } return; }
   if (race && ui.state === "racing") {
     handlePlayerInput(dt);
@@ -4514,9 +4526,10 @@ function frame(now) {
     audio.frame(dt);
     const remP = race.dist - race.player.progress;
     const exc = race.state === "running" ? clamp(1 - remP / 450, 0, 1) : race.state === "done" ? 0.6 : 0.1;
-    updateCrowd(dt, exc); if (typeof VENUES !== "undefined") VENUES.update(dt, exc);
+    updateCrowd(dt, exc); if (typeof VENUES !== "undefined") VENUES.update(dt, exc); if (typeof WEATHERFX !== "undefined") WEATHERFX.update(dt, race);
     if (msgTimer > 0) { msgTimer -= dt; if (msgTimer <= 0) raceMsgEl.textContent = ""; }
   } else if (menuHorseMesh) {
+    if (typeof WEATHERFX !== "undefined") WEATHERFX.hide();
     animateHorse(menuHorseMesh, 0, 0, 0, 0, 0, 0, dt, null);
     menuHorseMesh.rotation.y += dt * 0.25;
     updateCrowd(dt, 0);
@@ -4550,9 +4563,11 @@ if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude
 else boot();
 </script>
 <script src="eleven.js"></script>
+<script src="atmosphere.js"></script>
 <script src="gfx.js"></script>
 <script src="mp.js"></script>
 <script src="venues.js"></script>
+<script src="weatherfx.js"></script>
 <script src="presentation.js"></script>
 <script src="stable3d.js"></script>
 <script src="scenes.js"></script>
@@ -4564,8 +4579,20 @@ else boot();
 <script src="farm-house.js"></script>
 <script src="farm-ui.js"></script>
 <script src="farm-trip.js"></script>
+<script src="farm-nav.js"></script>
+<script src="farm-care.js"></script>
+<script src="farm-drive.js"></script>
+<script src="farm-train.js"></script>
+<script src="farm-day.js"></script>
+<script src="farm-life.js"></script>
+<script src="farm-idle.js"></script>
+<script src="farm-ambient.js"></script>
+<script src="farm-loop.js"></script>
+<script src="farm-work.js"></script>
+<script src="farm-actors.js"></script>
 <script src="farm.js"></script>
 <script src="career-core.js"></script>
 <script src="career.js"></script>
+<script src="perf.js"></script>
 
 </body></html>

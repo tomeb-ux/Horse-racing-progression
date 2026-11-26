@@ -186,7 +186,7 @@ const CAREER = (() => {
       name: h.name, say: h.say || "", role: st.label, style: st.code,
       coat: parseInt(h.look.coat.slice(1), 16), silk: h.silk, silk2: h.silk2, silkPat: h.silkPat,
       look: Object.assign({}, h.look, { socks: h.look.socks.slice() }),
-      attrs: Object.assign({}, h.attrs), _sid: "player", _hid: h.id,
+      attrs: CORE.raceAttrs(C, h).attrs, _sid: "player", _hid: h.id,
     };
   }
   const activeHorse = () => C.horses[C.active] || null;
@@ -378,6 +378,8 @@ const CAREER = (() => {
   }
 
   // ---------- HUB / DASHBOARD ----------
+  // Phase 24: what a regional course is like, from its layout (empty for the original oval and the two city courses)
+  function courseNote(venue) { try { const l = (SEASON.venueStyle(venue) || {}).layout; return l && typeof getTrack === "function" ? getTrack(l).character || "" : ""; } catch (e) { return ""; } }
   function openHub() {
     style(); CORE.syncCalendar(C);
     const el = screen("hub"), h = activeHorse(), s = S(), D = div(), list = SEASON.standings(C), me = list.find(r => r.you);
@@ -394,7 +396,7 @@ const CAREER = (() => {
           <div class="car-row" style="margin-top:10px"><button class="btn primary" id="hubFinish">View Final Standings</button></div></div>`
       : `<div class="car-panel car-next"><div class="car-sub">Next event · Round ${nextIdx + 1} of ${s.rounds.length}${nm.major ? " · ★ Feature race" : ""}</div>
           <h3>${esc(nm.name)}</h3>
-          <div class="car-kv"><span><b>${esc(nm.venue)}</b></span><span><b>${fmtDist(nm.dist)}</b> ${distLbl(nm.dist)}</span><span><b>${going(rd.going)}</b> going</span><span>${esc(nm.grade)}</span><span>Prize <b>${nm.prize}</b></span><span>Field <b>${nm.field}</b></span>${evBits(nextIdx)}<span>Stable standing <b>${posTxt(me.rank)}</b></span></div>
+          <div class="car-kv"><span><b>${esc(nm.venue)}</b></span><span><b>${fmtDist(nm.dist)}</b> ${distLbl(nm.dist)}</span><span><b>${going(rd.going)}</b> going</span><span>${esc(nm.grade)}</span><span>Prize <b>${CORE.purseLabel(nm)}</b></span><span>Field <b>${nm.field}</b></span>${evBits(nextIdx)}<span>Stable standing <b>${posTxt(me.rank)}</b></span></div>
           <div class="car-row" style="margin-top:12px"><button class="btn primary" id="hubEnter">Select Horse &amp; Enter</button><button class="btn" id="hubView">View Event</button><button class="btn" id="hubSkip">Skip Round</button></div></div>`;
     page(el, `
       <div class="car-panel car-row" style="justify-content:space-between;align-items:flex-end">
@@ -410,6 +412,7 @@ const CAREER = (() => {
         </div>
       </div>
       ${nextHtml}
+      ${(() => { try { const gv = CORE.goalsOf(C); return `<div class="car-panel"><div class="car-row" style="justify-content:space-between"><div class="car-sub">Season goals</div><div class="car-sub">${money(gv.earned)} of ${money(gv.total)} earned</div></div><div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px">${gv.goals.map(g => `<div style="font-size:12.5px;opacity:${g.paid ? 0.65 : 1}">${g.paid ? "✓" : "○"} ${esc(g.label)} <span style="color:var(--fg-dim)">${g.paid ? "+" + money(g.reward) : g.target > 999 ? money(g.value) + " / " + money(g.target) + " · " + money(g.reward) : g.value + "/" + g.target + " · " + money(g.reward)}</span></div>`).join("")}</div></div>`; } catch (e) { return ""; } })()}
       <div class="car-2col">
         <div class="car-panel"><div class="car-row" style="justify-content:space-between"><div class="car-sub">Championship standings</div><button class="car-chip" id="hubStand">Full table</button></div>
           <table class="car-tbl" style="margin-top:6px"><tr><th>#</th><th>Stable</th><th>Pts</th><th class="hide-s">Wins</th><th>Gap</th></tr>
@@ -492,8 +495,9 @@ const CAREER = (() => {
       <div class="car-panel car-next">
         <div class="car-sub">${optional ? "Optional race · experience & records only — no championship points" : `Season ${s.n} · ${div().name} · Round ${idx + 1} of ${s.rounds.length}`}</div>
         <h3>${meta.crown ? "★ " : ""}${esc(meta.name)}</h3>
-        <div class="car-kv"><span><b>${esc(meta.venue)}</b></span><span><b>${fmtDist(meta.dist)}</b> ${distLbl(meta.dist)}</span><span><b>${going(g)}</b> going</span><span>${esc(meta.grade)}</span><span>Field <b>${meta.field}</b></span>${optional ? optBits(meta.id) : evBits(idx)}${meta.prize ? `<span>Prize <b>${meta.prize}</b></span>` : ""}${optional ? "" : `<span>Stable standing <b>${posTxt(me.rank)}</b> · ${me.pts} pts</span>`}</div>
+        <div class="car-kv"><span><b>${esc(meta.venue)}</b></span><span><b>${fmtDist(meta.dist)}</b> ${distLbl(meta.dist)}</span><span><b>${going(g)}</b> going</span><span>${esc(meta.grade)}</span><span>Field <b>${meta.field}</b></span>${optional ? optBits(meta.id) : evBits(idx)}${CORE.purseLabel(meta) !== "—" ? `<span>Prize <b>${CORE.purseLabel(meta)}</b></span><span>Entry <b>${money(CORE.entryFee(meta))}</b></span>` : ""}${optional ? "" : `<span>Stable standing <b>${posTxt(me.rank)}</b> · ${me.pts} pts</span>`}</div>
         ${meta.note ? `<div style="font-size:12.5px;margin-top:6px;color:var(--accent)">${esc(meta.note)}</div>` : ""}
+        ${courseNote(meta.venue) ? `<div style="font-size:12.5px;margin-top:6px;color:var(--fg-dim)">Course: ${esc(courseNote(meta.venue))}</div>` : ""}
         <div class="car-sub" style="margin-top:10px">Entry requirements</div>${reqHtml}
         ${optional ? "" : `<div style="font-size:12px;color:var(--fg-dim);margin-top:6px">One horse represents ${esc(C.stable)} in this round. Points: 1st 15 · 2nd 12 · 3rd 10 · 4th 8 · 5th 6 · 6th 5 · 7th 4 · 8th 3 · 9th 2 · 10th 1. Chaos Mode is never used in championship racing.</div>`}
       </div>
@@ -573,6 +577,114 @@ const CAREER = (() => {
   }
   const exportText = () => CORE.exportSave(C);
   const DEV_LABEL = { early: "Early developer", avg: "Average developer", late: "Late developer" };
+  // facilities and staff (Phase 8): bought and hired from the Office; every effect is capped (see CORE.FAC_CAP)
+  function facilitiesHtml() {
+    const F = CORE.FACILITIES, R = CORE.STAFFROLES, pips = n => [0, 1, 2].map(i => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px;background:${i < n ? "var(--accent)" : "rgba(255,255,255,.2)"}"></span>`).join("");
+    const rows = Object.keys(F).map(k => { const lv = CORE.facLevel(C, k), nxt = lv < 3 ? F[k].cost[lv] : 0, can = lv < 3 && C.cash >= nxt;
+      return `<tr><td><b>${esc(F[k].name)}</b><div style="font-size:11.5px;color:var(--fg-dim)">${esc(F[k].blurb)}</div></td><td>${pips(lv)}</td><td style="text-align:right">${lv < 3 ? `<button class="btn small" data-buy="${k}" ${can ? "" : "disabled"}>${lv ? "Upgrade" : "Build"} ${money(nxt)}</button>` : "<span style='color:var(--good)'>Elite</span>"}</td></tr>`; }).join("");
+    const wk = CORE.weeklyBill(C);
+    const staff = Object.keys(R).map(r => { const st = CORE.staffOf(C, r);
+      if (st) return `<tr><td><b>${esc(R[r].name)}</b> — ${esc(st.name)} <span class="car-tag">tier ${st.tier}</span> <span class="car-tag">${esc(st.spec)}</span><div style="font-size:11.5px;color:var(--fg-dim)">${esc(R[r].blurb)}</div></td><td style="text-align:right">${money(st.wage)}/week</td><td style="text-align:right"><button class="btn small" data-fire="${r}">Let go</button></td></tr>`;
+      return `<tr><td><b>${esc(R[r].name)}</b> — vacant<div style="font-size:11.5px;color:var(--fg-dim)">${esc(R[r].blurb)}</div></td><td colspan="2" style="text-align:right"><select data-spec="${r}" style="background:rgba(18,26,21,.9);color:var(--fg);border:1px solid var(--panel-line);border-radius:6px;padding:4px">${R[r].specs.map(x => `<option>${esc(x)}</option>`).join("")}</select> ${[1, 2, 3].map(t => `<button class="btn small" data-hire="${r}:${t}" ${C.cash >= R[r].wage[t - 1] * 2 ? "" : "disabled"}>Tier ${t} · ${money(R[r].wage[t - 1])}/wk</button>`).join(" ")}</td></tr>`; }).join("");
+    return `<div class="car-panel"><div class="car-sub">Facilities</div><table class="car-tbl">${rows}</table>
+      <div class="car-sub" style="margin-top:10px">Staff</div><table class="car-tbl">${staff}</table>
+      <div style="font-size:11.5px;color:var(--fg-dim);margin-top:6px">A new hire costs two weeks' wages up front. Wages and facility upkeep are part of the one weekly bill (now ${money(wk.cost)}). The total training boost from staff and facilities is capped at +${Math.round((CORE.FAC_CAP - 1) * 100)}%, and nothing can raise a horse past its potential.</div></div>`;
+  }
+  // the Office's money report (Phase 7): cash, what is owed, the next weekly bill, sponsorship, the season by category, recent prize money
+  function financeHtml(fin) {
+    const b = CORE.weeklyBill(C), e = CORE.econOf(C), club = CORE.clubOffer(C), by = fin.by || {}, nextWk = (CORE.weekOf(C.day) + 1) * 7;
+    const lab = { prize: "Prize money", sponsor: "Sponsorship", bonus: "Milestone bonuses", advance: "Club advance", entry: "Entry fees", upkeep: "Weekly bills (feed, care, property, wages)", repay: "Club repayments", care: "Quality feed", start: "Starting package" };
+    const rows = Object.keys(by).filter(k => by[k]).sort((x, y) => by[y] - by[x]).map(k => `<tr><td>${esc(lab[k] || k)}</td><td style="text-align:right;color:${by[k] < 0 ? "var(--bad)" : "var(--good)"}">${by[k] < 0 ? "−" : "+"}${money(Math.abs(by[k]))}</td></tr>`).join("");
+    const prizes = C.ledger.filter(x => x.kind === "prize").slice(-4).reverse();
+    return `<div class="car-panel"><div class="car-sub">Finances</div>
+      <div class="car-kv" style="margin:4px 0 8px"><span>Cash <b>${money(C.cash)}</b></span><span>Owed to the stable club <b style="color:${e.debt ? "var(--warn)" : "inherit"}">${money(e.debt)}</b></span><span>Reputation <b>${C.rep | 0}</b>${b.sponsor ? ` → sponsor <b>${money(b.sponsor)}</b>/week` : " (sponsors notice you from 10)"}</span></div>
+      <div class="car-sub">Next weekly bill — due ${CORE.fmtDate(nextWk, { short: true })}</div>
+      <table class="car-tbl">${b.items.map(x => `<tr><td>${esc(x.label)}</td><td style="text-align:right">${money(x.amount)}</td></tr>`).join("")}<tr><td><b>Total</b></td><td style="text-align:right"><b>${money(b.cost)}</b></td></tr>${b.sponsor ? `<tr><td>Sponsorship (income)</td><td style="text-align:right;color:var(--good)">+${money(b.sponsor)}</td></tr>` : ""}</table>
+      <div style="font-size:11.5px;color:var(--fg-dim);margin:6px 0 8px">Bills are charged automatically as the calendar moves on, as one line a week. Entry fees (about 4% of the purse) are paid when a race is entered. If cash runs short a bill becomes money owed to the club — never a negative balance — and half of each prize repays it.</div>
+      ${rows ? `<div class="car-sub">This season by category</div><table class="car-tbl">${rows}</table>` : ""}
+      ${prizes.length ? `<div class="car-sub" style="margin-top:8px">Recent prize money</div><table class="car-tbl">${prizes.map(x => `<tr><td>${CORE.fmtDate(x.day, { short: true })}</td><td>${esc(x.note)}</td><td style="text-align:right;color:var(--good)">+${money(x.amount)}</td></tr>`).join("")}</table>` : ""}
+      <div class="car-row" style="margin-top:8px"><button class="btn small" id="ofClub" ${club.ok ? "" : "disabled"}>Stable club advance ${money(CORE.ECON.CLUB.AMOUNT)}</button><span style="font-size:12px;color:var(--fg-dim)">${club.ok ? "Available now: your cash is under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season, repaid from prize money)." : club.reason === "used" ? "Already used this season." : "Available when cash falls under " + money(CORE.ECON.CLUB.TRIGGER) + " (once a season)."}</span></div></div>`;
+  }
+
+  // ---------- the Hall of Fame (Phase 14) ----------
+  function openHallOfFame() {
+    style(); const el = screen("hof"), L = (C.hof || []).slice().reverse();
+    const card = e => `<div class="car-panel"><div class="car-row" style="justify-content:space-between;align-items:baseline"><div><span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;background:${esc((e.look && e.look.coat) || "#7a4a28")};border:1px solid rgba(255,255,255,.35)"></span><b style="font-size:18px">${esc(e.name)}</b> <span class="car-tag">${e.why === "aged" ? "Retired at the end of its racing life" : "Retired"}</span></div><div style="font-size:12.5px;color:var(--fg-dim)">Season ${e.season} · age ${e.age}</div></div>
+      <div class="car-kv" style="margin:6px 0"><span>Starts <b>${e.starts}</b></span><span>Wins <b>${e.wins}</b></span><span>Placings <b>${e.places}</b></span><span>Prize money <b>${money(e.prize)}</b></span><span>Rating at retirement <b>${e.rating}</b></span>${e.majors ? `<span>Feature wins <b>${e.majors}</b></span>` : ""}${e.bestPlace ? `<span>Best finish <b>${ordinal(e.bestPlace)}</b></span>` : ""}</div>
+      ${e.trophies && e.trophies.length ? `<div style="font-size:12.5px;color:var(--fg-dim)">🏆 ${e.trophies.map(t => esc(t.race) + (t.season ? " (S" + t.season + ")" : "")).join(" · ")}</div>` : ""}
+      ${e.last && e.last.length ? `<div style="font-size:12px;color:var(--fg-dim);margin-top:4px">Last runs: ${e.last.slice(-6).map(r => r.dnf || !r.place ? "F" : r.place).join("-")}</div>` : ""}</div>`;
+    page(el, `<h2>Hall of Fame</h2><div class="car-sub">${esc(C.stable)} — every horse you have retired, with its record</div>
+      ${L.length ? L.map(card).join("") : `<div class="car-panel">No horse has been retired yet. Retire a veteran from the Horse Market's Sell / Retire tab and its record is kept here for good.</div>`}
+      <div class="car-row"><button class="btn" id="hofBack">Back</button></div>`);
+    el.querySelector("#hofBack").onclick = () => (fromFarm ? home() : openOffice());
+    show("c_hof");
+  }
+
+  // ---------- the horse market (Phase 10): buy (browse, bid, buy), sell, or pay for a custom horse ----------
+  let mk = { tab: "buy", sel: null, msg: "", confirm: null, from: "office" };
+  const mkSwatch = L => `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;background:${esc(L.coat)};border:1px solid rgba(255,255,255,.35)"></span>`;
+  const faceName = f => (FACES.find(x => x[0] === f) || ["", "plain face"])[1].toLowerCase();
+  const AT_LAB = { top: "Top speed", acc: "Acceleration", end: "Endurance", spr: "Sprint", rec: "Recovery", tem: "Temperament", agi: "Agility", sta: "Start" };
+  function mkCard(V, Lraw) {
+    const sel = mk.sel === V.id, free = C.horses.length < slots(), canAsk = free && !V.closed, pref = bestDistances(Lraw.attrs).text, rn = Math.round(avgA(Lraw.attrs));
+    const hist = V.hist.map(h => `<div style="font-size:12px;color:var(--fg-dim)">Round ${h.r}: you offered ${money(h.offer)} — ${h.res === "counter" ? "they'd take " + money(h.counter) : "far too low"}</div>`).join("");
+    const offer = sel ? `<div class="car-row" style="margin-top:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px">Your offer</span><input type="number" id="mkOffer" class="car-in" style="width:130px" step="50" min="500" value="${V.counter || Math.round(V.ask * 0.9 / 50) * 50}">
+        <button class="btn small primary" data-mkoffer="${V.id}">Submit offer</button>${V.counter ? `<button class="btn small" data-mkbuy="${V.id}:${V.counter}">Accept their ${money(V.counter)}</button>` : ""}
+        <span style="font-size:12px;color:var(--fg-dim)">${V.roundsLeft} round${V.roundsLeft === 1 ? "" : "s"} left</span></div>${hist}` : hist;
+    return `<div class="car-panel" data-card="${V.id}">
+      <div class="car-row" style="justify-content:space-between;align-items:baseline"><div><b style="font-size:17px">${esc(V.name)}</b> <span class="car-tag">${esc(V.catLabel)}</span>${V.closed ? ` <span class="car-tag car-bad">Seller walked away</span>` : ""}</div><div style="font-size:18px"><b>${money(V.ask)}</b></div></div>
+      <div style="font-size:13px;margin:4px 0">${mkSwatch(V.look)}${V.age}yo · ${esc(V.look.type)}${V.look.face !== "none" ? " with a " + faceName(V.look.face) : ""} · ${esc(V.growth === "late" ? "late developer" : V.growth === "early" ? "early developer" : "average developer")}</div>
+      <div class="car-kv" style="margin:6px 0"><span>Ability now <b>${V.ability[0]}–${V.ability[1]}</b></span><span>Potential <b>${V.potential[0]}–${V.potential[1]}</b></span><span>Suits <b>${pref}</b></span><span>Temperament <b>${V.temperament}</b></span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0">${Object.keys(V.bands).map(k => `<span class="car-tag">${AT_LAB[k]}: ${V.bands[k]}</span>`).join("")}</div>
+      <div style="font-size:12.5px;color:var(--fg-dim)">${esc(V.record)} · ${esc(V.health)} · closes in ${V.daysLeft} day${V.daysLeft === 1 ? "" : "s"}${V.scouted ? "" : " · a trainer would narrow the ranges"}</div>
+      <div class="car-row" style="margin-top:8px"><button class="btn small" data-mkask="${V.id}" ${canAsk ? "" : "disabled"}>${sel ? "Hide offer" : "Make an offer"}</button><button class="btn small primary" data-mkbuy="${V.id}:${V.ask}" ${free && C.cash >= V.ask ? "" : "disabled"}>Buy at ${money(V.ask)}</button>${!free ? `<span style="font-size:12px;color:var(--warn)">No free box</span>` : C.cash < V.ask ? `<span style="font-size:12px;color:var(--fg-dim)">Short of cash</span>` : ""}</div>
+      ${offer}</div>`;
+  }
+  function openMarket(tab, from) {
+    style(); CORE.syncCalendar(C); CORE.marketSync(C); const prevTop = mk.keep ? screen("market").scrollTop : 0; mk.keep = false; if (from) mk.from = from; if (tab) mk.tab = tab; if (mk.tab !== "buy") mk.sel = null;
+    const el = screen("market"), L = C.market.listings, free = C.horses.length < slots();
+    const tabs = [["buy", "Buy"], ["sell", "Sell"], ["create", "Create your own"]].map(([k, n]) => `<button class="btn small ${mk.tab === k ? "primary" : ""}" data-mktab="${k}">${n}</button>`).join(" ");
+    let body = "";
+    if (mk.tab === "buy") body = `<div class="car-panel" style="font-size:12.5px;color:var(--fg-dim);margin:4px 0 8px">Horses change every week — some are sold to other buyers, others close. The ranges are a scout's estimate${CORE.staffOf(C, "trainer") ? " (your trainer narrows them)" : ""}; you only see the true figures after you own the horse. Make an offer (up to ${CORE.MKT.ROUNDS} rounds) or pay the asking price. ${free ? "" : "<b>You have no free box</b> — sell a horse or win more races to unlock one."}</div>
+      <div class="car-grid" style="grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">${L.length ? L.map(l => mkCard(CORE.marketView(C, l), l)).join("") : `<div class="car-panel">No horses are on offer this week.</div>`}</div>`;
+    else if (mk.tab === "sell") body = `<div class="car-panel" style="font-size:12.5px;color:var(--fg-dim);margin:4px 0 8px">A sale is the horse's valuation (ability, potential, age, record, condition) less the agent's ${Math.round(CORE.MKT.COMMISSION * 100)}%, moved by this week's market. You can't sell your last horse or one that is booked into a race.</div>
+      <div class="car-panel"><table class="car-tbl"><tr><th>Horse</th><th>Age</th><th>Rating</th><th class="hide-s">Record</th><th style="text-align:right">Offer</th><th></th></tr>
+      ${C.horses.map(h => { const q = CORE.sellQuote(C, h.id), c = mk.confirm; return `<tr><td><b>${esc(h.name)}</b></td><td>${h.age}</td><td>${q.rating} → ${potRating(h)}</td><td class="hide-s">${h.races} start${h.races === 1 ? "" : "s"} · ${h.wins} win${h.wins === 1 ? "" : "s"}</td><td style="text-align:right"><b>${money(q.price)}</b></td>
+        <td style="text-align:right">${q.blocked ? `<span style="font-size:12px;color:var(--fg-dim)">${q.blocked === "last" ? "your last horse" : "booked in a race"}</span>` : c === h.id ? `<button class="btn small primary" data-mksell="${h.id}">Confirm sale</button> <button class="btn small" data-mkcancel="1">Cancel</button>` : c === "r:" + h.id ? `<button class="btn small primary" data-mkretire="${h.id}">Confirm retirement</button> <button class="btn small" data-mkcancel="1">Cancel</button>` : `<button class="btn small" data-mkconfirm="${h.id}">Sell…</button> <button class="btn small" data-mkrconfirm="${h.id}">Retire…</button>`}${CORE.retirePrompt(h) ? `<div style="font-size:11.5px;color:var(--warn)">${esc(h.name)} ${esc(CORE.retirePrompt(h))}</div>` : ""}</td></tr>`; }).join("")}</table><div style="font-size:11.5px;color:var(--fg-dim);margin-top:6px">Retiring keeps the horse's whole record in the Hall of Fame and pays a small tribute (${Math.round(CORE.HOF.TRIBUTE * 100)}% of its value); horses past ${CORE.HOF.MAX_AGE} retire at the end of the season. <a href="#" id="mkHof" style="color:var(--accent)">Open the Hall of Fame (${(C.hof || []).length})</a></div></div>`;
+    else body = `<div class="car-panel"><div class="car-sub">Create your own thoroughbred</div><div style="font-size:13px;margin:4px 0 8px">Design the look, silks, ability and potential yourself in the five-step creator. ${CORE.createFee(C) ? `A custom horse costs <b>${money(CORE.createFee(C))}</b>, and the fee grows with every horse in your stable.` : "Your first horse is free."}</div>
+      <button class="btn primary" id="mkCreate" ${free && C.cash >= CORE.createFee(C) ? "" : "disabled"}>Open the creator (${CORE.createFee(C) ? money(CORE.createFee(C)) : "free"})</button> <span style="font-size:12px;color:var(--fg-dim)">${!free ? "No free box." : C.cash < CORE.createFee(C) ? "Short of cash." : ""}</span></div>`;
+    page(el, `<h2>Horse Market</h2><div class="car-sub">${esc(C.stable)} · ${CORE.fmtDate(C.day)} · ${C.horses.length} of ${slots()} boxes in use</div>
+      <div class="car-panel car-row" style="justify-content:space-between;align-items:center"><div><div class="car-sub">Cash</div><div class="car-big" style="font-size:28px;color:var(--good)">${money(C.cash)}</div></div><div class="car-row">${tabs}</div></div>
+      ${mk.msg ? `<div class="car-panel" style="border-color:var(--accent)">${mk.msg}</div>` : ""}${body}
+      <div class="car-row"><button class="btn" id="mkBack">Back</button></div>`);
+    el.scrollTop = prevTop; const q = id => el.querySelector(id), again = () => { mk.keep = true; openMarket(); };
+    q("#mkBack").onclick = () => { mk.msg = ""; mk.sel = null; mk.confirm = null; mk.from === "office" ? openOffice() : home(); };
+    el.querySelectorAll("[data-mktab]").forEach(b => b.onclick = () => { mk.tab = b.dataset.mktab; mk.msg = ""; mk.sel = null; mk.confirm = null; again(); });
+    el.querySelectorAll("[data-mkask]").forEach(b => b.onclick = () => { mk.sel = mk.sel === b.dataset.mkask ? null : b.dataset.mkask; again(); });
+    el.querySelectorAll("[data-mkoffer]").forEach(b => b.onclick = () => {
+      const price = +q("#mkOffer").value, r = CORE.marketOffer(C, b.dataset.mkoffer, price, { slots: slots() }), name = (C.market.listings.find(l => l.id === b.dataset.mkoffer) || {}).name || "the seller";
+      if (!r.ok) { mk.msg = r.reason === "cash" ? "You don't have " + money(price) + "." : r.reason === "box" ? "You have no free box." : r.reason === "closed" ? "That seller has walked away." : "That offer isn't valid."; save(); return again(); }
+      if (r.outcome === "accepted") { const bb = CORE.marketBuy(C, b.dataset.mkoffer, r.price, { slots: slots() }); if (bb.ok) { save(); mk.sel = null; mk.msg = `<b>Deal!</b> ${esc(bb.horse.name)} is yours for ${money(bb.price)} and goes to your box.`; toast(esc(bb.horse.name) + " has joined your stable (−" + money(bb.price) + ")", "good", 3); return again(); } }
+      mk.msg = r.outcome === "counter" ? `${esc(name)}'s owner will take <b>${money(r.counter)}</b> — accept it, or make another offer (${r.roundsLeft} round${r.roundsLeft === 1 ? "" : "s"} left).` : r.outcome === "walked" ? `The owner of ${esc(name)} has had enough and walked away.` : `That is far below what they want${r.roundsLeft ? " — try higher (" + r.roundsLeft + " round" + (r.roundsLeft === 1 ? "" : "s") + " left)" : ""}.`;
+      save(); again(); });
+    el.querySelectorAll("[data-mkbuy]").forEach(b => b.onclick = () => { const [id, price] = b.dataset.mkbuy.split(":"), bb = CORE.marketBuy(C, id, +price, { slots: slots() });
+      if (bb.ok) { save(); mk.sel = null; mk.msg = `<b>Bought!</b> ${esc(bb.horse.name)} is in your stable for ${money(bb.price)} — find it in its box on the farm.`; toast(esc(bb.horse.name) + " has joined your stable (−" + money(bb.price) + ")", "good", 3); }
+      else mk.msg = bb.reason === "cash" ? "Not enough cash." : bb.reason === "box" ? "You have no free box." : bb.reason === "gone" ? "That horse has just been sold." : "That price isn't accepted.";
+      again(); });
+    el.querySelectorAll("[data-mkconfirm]").forEach(b => b.onclick = () => { mk.confirm = b.dataset.mkconfirm; again(); });
+    el.querySelectorAll("[data-mkcancel]").forEach(b => b.onclick = () => { mk.confirm = null; again(); });
+    el.querySelectorAll("[data-mkrconfirm]").forEach(b => b.onclick = () => { mk.confirm = "r:" + b.dataset.mkrconfirm; again(); });
+    el.querySelectorAll("[data-mkretire]").forEach(b => b.onclick = () => { const r = CORE.retireHorse(C, b.dataset.mkretire, "chosen"); mk.confirm = null;
+      if (r.ok) { save(); mk.msg = `<b>${esc(r.name)} is retired.</b> Its record is in the Hall of Fame${r.tribute ? " and the stable receives " + money(r.tribute) : ""}.`; toast(esc(r.name) + " has been retired to the Hall of Fame", "good", 3); } else mk.msg = r.reason === "last" ? "You can't retire your last horse." : r.reason === "booked" ? "That horse is booked into a race." : "It could not be retired.";
+      again(); });
+    const hofLink = q("#mkHof"); if (hofLink) hofLink.onclick = e => { e.preventDefault(); openHallOfFame(); };
+    el.querySelectorAll("[data-mksell]").forEach(b => b.onclick = () => { const r = CORE.sellHorse(C, b.dataset.mksell); mk.confirm = null;
+      if (r.ok) { save(); mk.msg = `<b>Sold.</b> ${esc(r.name)} went for ${money(r.price)}.`; toast(esc(r.name) + " sold for " + money(r.price), "good", 3); } else mk.msg = r.reason === "last" ? "You can't sell your last horse." : r.reason === "booked" ? "That horse is booked into a race." : "The sale could not be made.";
+      again(); });
+    const mc = q("#mkCreate"); if (mc) mc.onclick = () => { createFromFarm = mk.from === "farm"; fromFarm = mk.from === "farm"; hidePanel(); openCreate(); };
+    show("c_market");
+  }
   function openOffice() {
     style(); CORE.syncCalendar(C);
     const el = screen("office"), s = S();
@@ -580,7 +692,7 @@ const CAREER = (() => {
     const ledger = C.ledger.slice(-25).reverse();
     const ups = CORE.upcoming(C, 14);
     const evRow = e => { const m = BY_ID[e.ref] || {};
-      return `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td><b>${esc(m.name || e.ref)}</b>${e.kind === "round" ? ` <span class="car-tag car-won">Round ${e.round + 1}</span>` : ` <span class="car-tag">Optional</span>`}</td><td class="hide-s">${esc(e.venue)}</td><td>${fmtDist(m.dist || 0)}</td><td class="hide-s">${esc(m.grade || "")}</td><td class="hide-s">${m.prize || "—"}</td><td>${CORE.TOD_LABEL[e.tod] || ""}</td><td>${CORE.WX_LABEL[e.forecast.weather] || ""} · ${going(e.forecast.going)}</td></tr>`; };
+      return `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td><b>${esc(m.name || e.ref)}</b>${e.kind === "round" ? ` <span class="car-tag car-won">Round ${e.round + 1}</span>` : ` <span class="car-tag">Optional</span>`}</td><td class="hide-s">${esc(e.venue)}</td><td>${fmtDist(m.dist || 0)}</td><td class="hide-s">${esc(m.grade || "")}</td><td class="hide-s">${CORE.purseLabel(m)}</td><td>${CORE.TOD_LABEL[e.tod] || ""}</td><td>${CORE.WX_LABEL[e.forecast.weather] || ""} · ${going(e.forecast.going)}</td></tr>`; };
     const seasons = Object.keys(C.fin).map(Number).sort((a, b) => b - a).slice(0, 4);
     const bk = CORE.listBackups(localStorage);
     page(el, `<h2>Stable Office</h2>
@@ -589,13 +701,16 @@ const CAREER = (() => {
         <div><div class="car-sub">Cash</div><div class="car-big" id="ofCash" style="font-size:30px;color:var(--good)">${money(C.cash)}</div></div>
         <div class="car-kv"><span>This season: income <b>${money(fin.in)}</b></span><span>spending <b>${money(fin.out)}</b></span><span>net <b>${money(fin.in - fin.out)}</b></span></div>
       </div>
+      ${financeHtml(fin)}
+      <div class="car-panel car-row" style="justify-content:space-between;align-items:center"><div><div class="car-sub">Horse market</div><div style="font-size:13px">Buy a new horse, sell one, or pay for a custom one. ${C.horses.length} of ${slots()} boxes in use.</div></div><button class="btn primary" id="ofMarket">Open the horse market</button></div>
+      ${facilitiesHtml()}
       <div class="car-panel"><div class="car-sub">Ledger — most recent first</div>
         ${ledger.length ? `<table class="car-tbl"><tr><th>Date</th><th>Item</th><th style="text-align:right">Amount</th><th style="text-align:right" class="hide-s">Balance</th></tr>
         ${ledger.map(e => `<tr><td>${CORE.fmtDate(e.day, { short: true })}</td><td>${esc(e.note || e.kind)}</td><td style="text-align:right;color:${e.amount < 0 ? "var(--bad)" : "var(--good)"}">${e.amount < 0 ? "−" : "+"}${money(Math.abs(e.amount))}</td><td style="text-align:right" class="hide-s">${money(e.bal)}</td></tr>`).join("")}</table>`
         : `<div style="font-size:13px;color:var(--fg-dim)">No transactions yet.</div>`}
         ${seasons.length ? `<div class="car-sub" style="margin-top:10px">Season summaries</div><table class="car-tbl"><tr><th>Season</th><th style="text-align:right">Income</th><th style="text-align:right">Spending</th><th style="text-align:right">Net</th></tr>
         ${seasons.map(n => { const f = C.fin[n]; return `<tr><td>${CORE.seasonLabel(n)}</td><td style="text-align:right">${money(f.in)}</td><td style="text-align:right">${money(f.out)}</td><td style="text-align:right">${money(f.in - f.out)}</td></tr>`; }).join("")}</table>` : ""}
-        <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Prize money for places 1–5 in a championship round is paid once into the stable's cash. Nothing can be bought yet — spending arrives in a later update.</div></div>
+        <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Prize money for places 1–5 in a championship round is paid once into the stable's cash. Horses, staff and facilities are bought in later updates.</div></div>
       <div class="car-panel"><div class="car-sub">Calendar — upcoming</div>
         <table class="car-tbl"><tr><th>Date</th><th>Race</th><th class="hide-s">Venue</th><th>Distance</th><th class="hide-s">Grade</th><th class="hide-s">Prize</th><th>Time</th><th>Forecast</th></tr>${ups.map(evRow).join("") || `<tr><td colspan="8">No events left this season.</td></tr>`}</table>
         <div style="font-size:11.5px;color:var(--fg-dim);margin-top:8px">Championship rounds are run in order on their dates; optional races can be entered at any time and take a day of calendar time. Time of day and weather are fixed for each event now and shown on the race itself in a later update.</div></div>
@@ -614,6 +729,11 @@ const CAREER = (() => {
       <div class="car-row"><button class="btn" id="ofBack">Back</button></div>`);
     const q = id => el.querySelector(id), msg = (t, bad) => { q("#ofMsg").innerHTML = t; q("#ofMsg").style.color = bad ? "var(--bad)" : "var(--fg)"; };
     q("#ofBack").onclick = () => home();
+    q("#ofMarket").onclick = () => openMarket("buy", "office");
+    el.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => { const r = CORE.buyFacility(C, b.dataset.buy); if (r.ok) { save(); toast(CORE.FACILITIES[b.dataset.buy].name + " is now level " + r.level + " (−" + money(r.cost) + ")", "good", 3); openOffice(); } else toast(r.reason === "cash" ? "Not enough cash — " + money(r.short) + " short" : "Can't buy that", "warn", 3); });
+    el.querySelectorAll("[data-hire]").forEach(b => b.onclick = () => { const [role, tier] = b.dataset.hire.split(":"), sp = el.querySelector(`[data-spec="${role}"]`), r = CORE.hireStaff(C, role, +tier, sp && sp.value); if (r.ok) { save(); toast(r.staff.name + " joins as your " + CORE.STAFFROLES[role].name.toLowerCase() + " (−" + money(r.fee) + ")", "good", 3); openOffice(); } else toast(r.reason === "cash" ? "Not enough cash for the recruitment fee" : "That role is already filled", "warn", 3); });
+    el.querySelectorAll("[data-fire]").forEach(b => b.onclick = () => { CORE.fireStaff(C, b.dataset.fire); save(); toast("They have left the stable", "info", 2.4); openOffice(); });
+    const adv = q("#ofClub"); if (adv) adv.onclick = () => { const r = CORE.clubAdvance(C); if (r.ok) { save(); toast("The stable club advanced " + money(r.amount) + " — half of every prize repays it", "good", 3.4); openOffice(); } else toast(r.reason === "used" ? "You've already had this season's advance" : "Your cash is above the club's threshold (" + money(CORE.ECON.CLUB.TRIGGER) + ")", "info", 3); };
     q("#ofExport").onclick = () => {
       try { const text = exportText(), a = document.createElement("a"), d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
         a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = "final-furlong-career-" + stamp + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
@@ -687,14 +807,16 @@ const CAREER = (() => {
   // ---------- OPTIONAL RACES ----------
   function openOptional() {
     style(); const el = screen("opt"), h = activeHorse();
-    const rows = SEASON.OPTIONAL.map(r => {
-      const ok = h ? SEASON.eligibility(h, r).ok : false;
+    const row = r => {
+      const ok = h ? SEASON.eligibility(h, r).ok : false, why = h && !ok ? SEASON.eligibility(h, r).reqs.filter(q => !q.ok).map(q => q.label).join(", ") : "";
       return `<div class="car-race${ok ? "" : " locked"}">
-        <div><div class="car-row" style="gap:8px"><span class="gr">${esc(r.grade)}</span></div>
+        <div><div class="car-row" style="gap:8px"><span class="gr">${esc(r.grade)}</span>${r.regional ? `<span class="car-tag">Regional</span>` : ""}</div>
           <b style="font-family:var(--font-d);font-size:16px">${esc(r.name)}</b>
-          <div class="meta">${esc(r.venue)} · ${fmtDist(r.dist)} ${distLbl(r.dist)} · field of ${r.field}${(() => { const e = CORE.nextMeeting(C, r.id); return e ? " · next meeting " + CORE.fmtDate(e.day, { short: true }) : ""; })()}${r.note ? " · " + esc(r.note) : ""}</div></div>
+          <div class="meta">${esc(r.venue)} · ${fmtDist(r.dist)} ${distLbl(r.dist)} · field of ${r.field}${r.prize ? " · " + esc(r.prize) : ""}${(() => { const e = CORE.nextMeeting(C, r.id); return e ? " · next meeting " + CORE.fmtDate(e.day, { short: true }) : ""; })()}${r.note ? " · " + esc(r.note) : ""}${why ? ` · <span style="color:var(--warn)">not eligible: ${esc(why)}</span>` : ""}</div></div>
         <div><button class="btn${ok ? " primary" : ""} small car-btn" data-o="${r.id}">${ok ? "Select" : "Details"}</button></div></div>`;
-    }).join("");
+    };
+    const country = SEASON.OPTIONAL.filter(r => r.tier <= 1), city = SEASON.OPTIONAL.filter(r => r.tier > 1);
+    const rows = `<div class="car-sub">Country and regional meetings — where a young or modest horse learns its trade (maidens, age races and benchmark classes)</div>${country.map(row).join("")}<div class="car-sub" style="margin-top:10px">City races and stakes</div>${city.map(row).join("")}`;
     page(el, `<h2>Optional Races</h2>
       <div class="car-sub">Race whenever you like — develop horses, test distances, chase qualifications. These never award championship points, never advance the season and never count as championship titles.</div>
       <div style="font-size:12.5px;color:var(--fg-dim)">Experience is worth most against a field near your horse's own level: beating a much weaker field earns very little.</div>
@@ -904,6 +1026,19 @@ const CAREER = (() => {
     const rd = el.querySelector("#trRedist"); if (rd) rd.onclick = () => openRedistribute();
     show("c_train");
   }
+  // Phase 26: the training board on the farm uses the SAME allocation rules as the Training screen (same costs, same potential ceilings, same undo), without leaving the farm
+  const trainSes = h => { if (!openTraining.session || openTraining.session.id !== h.id) openTraining.session = { id: h.id, start: Object.assign({}, h.attrs), undo: [] }; return openTraining.session; };
+  const trainingApi = {
+    view(hid) {
+      if (!C) load(); const h = (C.horses || []).find(x => x && x.id === hid); if (!h) return null; const ses = trainSes(h), need = xpForLevel(h.lvl);
+      return { hid: h.id, name: h.name, style: detectStyle(h.attrs).label, pts: h.trainPts | 0, rating: rating(h), potRating: potRating(h), lvl: h.lvl, xp: h.xp, xpNeed: need, canUndo: ses.undo.length > 0,
+        rows: ATTRS.map(([k, lab]) => { const v = h.attrs[k], p = h.pot[k], cost = upgCost(v), maxed = v >= p; return { k, lab, v, p, cost, maxed, gained: v - ses.start[k], can: !maxed && h.trainPts >= cost, effect: EFFECT[k][0], next: maxed ? "" : EFFECT[k][1](1, v) }; }) };
+    },
+    up(hid, k) { if (!C) load(); const h = (C.horses || []).find(x => x && x.id === hid); if (!h || !h.attrs || !(k in h.attrs)) return { ok: false }; const v = h.attrs[k], cost = upgCost(v); if (v >= h.pot[k] || h.trainPts < cost) return { ok: false, reason: v >= h.pot[k] ? "max" : "points" };
+      const ses = trainSes(h); h.attrs[k]++; h.trainPts -= cost; h.trained++; ses.undo.push([k, cost]); save(); try { audio.tapGood(0.8, 1); } catch (e) {} return { ok: true, k, cost, value: h.attrs[k] }; },
+    undo(hid) { if (!C) load(); const h = (C.horses || []).find(x => x && x.id === hid); if (!h) return { ok: false }; const ses = trainSes(h), u = ses.undo.pop(); if (!u) return { ok: false }; h.attrs[u[0]]--; h.trainPts += u[1]; h.trained = Math.max(0, h.trained - 1); save(); return { ok: true, k: u[0] }; },
+    points(hid) { if (!C) load(); const h = (C.horses || []).find(x => x && x.id === hid); return h ? h.trainPts | 0 : 0; },
+  };
   // older horses: move existing potential between attributes once; total headroom is preserved exactly
   function openRedistribute() {
     const h = activeHorse(), el = screen("train");
@@ -1002,6 +1137,7 @@ const CAREER = (() => {
   function openCreate(editId) {
     style();
     if (!editId && C.horses.length >= slots()) { toast(C.horses.length >= 5 ? "All five boxes are full" : "Win more races to unlock another box", "warn", 2); return openStable(); }
+    if (!editId && CORE.createFee(C) > C.cash) { toast("A custom horse costs " + money(CORE.createFee(C)) + " — you have " + money(C.cash), "warn", 2.6); createFromFarm = false; return fromFarm ? home() : openStable(); }
     draft = editId ? draftFromHorse(C.horses.find(h => h.id === editId)) : newDraft();
     stage("full", { shift: true });
     schedulePreview(true);
@@ -1055,18 +1191,19 @@ const CAREER = (() => {
           Best now at <b>${bestDistances(d.attrs).text}</b>; developing into a <b>${pst.label.toLowerCase()}</b> best at <b>${bestDistances(p).text}</b>.</div>
         <div class="car-prof">${profileLines(p).map(t => `<span>${esc(t)}</span>`).join("")}</div>
         <div class="sd-sec"><div class="car-sub">Attributes now → potential</div>${ATTRS.map(([k, lab]) => `<div class="car-attr"><div class="nm">${lab}</div><div class="vals">${d.attrs[k]} <span style="color:var(--fg-dim);font-size:12px">→ ${p[k]}</span></div><div class="car-bar"><u style="width:${p[k]}%"></u><i style="width:${d.attrs[k]}%"></i></div></div>`).join("")}</div>
+        ${CORE.createFee(C) ? `<div class="car-panel">A custom horse costs <b>${money(CORE.createFee(C))}</b> (the fee grows with every horse in the stable). You have ${money(C.cash)}. Horses at the market cost less than a fully-tailored one.</div>` : ""}
         ${START_POOL - startSpent() > 0 ? `<div class="car-panel car-warn">You still have ${START_POOL - startSpent()} development points unspent (step 3).</div>` : ""}
         ${POT_POOL - potSpent() > 0 ? `<div class="car-panel car-warn">You still have ${POT_POOL - potSpent()} potential points unassigned (step 4).</div>` : ""}`;
     }
     const last = edit ? 2 : 5;
-    const foot = `<button class="btn" id="cBack">${step === 1 ? "Cancel" : "◀ Back"}</button>${step < last ? `<button class="btn primary" id="cNext">Next: ${steps[step]} ▶</button>` : `<button class="btn primary" id="cDone">${edit ? "Save appearance" : "Confirm & add to stable"}</button>`}`;
+    const foot = `<button class="btn" id="cBack">${step === 1 ? "Cancel" : "◀ Back"}</button>${step < last ? `<button class="btn primary" id="cNext">Next: ${steps[step]} ▶</button>` : `<button class="btn primary" id="cDone">${edit ? "Save appearance" : CORE.createFee(C) ? "Confirm & pay " + money(CORE.createFee(C)) : "Confirm & add to stable"}</button>`}`;
     sidePage(el, { hint: `<b>${esc(draft.name || "New horse")}</b>${step === 2 ? "Your jockey shows off the silks" : "Drag to walk round your horse · scroll to zoom"}`, cam: camBar(step === 2 ? `<button data-cam="silks">Silks</button>` : ""), head, body, foot });
     const scrollY = drawCreate.keepScroll || 0; drawCreate.keepScroll = 0; el.querySelector(".sd-body").scrollTop = scrollY;
     const redraw = () => { drawCreate.keepScroll = el.querySelector(".sd-body").scrollTop; drawCreate(); };
     // step navigation (going back never loses anything)
     el.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { draft.step = +b.getAttribute("data-step"); afterStep(); });
     const afterStep = () => { if (draft.step === 2) STABLE3D.preset("silks"); else if (draft.step === 1) STABLE3D.preset("full"); STABLE3D.setRider(draft.step === 2 || draft.step === 5); drawCreate(); };
-    el.querySelector("#cBack").onclick = () => { if (draft.step === 1) { const id = draft.editId; draft = null; return id ? openProfile(C.horses.findIndex(h => h.id === id)) : (C.horses.length ? openStable() : firstRun ? (firstRun = false, show("menu")) : openHub()); } draft.step--; afterStep(); };
+    el.querySelector("#cBack").onclick = () => { if (draft.step === 1) { const id = draft.editId; draft = null; return id ? openProfile(C.horses.findIndex(h => h.id === id)) : createFromFarm ? (createFromFarm = false, hidePanel(), SCENES.enter("farm")) : (C.horses.length ? openStable() : firstRun ? (firstRun = false, show("menu")) : openHub()); } draft.step--; afterStep(); };
     const nx = el.querySelector("#cNext"); if (nx) nx.onclick = () => { if (draft.step === 1 && !cleanName(draft.name, "")) { toast("Give your horse a name first", "warn", 1.4); return; } draft.step++; afterStep(); };
     const dn = el.querySelector("#cDone"); if (dn) dn.onclick = () => edit ? saveAppearance() : confirmCreate();
     // inputs
@@ -1136,9 +1273,11 @@ const CAREER = (() => {
     const h = sanHorse({ name, say: draft.say, look: d.look, silk: d.silk, silk2: d.silk2, silkPat: d.silkPat, attrs: Object.assign({}, draft.attrs), pot: potOf(draft), potSet: true, born: S().n,
       xp: 0, trainPts: 0, lvl: 1, races: 0, wins: 0, places: 0, podiums: 0, history: [] });
     CORE.fillHorse(h, C, { how: "created", age: 3, fitness: 100 });
+    const fee = CORE.createFee(C);
+    if (fee) { if (fee > C.cash) { toast("A custom horse costs " + money(fee) + " — you have " + money(C.cash), "warn", 2.6); return; } const pr = CORE.apply(C, "create:" + h.id, -fee, "horse", "Custom horse: " + h.name); if (!pr.ok) { toast("The fee could not be paid", "warn", 2); return; } }
     C.horses.push(h); C.active = C.horses.length - 1; save(); draft = null;
-    toast(esc(h.name) + " moves into box " + C.horses.length + "!", "good", 2);
-    if (firstRun) { firstRun = false; hidePanel(); SCENES.enter("farm"); return; }       // your first horse: straight out to the property
+    toast(esc(h.name) + " moves into box " + C.horses.length + (fee ? " (−" + money(fee) + ")" : "") + "!", "good", 2);
+    if (firstRun || createFromFarm) { firstRun = false; createFromFarm = false; hidePanel(); SCENES.enter("farm"); return; }       // your first horse, or one made from an empty box on the farm: straight back out to the property
     openProfile(C.active);
   }
   function saveAppearance() {
@@ -1159,9 +1298,14 @@ const CAREER = (() => {
     return Object.assign({
       distance: meta.dist, field: meta.field, diff: "hard", playerDef: toDef(h), oppDefs,   // every career rider is a Hard jockey
       going: goingKey || "good", incidents: settings.incidents, chaos: false, assist: false, unlimited: false, topSpeed: null,
-      track: /randwick/i.test(meta.venue || "") ? "randwick" : /flemington/i.test(meta.venue || "") ? "flemington" : "generic",   // the two modelled venues race on their real courses; other venues use the generic course
+      track: /randwick/i.test(meta.venue || "") ? "randwick" : /flemington/i.test(meta.venue || "") ? "flemington" : ((SEASON.venueStyle(meta.venue) || {}).layout || "generic"),   // the two modelled venues race on their real courses; other venues use the generic course
       champ: false, fixedOpponents: null,
     }, extra);
+  }
+  // the time of day and weather the calendar stored for the meeting you are running (the booked one if it is this race, else the round's date / the race's next meeting)
+  function atmoOf(meta, kind, idx) {
+    try { let e = null; if (C.booking && C.booking.ref === meta.id) e = ((C.cal && C.cal.events) || []).find(x => x.id === C.booking.eid);
+      if (!e) e = kind === "off" ? CORE.roundEvent(C, idx) : CORE.nextMeeting(C, meta.id); return e ? { tod: e.tod, wx: e.forecast && e.forecast.weather } : {}; } catch (er) { return {}; }
   }
   function launch(cfg) {
     try { audio.ensure(); } catch (e) {}
@@ -1170,23 +1314,46 @@ const CAREER = (() => {
   }
   function enterOfficial(idx, hi) {
     const s = S(), h = C.horses[hi], meta = SEASON.roundDef(s, idx);
-    if (!h || idx !== s.cur || SEASON.done(s) || s.rounds[idx].st !== "open") return openHub();
-    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
-    C.active = hi; CORE.enterRound(C, idx); save();           // the date becomes the round's scheduled day
-    pending = { kind: "off", season: s.n, round: idx, hid: h.id };
+    if (!h || idx !== s.cur || SEASON.done(s) || s.rounds[idx].st !== "open") { openHub(); return false; }
+    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
+    if (racedToday(h)) { toast(h.name + " has already raced today — give him a day", "warn", 2.6); return false; }
+    const fee = payEntryFee(`entry:s${s.n}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) return false;
+    const at = atmoOf(meta, "off", idx);
+    C.active = hi; CORE.enterRound(C, idx); save();           // the date becomes the round's scheduled day (the weekly bills fall due on the way)
+    pending = { kind: "off", season: s.n, round: idx, hid: h.id, fee: fee.fee };
     const opp = raceDayField(SEASON.runners(C, idx), meta, h, idx === s.rounds.length - 1);
     launch(competitiveCfg(meta, h, opp, s.rounds[idx].going, {
-      career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
+      career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), tod: at.tod, wx: at.wx, grade: meta.grade, major: !!meta.major, crown: !!meta.crown, official: true, round: idx + 1, rounds: s.rounds.length, tier: meta.tier, rivalry: rivalryFor(h, opp) },
     }));
+    return true;
   }
-  function enterOptional(id, hi) {
-    const meta = BY_ID[id], h = C.horses[hi]; if (!meta || !h) return openOptional();
-    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return; }
+  // the entry fee (Phase 7): charged once per race instance + horse through the ledger; refused (with the way out explained) if the stable can't pay
+  function payEntryFee(key, meta, h) {
+    const r = CORE.payEntry(C, key, meta, h.name); if (r.ok) { if (r.fee && !r.already) save(); return r; }
+    const off = CORE.clubOffer(C);
+    toast(`Not enough cash for the ${money(r.fee)} entry fee (you have ${money(C.cash)}). ${off.ok ? "The stable club can advance " + money(off.amount) + " from the Office." : "Choose a cheaper race or wait for prize money."}`, "warn", 4.5);
+    return { ok: false, fee: r.fee };
+  }
+  // a horse runs once a day; and a race with prize money is only run on one of its dated meetings (an open race entered from the hub moves the calendar to the next meeting, like booking it)
+  const racedToday = h => h.lastRaceDay != null && (h.lastRaceDay | 0) === (C.day | 0);
+  function enterOptional(id, hi, booked) {
+    const meta = BY_ID[id], h = C.horses[hi]; if (!meta || !h) { openOptional(); return false; }
+    if (!SEASON.eligibility(h, meta).ok) { toast(h.name + " isn't qualified for the " + meta.name, "warn", 2); return false; }
+    if (racedToday(h)) { toast(h.name + " has already raced today — give him a day", "warn", 2.6); return false; }
+    let snap = null;
+    if (!booked && CORE.purseOf(meta) > 0) {
+      const m = CORE.nextMeeting(C, id), nr = CORE.nextOpenRoundDay(C);
+      if (!m || (nr != null && m.day >= nr)) { toast("The next meeting of the " + meta.name + " is after your next championship round — run or skip that round first", "warn", 3.4); return false; }
+      if (m.day > C.day) { snap = JSON.stringify(C); CORE.advance(C, m.day - C.day, { cap: true, force: true }); }
+    }
+    const fee = payEntryFee(`entry:o${C.optN | 0}:${meta.id}:${h.id}`, meta, h); if (!fee.ok) { if (snap) restoreCareer(snap); return false; }
+    const at = atmoOf(meta, "opt");
     C.active = hi; save();
     // the field: persistent rivals of the right grade for this race (the same field the form guide showed)
     const opp = raceDayField(SEASON.optionalField(C, id), meta, h, false);
-    pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0 };
-    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
+    pending = { kind: "opt", id, hid: h.id, optN: C.optN | 0, fee: fee.fee };
+    launch(competitiveCfg(meta, h, opp, "good", { career: { id: meta.id, name: meta.name, venue: meta.venue, venueStyle: SEASON.venueStyle(meta.venue), tod: at.tod, wx: at.wx, grade: meta.grade, major: false, crown: false, official: false, tier: meta.tier, rivalry: rivalryFor(h, opp) } }));
+    return true;
   }
   // the race-day field: rivals primed to the player's horse (season.js raceField) — the same field the form guide shows
   function raceDayField(defs, meta, h, isFinal) { try { return SEASON.raceField(defs, meta, h, isFinal); } catch (e) { return defs; } }
@@ -1233,17 +1400,17 @@ const CAREER = (() => {
     SEASON.recordH2H(C, h, meta, resOf(r, h, true).map(e => ({ hid: e.hid, place: e.place, t: e.t, player: e.sid === "player" })), S().n);
     // 2. the horse's own record + experience
     const xp = xpFor(meta, r, h, place || field, dnf);
-    h.xp += xp; h.races++; h.xpFrac += xp / XP_PER_PT;
+    h.xp += xp; h.races++; h.xpFrac += xp / XP_PER_PT * CORE.DEV.RACE_XP_SCALE;       // racing experience builds the horse more slowly now: training and age do the rest (Phase 9)
     const tp = Math.floor(h.xpFrac); h.xpFrac -= tp; h.trainPts += tp;
     let lv = 0; while (h.xp >= xpForLevel(h.lvl)) { h.xp -= xpForLevel(h.lvl); h.lvl++; lv++; }
     if (!dnf) { if (place === 1) h.wins++; if (place <= 3) h.podiums++; if (place <= 4) h.places++; }
     if (P.kind === "off") { h.offRaces++; if (place === 1) h.offWins++; h.champPts += summary.pts; }
     // prize money (places 1–5): credited once through the ledger. The key names this race instance + horse, so a replayed
     // result, a reload or a second call can never pay it twice. The horse's own prize record only grows by what was credited.
-    let prize = 0;
+    let prize = 0, repaid = 0;
     if (!dnf && place >= 1 && place <= 5) {
       const pr = CORE.awardPrize(C, P.kind === "off" ? `prize:s${P.season}:${meta.id}:${h.id}` : `prize:o${P.optN}:${meta.id}:${h.id}`, meta, place, h.name);
-      if (pr.ok) { prize = pr.amount; h.prize += prize; }
+      if (pr.ok) { prize = pr.amount; h.prize += prize; const rp = CORE.repayFromPrize(C, P.kind === "off" ? `prize:s${P.season}:${meta.id}:${h.id}` : `prize:o${P.optN}:${meta.id}:${h.id}`, prize); repaid = rp.paid || 0; }
     }
     h.history.push({ raceId: meta.id, name: meta.name, place: dnf ? 0 : place, field, dnf, t: Date.now(), dist: meta.dist, tier: meta.tier || 0, off: P.kind === "off", season: P.kind === "off" ? P.season : null, day: C.day, prize });
     if (h.history.length > 40) h.history.shift();
@@ -1253,19 +1420,21 @@ const CAREER = (() => {
       if (P.kind === "off" || (meta.tier || 0) >= 2) C.wins++;
       if (P.kind === "off" && meta.major && !C.trophies.some(t => t.raceId === meta.id && t.season === P.season)) { C.trophies.push({ raceId: meta.id, race: meta.name, horse: h.name, season: P.season, t: Date.now() }); trophy = true; h.majors++; }
     }
+    const repGain = dnf ? 0 : CORE.addRep(C, place, meta, P.kind === "off"), bonus = !dnf && place >= 1 ? CORE.milestones(C, place, meta) : [];
+    let goalPaid = []; try { goalPaid = CORE.claimGoals(C); } catch (e) { console.error(e); }                  // Phase 23: season goals pay once each
     CORE.afterRace(C, h, meta, { going: r.cfg.going, dnf });         // post-race fitness + the date of the run (no effect on racing yet)
     if (P.kind === "opt") CORE.afterOptional(C);                      // an optional race takes a day (never past the next open round)
     save();
     // feedback on the results screen
-    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy, prize });
+    renderPanel({ P, meta, h, place, dnf, xp, tp, lv, summary, trophy, prize, repaid, bonus, repGain, goalPaid, fee: P.fee || 0 });
     if (trophy) setTimeout(() => showMsg((meta.crown ? "★ " : "") + "YOU'VE WON THE " + meta.name.toUpperCase() + "!", 2.6), 900);
   }
   function renderPanel(o) {
     let el = document.getElementById("resCareerPanel");
     if (!el) { el = document.createElement("div"); el.id = "resCareerPanel"; el.className = "panel"; const row = document.getElementById("resAgain").parentElement; row.parentElement.insertBefore(el, row); }
     el.hidden = false;
-    const gain = `XP +${o.xp} · Training +${o.tp}${o.lv ? " · Level " + o.h.lvl : ""}${o.prize ? ` · Prize ${money(o.prize)} · Cash ${money(C.cash)}` : ""}`;
-    if (o.P.kind === "opt") { el.innerHTML = `<div class="cp-sub">${esc(o.meta.name)} · optional race</div><div class="cp-pts">${gain}</div><div class="cp-sub">No championship points — the season is unchanged.</div>`; return; }
+    const gain = `XP +${o.xp} · Training +${o.tp}${o.lv ? " · Level " + o.h.lvl : ""}${o.fee ? ` · Entry −${money(o.fee)}` : ""}${o.prize ? ` · Prize +${money(o.prize)}${o.repaid ? ` (−${money(o.repaid)} repaid to the club)` : ""}` : ""}${(o.bonus || []).map(b => ` · ★ ${b.label} +${money(b.amount)}`).join("")} · Cash ${money(C.cash)}`;
+    if (o.P.kind === "opt") { el.innerHTML = `<div class="cp-sub">${esc(o.meta.name)} · optional race</div><div class="cp-pts">${gain}</div><div class="cp-sub">No championship points — the season is unchanged.</div>${(o.goalPaid || []).map(g => `<div class="cp-sub" style="color:var(--good)">🎯 Season goal: ${esc(g.label)} · +${money(g.reward)}</div>`).join("")}`; return; }
     const s = o.summary, list = SEASON.standings(C), lead = list[0];
     const behind = s.behind ? `${s.behind} POINT${s.behind === 1 ? "" : "S"} BEHIND ${esc(lead.name).toUpperCase()}` : (list[1] ? `LEADING BY ${lead.pts - list[1].pts} POINT${lead.pts - list[1].pts === 1 ? "" : "S"}` : "LEADING");
     const seasonOver = !s.next;
@@ -1273,7 +1442,7 @@ const CAREER = (() => {
       <div class="cp-pos">CHAMPIONSHIP POSITION: ${ordinal(s.before).toUpperCase()} → ${ordinal(s.after).toUpperCase()}</div>
       <div class="cp-pts">+${s.pts} POINT${s.pts === 1 ? "" : "S"} · ${s.total} TOTAL · ${behind}</div>
       <div class="cp-sub">${seasonOver ? "That was the final round — the season is complete. Continue to see the final standings." : `Next: ${esc(s.next.name)} · ${esc(s.next.venue)} · ${fmtDist(s.next.dist)}`}</div>
-      <div class="cp-sub">${gain}${o.trophy ? " · 🏆 Trophy won" : ""}</div>`;
+      <div class="cp-sub">${gain}${o.trophy ? " · 🏆 Trophy won" : ""}</div>${(o.goalPaid || []).map(g => `<div class="cp-sub" style="color:var(--good)">🎯 Season goal: ${esc(g.label)} · +${money(g.reward)}</div>`).join("")}`;
   }
   function hidePanel() { const el = document.getElementById("resCareerPanel"); if (el) el.hidden = true; }
 
@@ -1293,7 +1462,7 @@ const CAREER = (() => {
     L.slots = slots(); return L;
   }
   // ---------- the farm as the home screen (Phase 5): the way in, the calendar board, booking, the way back ----------
-  let firstRun = false, fromFarm = false;
+  let firstRun = false, fromFarm = false, createFromFarm = false;
   // back out of a screen opened from inside the farmhouse (the ledger, the trophy cabinet): to the property, not the hub
   function home() { if (fromFarm && typeof SCENES !== "undefined") { fromFarm = false; hidePanel(); SCENES.enter("farm"); } else openHub(); }
   // the ledger (the Office screen) and the trophy cabinet, opened from the farmhouse; their Back button returns to the property
@@ -1308,6 +1477,11 @@ const CAREER = (() => {
     if (!C.horses.length) { firstRun = true; return openCreate(); }
     SCENES.enter("farm");
   }
+  // E at an empty box on the farm opens the horse creator (the same 5-step creator as before); Back or Create returns you to the property
+  function createForFarm() {
+    if (!C) load(); if (C.horses.length >= slots()) { toast("Win more races to unlock another box", "info", 2.4); return false; }
+    race = null; hidePanel(); fromFarm = true; openMarket("buy", "farm"); return true;
+  }
   // the board's month (and the booking screen's): races on the calendar, today, what is booked
   const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const MS_DAY = 86400000;
@@ -1319,7 +1493,7 @@ const CAREER = (() => {
     if (e.day < C.day) why = "Already run";
     else if (e.kind === "round") { const st = s.rounds[e.round] && s.rounds[e.round].st; open = !SEASON.done(s) && e.round === s.cur && st === "open"; why = open ? "" : st === "done" ? "Completed" : st === "skip" ? "Skipped" : "Opens after the previous round"; }
     else { open = nr == null || e.day < nr; why = open ? "" : "Held after the next championship round"; }
-    return { eid: e.id, kind: e.kind === "round" ? "round" : "optional", ref: e.ref, round: e.round, name: meta.name, venue: meta.venue, dist: meta.dist, grade: meta.grade, prize: meta.prize || "", crown: !!meta.crown, major: !!meta.major,
+    return { eid: e.id, kind: e.kind === "round" ? "round" : "optional", ref: e.ref, round: e.round, name: meta.name, venue: meta.venue, dist: meta.dist, grade: meta.grade, prize: CORE.purseLabel(meta) === "—" ? "" : CORE.purseLabel(meta), fee: CORE.entryFee(meta), crown: !!meta.crown, major: !!meta.major,
       day: e.day, date: CORE.fmtDate(e.day), dateShort: CORE.fmtDate(e.day, { short: true }), tod: CORE.TOD_LABEL[e.tod] || "", weather: (CORE.WX_LABEL[e.forecast && e.forecast.weather] || ""), going: e.forecast ? e.forecast.going : "good", open, why, meta };
   }
   function calendarData(off) {
@@ -1355,6 +1529,7 @@ const CAREER = (() => {
     if (!info || !h) return { ok: false, error: "That race or horse isn't available." };
     if (!info.open) return { ok: false, error: info.why || "That race can't be booked yet." };
     if (!SEASON.eligibility(h, info.meta).ok) return { ok: false, error: h.name + " isn't qualified for the " + info.name + "." };
+    const fee = CORE.entryFee(info.meta); if (C.cash < fee) return { ok: false, error: `The entry fee is ${money(fee)} and the stable has ${money(C.cash)}. Ask the stable club for an advance at the desk, or pick a cheaper race.`, fee };
     C.booking = { eid: info.eid, hid: h.id, kind: info.kind, ref: info.ref, round: info.round, name: info.name, venue: info.venue, day: info.day, at: C.day };
     C.active = C.horses.indexOf(h); save(); return { ok: true, booking: Object.assign({}, C.booking) };
   }
@@ -1363,10 +1538,55 @@ const CAREER = (() => {
   // the booked race starts (the float has left the property): the same entry the hub's buttons use
   function startBooked() {
     const b = booking(); if (!b) return { ok: false, error: "Nothing is booked." };
-    delete C.booking; save(); hidePanel(); race = null;
-    if (b.kind === "round") enterOfficial(b.round, b.hi);
-    else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); enterOptional(b.ref, b.hi); }
+    hidePanel(); race = null; let ok = false;
+    const snap = JSON.stringify(C);                           // all or nothing (Phase 13): if the entry can't be made, the calendar, cash and bills are put back exactly as they were
+    try {
+      if (b.kind === "round") ok = enterOfficial(b.round, b.hi);
+      else { const e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid); if (e && e.day > C.day) CORE.advance(C, e.day - C.day, { cap: true, force: true }); ok = enterOptional(b.ref, b.hi, true); }
+    } catch (err) { console.error(err); ok = false; }
+    if (!ok) { restoreCareer(snap); return { ok: false, error: "The entry could not be made (entry fee or eligibility)." }; }
+    delete C.booking; save();                                // consumed exactly once, only when the race really started
     return { ok: true };
+  }
+  // put the live career back to a snapshot without changing the object everyone else holds
+  function restoreCareer(snap) { const o = JSON.parse(snap); for (const k of Object.keys(C)) delete C[k]; Object.assign(C, o); pending = null; save(); }
+  // ---------- the departure (Phase 13): a preparation summary, then an atomic save before the horse travels ----------
+  // saveVerified: write the career and read it straight back; true only if what is stored is exactly what is in memory
+  function saveVerified() { if (!C) load(); const text = JSON.stringify(C); try { localStorage.setItem("ff_career", text); return localStorage.getItem("ff_career") === text; } catch (e) { return false; } }
+  const travel = {
+    summary() {
+      if (!C) load(); const b = booking(); if (!b) return null; const h = C.horses.find(x => x.id === b.hid), e = ((C.cal && C.cal.events) || []).find(x => x.id === b.eid), meta = BY_ID[b.ref] || (b.kind === "round" ? SEASON.roundDef(S(), b.round) : null);
+      if (!h || !e || !meta) return null;
+      const ra = CORE.raceAttrs(C, h), dv = CORE.devRec(C, h), fee = CORE.entryFee(meta), going = (GOING[e.forecast && e.forecast.going] || {}).label || (e.forecast && e.forecast.going) || "", warn = [];
+      if (h.fitness < 70) warn.push(h.name + " is only " + (h.fitness < 50 ? "half" : "partly") + " fit — he will race about " + Math.round(ra.pen * 1000) / 10 + "% below his ratings");
+      if (dv.sore > 0) warn.push(h.name + " is sore — he should rest before racing");
+      if (C.cash < fee) warn.push("The entry fee is " + money(fee) + " and the stable has " + money(C.cash));
+      return { eid: b.eid, name: b.name, venue: b.venue, course: courseNote(b.venue), grade: meta.grade, dist: meta.dist, date: CORE.fmtDate(e.day), daysAway: Math.max(0, e.day - C.day), tod: CORE.TOD_LABEL[e.tod] || "", weather: CORE.WX_LABEL[e.forecast && e.forecast.weather] || "", going, prize: meta.prize || "", fee, cash: C.cash, afford: C.cash >= fee,
+        horse: { name: h.name, fitness: h.fitness, composure: h.composure, readiness: CORE.readiness(C, h), pen: ra.pen, peak: !!ra.peak, sore: dv.sore, rating: rating(h), form: formStr(h, 5) }, warnings: warn };
+    },
+    // the save-then-travel gate: refuses (changing nothing) if the career can't be stored; the farm only lets the horse leave when this says ok
+    commit() { const b = booking(); if (!b) return { ok: false, reason: "nobooking" }; if (!saveVerified()) return { ok: false, reason: "save" }; return { ok: true, booking: b }; },
+    saveVerified,
+  };
+  // ---------- stable care and hands-on training (Phase 6): the rules live in career-core.js (CORE.groom / feed / prepare / drillReward / restDay) ----------
+  const careSave = r => { if (r && r.ok) save(); return r; };
+  const horseById = hid => { if (!C) load(); return C.horses.find(x => x.id === hid) || null; };
+  const care = {
+    status(hid) { const h = horseById(hid); return h ? Object.assign(CORE.careStatus(C, h), { readiness: CORE.readiness(C, h), fitness: h.fitness, composure: h.composure, cash: C.cash }) : null; },
+    groom: hid => { horseById(hid); return careSave(CORE.groom(C, hid)); }, feed: (hid, tier) => { horseById(hid); return careSave(CORE.feed(C, hid, tier)); },
+    prepare: hid => { horseById(hid); return careSave(CORE.prepare(C, hid)); }, unprepare: hid => { horseById(hid); return careSave(CORE.unprepare(C, hid)); },
+    drill: (hid, id, grade) => { horseById(hid); return careSave(CORE.drillReward(C, hid, id, grade)); },
+    wash: hid => { horseById(hid); return careSave(CORE.wash(C, hid)); }, save() { if (C) save(); },
+    plan: (hid, plan, int) => { horseById(hid); return careSave(CORE.setPlan(C, hid, plan, int)); },
+    rest() { if (!C) load(); const r = CORE.restDay(C); if (r.ok) { save(); } return r; },
+    get cash() { if (!C) load(); return C.cash; }, get day() { if (!C) load(); return C.day; }, get today() { if (!C) load(); return CORE.fmtDate(C.day); },
+  };
+  // what the inspect card shows for a horse
+  function horseInfo(hid) {
+    const h = horseById(hid); if (!h) return null; const s = S(), st = detectStyle(h.attrs), form = (h.history || []).slice(-5).map(e => e.dnf || !e.place ? "F" : e.place).join("-");
+    const pot = h.pot || null;
+    return { id: h.id, name: h.name, age: h.age, rating: rating(h), style: st.label, pref: st.dist, fitness: h.fitness, composure: h.composure, cond: h.fitness >= 85 ? "Fit" : h.fitness >= 70 ? "Fresh" : h.fitness >= 50 ? "Tired" : "Needs a spell",
+      attrs: ATTRS.map(([k, lab]) => ({ k, lab, v: h.attrs[k], p: pot ? pot[k] : h.attrs[k] })), races: h.races | 0, wins: h.wins | 0, places: h.places | 0, form, trainPts: h.trainPts | 0, prize: h.prize | 0, status: care.status(hid), dev: CORE.devReport(C, h), race: CORE.raceAttrs(C, h) };
   }
   // the player's character (Phase 5): saved as the changes are made in the wardrobe
   function setPlayer(p) { if (!C) load(); const cur = C.player || {}; C.player = CORE.cleanPlayer({ look: Object.assign({}, cur.look, p.look), colours: Object.assign({}, cur.colours, p.colours), outfit: p.outfit || cur.outfit }); save(); return C.player; }
@@ -1393,6 +1613,12 @@ const CAREER = (() => {
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
     save(); return true;
   }
-  return { open, begin, openScreen, onResult, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, setPlayer, hasSave,
+  // the market through the public API (used by the tests and the farm)
+  const marketApi = {
+    open: (tab) => { if (!C) load(); fromFarm = false; openMarket(tab || "buy", "office"); }, sync: () => { if (!C) load(); CORE.marketSync(C); return C.market.listings.map(l => CORE.marketView(C, l)); },
+    offer: (id, price) => { const r = CORE.marketOffer(C, id, price, { slots: slots() }); save(); return r; }, buy: (id, price) => { const r = CORE.marketBuy(C, id, price, { slots: slots() }); if (r.ok) save(); return r; },
+    quote: hid => CORE.sellQuote(C, hid), sell: hid => { const r = CORE.sellHorse(C, hid); if (r.ok) save(); return r; }, fee: () => CORE.createFee(C), slots: () => slots(),
+  };
+  return { open, begin, openScreen, onResult, market: marketApi, travel, training: trainingApi, load, hidePanel, get data() { return C; }, onlineHorses, recordOnline, farmStalls, travelToNextRace, enterOffice, calendarData, boardInfo, horsesFor, book, cancelBooking, booking, startBooked, returnHome, plans: CORE.PLANS, fac: { buy: k => { if (!C) load(); const r = CORE.buyFacility(C, k); if (r.ok) save(); return r; }, hire: (role, tier, spec) => { if (!C) load(); const r = CORE.hireStaff(C, role, tier, spec); if (r.ok) save(); return r; }, fire: role => { if (!C) load(); const r = CORE.fireStaff(C, role); save(); return r; }, effects: f => { if (!C) load(); return CORE.facEffects(C, f); } }, finance: { bill: () => { if (!C) load(); return CORE.weeklyBill(C); }, club: () => { if (!C) load(); return CORE.clubOffer(C); }, advance: () => { if (!C) load(); const r = CORE.clubAdvance(C); if (r.ok) save(); return r; }, owed: () => { if (!C) load(); return CORE.econOf(C).debt; }, fee: eid => { if (!C) load(); const e = ((C.cal && C.cal.events) || []).find(x => x.id === eid), m = e && metaOf(e); return m ? CORE.entryFee(m) : 0; } }, setPlayer, hasSave, createForFarm, slotsFree: () => { if (!C) load(); return slots() - C.horses.length; }, care, horseInfo, defOf: hid => { const h = horseById(hid); return h ? toDef(h) : null; },
     _test: { openOffice, importText, importPrepare, exportText, prepare, save, money, get lastBackup() { return lastBackup; }, enterOfficial, enterOptional, doSkip, openSeasonEnd, openEvent, openStandings, openCalendar, openHistory, openOptional, toDef, xpFor, openCreate, openStable, openProfile, openTraining, openTrophies, openRivals, openRival, formGuideHtml, get draft() { return draft; }, schedulePreview, BASE, START_POOL, START_CAP, POT_POOL, POT_CAP, upgCost } };
 })();

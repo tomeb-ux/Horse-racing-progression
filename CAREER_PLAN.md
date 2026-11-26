@@ -1,5 +1,8 @@
 # Final Furlong — Career Mode & 3D Stable Empire: implementation plan
 
+> **STATUS AT HANDOFF (read first):** all 14 phases of this plan are implemented on the dev branch `claude/amazing-clarke-jzpr1x` and covered by automated tests; only Phases 1–4 have been approved by the owner. The highest-priority open issue is a racing micro-stutter regression (cause unknown). See `CAREER_PROGRESS.md` → "FINAL STATE" and `HANDOFF.md`. This plan is kept as written for intent; where it differs from what was built, the progress file wins.
+
+
 ## Context
 The user supplied a master specification (40 sections) to turn Career Mode into an Australian stable-management game:
 - a walkable 3D farm with a third-person character;
@@ -221,15 +224,8 @@ Australian look: eucalypts (reuse `GFX.plantTrees`), timber/steel sheds, post-an
 - Camera: behind and above the player, mouse/drag orbit with sensitivity setting, occlusion pull-in via a raycast against the collider proxies, no shake.
 - Appearance editor in the office; saved in `C.player`.
 
-**Implemented (Phase 5, done) — where it differs from the plan above (owner's direction after the Phase 4 review):**
-- **Scope grew, by the owner's request:** the main menu is drawn over the property (Settings / Quick Race / Career Mode), Career Mode lands on the farm (a first career creates its first horse, then lands there; the old hub is reached from the pause menu), the player can go **inside the farmhouse** (its own interior scene, `farm-house.js`), where a **race-calendar board** books the race and horse (`C.booking`, `CAREER.book/startBooked`), **first/third person** (V), and a booked race ends in a skippable **load-the-float and drive-off cutscene** (`farm-trip.js`) before the race starts; after the race the player **returns to the farm**.
-- **Appearance editor:** a **wardrobe + mirror in the farmhouse** (`farm-ui.js`), not the Office screen. Saved to `C.player` as planned (`CAREER.setPlayer`).
-- **Camera occlusion:** instead of a raycast, the camera marches inward from the full distance until a point is not inside a collider AABB, under the ground or outside the room (`blockedAt`) — cheap, no extra geometry. Sensitivity is in Settings (and look sensitivity / mouse capture / default view).
-- **Collision against horses:** boxes are enclosed by the stable-block collider, so horses cannot be walked into; interaction with a horse will be an interaction point at the box front (Phase 6), not body collision.
-- **Character:** ~29–34 meshes (≈29 draw calls), 3 outfits, helmet in riding/race-day outfits and gloves in riding gear; no separate riding-equipment items (whip, saddle) — not needed until Phase 6/9.
-- **Estimate vs measured:** the whole-property overview is at 249 of the 250 draw-call budget (the float+ute became their own group); further always-visible additions must save calls elsewhere.
-
-### Phase 6 — Farm interactions
+### Phase 6 — Farm interactions (EXPANDED by the owner at the Phase 6 kickoff; see CAREER_PROGRESS.md "Exactly what Phase 6 requires")
+**Brought forward into Phase 6 from later phases:** the interactive load-up and playable drive (the Phase 13 transport flow, driving part), guided race-day preparation with ground navigation lines, a rebuilt character, in-farm training drills (the playable layer only; long-term progression stays Phase 9), and a small 'Rest a day' calendar advance. Phase 13 keeps: the atomic save-then-travel flow, the post-result return flow and any arrival cinematic. **Phase 11 must add smaller Australian regional/grassroots racecourses; Phase 12 must add morning / midday / late-afternoon / golden-hour sunset races with matching weather and going.**
 - Interaction system: proximity + facing + line-of-sight check against the collider proxies, `E` prompt, subtle highlight.
 - Actions:
   - horse: inspect (opens existing profile/records), groom (short brush animation, small temporary readiness), feed (tiers), prepare, assign schedule, lead to activity;

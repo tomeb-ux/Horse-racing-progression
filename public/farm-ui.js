@@ -12,6 +12,7 @@
 const FARMUI = (() => {
   let css = false, F = null, st = null;
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const money = n => (n < 0 ? "−$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-AU");
   function style() {
     if (css) return; css = true; const el = document.createElement("style"); el.id = "farmUiCss";
     el.textContent = `
@@ -31,6 +32,16 @@ const FARMUI = (() => {
     .fu .mg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
     .fu .mg .dw{font-size:11px;color:#8fa08f;padding:2px 0}
     .fu .day{aspect-ratio:1;display:grid;place-items:center;border-radius:9px;font-size:14px;position:relative;color:#d9e0d6;border:1px solid transparent;background:rgba(255,255,255,.03)}
+    .fu .tr{display:grid;grid-template-columns:132px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+    .fu .tr:last-child{border-bottom:0}
+    .fu .tr .nm{font:800 13px var(--font-d,system-ui);letter-spacing:.07em;text-transform:uppercase}
+    .fu .tr .v{font-size:12.5px;color:#cfd8cd;margin-top:2px}
+    .fu .tr .bar{position:relative;height:8px;border-radius:5px;background:rgba(255,255,255,.1);margin:5px 0 3px}
+    .fu .tr .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,#5fb87a,#a8e0a0)}
+    .fu .tr .bar u{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:rgba(232,195,90,.28)}
+    .fu .tr .bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#f2efe6}
+    .fu .pool{display:flex;justify-content:space-between;align-items:baseline;background:rgba(232,195,90,.1);border:1px solid rgba(232,195,90,.35);border-radius:10px;padding:8px 14px;margin-bottom:6px}
+    .fu .pool b{font:800 26px var(--font-d,system-ui);color:#e8c35a}
     .fu .day.past{color:#6f7d70}
     .fu .day.race{cursor:pointer;background:rgba(232,195,90,.18);border-color:rgba(232,195,90,.5);color:#fff}
     .fu .day.race.opt{background:rgba(160,190,150,.14);border-color:rgba(160,190,150,.45)}
@@ -85,13 +96,13 @@ const FARMUI = (() => {
       cells += `<div class="${cls.join(" ")}" ${c ? `data-eid="${c.eid}" title="${esc(c.name)}"` : ""}>${d}</div>`;
     }
     const list = cd.list.map(x => `<div class="ri${x.eid === st.eid ? " on" : ""}" data-eid="${x.eid}"><div><b>${esc(x.name)}</b><small>${esc(x.dateShort)} · ${esc(x.venue)} · ${x.dist.toLocaleString("en-AU")} m</small></div><div style="text-align:right">${x.kind === "round" ? `<span class="tag g">Championship</span>` : `<span class="tag">Optional</span>`}${x.open ? "" : `<small>${esc(x.why)}</small>`}</div></div>`).join("") || `<div class="sub">No more races this season.</div>`;
-    const bkHtml = bk ? `<div class="bk"><div><b>Booked:</b> ${esc(bk.name)} — ${esc(bk.horse)} · ${esc(fmtDay(bk.day))}<div class="sub">Take ${esc(bk.horse)} to the horse float by the shed to leave for the races.</div></div><button class="btn" id="fuCancel">Cancel booking</button></div>` : "";
+    const bkHtml = bk ? `<div class="bk"><div><b>Booked:</b> ${esc(bk.name)} — ${esc(bk.horse)} · ${esc(fmtDay(bk.day))}<div class="sub">Head out to ${esc(bk.horse)}'s box — the objective panel and the glowing line on the ground guide you through preparing, loading and driving to the races.</div></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="fuGo">Skip the routine · go now</button><button class="btn" id="fuCancel">Cancel booking</button></span></div>` : "";
     const hz = horses.map(h => `<div class="hc${h.ok ? "" : " no"}${h.id === st.hid ? " on" : ""}" data-hid="${h.id}"><div style="display:flex;justify-content:space-between"><b>${esc(h.name)}</b><span class="tag ${h.ok ? "ok" : "r"}">${h.ok ? "Qualified" : "Not qualified"}</span></div>
         <div class="rq">${esc(h.style)} · rating ${h.rating} · fitness ${h.fit == null ? "—" : h.fit}${h.form ? " · form " + esc(h.form) : ""}</div>${h.reqs.map(r => `<div class="rq ${r.ok ? "ok" : "no"}">${r.ok ? "✓" : "✗"} ${esc(r.label)}: ${esc(r.detail)}</div>`).join("")}</div>`).join("") || `<div class="sub">You have no horses yet — create one from the Career menu (Esc).</div>`;
-    const canBook = sel && sel.open && st.hid && !(bk && bk.eid === sel.eid && bk.hid === st.hid);
+    const cash = CAREER.data.cash | 0, afford = !sel || !sel.fee || cash >= sel.fee, canBook = sel && sel.open && st.hid && afford && !(bk && bk.eid === sel.eid && bk.hid === st.hid);
     const hname = (horses.find(h => h.id === st.hid) || {}).name || "";
     const detail = sel ? `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div class="sub">${sel.kind === "round" ? "Championship round" + (sel.round >= 0 ? " " + (sel.round + 1) : "") : "Optional race — experience and records only"} · ${esc(sel.grade)}</div><h2 style="font-size:21px;margin-top:2px">${sel.crown ? "★ " : ""}${esc(sel.name)}</h2></div>${sel.open ? `<span class="tag ok">Open for booking</span>` : `<span class="tag">${esc(sel.why)}</span>`}</div>
-        <div class="kv"><span><b>${esc(sel.date)}</b></span>${sel.tod ? `<span>${esc(sel.tod)}</span>` : ""}<span><b>${esc(sel.venue)}</b></span><span>${sel.dist.toLocaleString("en-AU")} m</span>${sel.weather ? `<span>${esc(sel.weather)}</span>` : ""}<span>${esc(goingLabel(sel.going))} going forecast</span>${sel.prize ? `<span>Prize <b>${esc(sel.prize)}</b></span>` : ""}</div>
+        <div class="kv"><span><b>${esc(sel.date)}</b></span>${sel.tod ? `<span>${esc(sel.tod)}</span>` : ""}<span><b>${esc(sel.venue)}</b></span><span>${sel.dist.toLocaleString("en-AU")} m</span>${sel.weather ? `<span>${esc(sel.weather)}</span>` : ""}<span>${esc(goingLabel(sel.going))} going forecast</span>${sel.prize ? `<span>Prize <b>${esc(sel.prize)}</b></span>` : ""}${sel.fee ? `<span>Entry fee <b>$${sel.fee.toLocaleString()}</b></span>` : ""}<span>Cash <b>$${cash.toLocaleString()}</b></span></div>${sel.fee && !afford ? `<div class="sub" style="color:#e8a35a;margin-top:6px">The entry fee is more than the stable's cash. Open the ledger at the desk to ask the stable club for an advance, or choose a cheaper race.</div>` : ""}
         <div class="lab" style="font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9;margin-top:8px">Choose your runner</div><div class="hz">${hz}</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><button class="btn pri" id="fuBook" ${canBook ? "" : "disabled"}>${canBook ? "Book " + esc(hname) : sel.open ? (st.hid ? "Already booked" : "No qualified horse") : "Not open yet"}</button><span class="sub" id="fuMsg">${esc(st.msg)}</span></div></div>` : `<div class="card"><div class="sub">Nothing on the calendar.</div></div>`;
     frame(`<div class="top"><div><h2>Race Calendar</h2><div class="sub">Today is ${esc(cd.todayLabel)} · ${esc(CAREER.data.stable)}</div></div><button class="btn" id="fuClose">Close (Esc)</button></div>${bkHtml}
@@ -102,6 +113,7 @@ const FARMUI = (() => {
     qa("[data-eid]").forEach(e => e.onclick = () => { st.eid = e.getAttribute("data-eid"); st.msg = ""; drawCalendar(); });
     qa(".hc[data-hid]").forEach(e => e.onclick = () => { const h = horses.find(x => x.id === e.getAttribute("data-hid")); if (h && h.ok) { st.hid = h.id; st.msg = ""; drawCalendar(); } });
     const b = q("#fuBook"); if (b) b.onclick = () => { const r = CAREER.book(sel.eid, st.hid); if (!r.ok) { st.msg = r.error; return drawCalendar(); } F.refreshBoard(); F.objective(); st.msg = ""; drawCalendar(); try { toast(esc(hname) + " is booked for the " + esc(sel.name), "good", 2.4); } catch (e) {} };
+    const go = q("#fuGo"); if (go) go.onclick = () => { F.closePanel(); F.quickGo(); };
     const c = q("#fuCancel"); if (c) c.onclick = () => { CAREER.cancelBooking(); F.refreshBoard(); F.objective(); st.msg = ""; drawCalendar(); };
   }
   const goingLabel = g => (typeof GOING !== "undefined" && GOING[g] ? GOING[g].label : g);
@@ -137,6 +149,79 @@ const FARMUI = (() => {
     qa("[data-trousers]").forEach(e => e.onclick = () => set({ colours: { trousers: e.getAttribute("data-trousers") } }));
     qa("[data-boots]").forEach(e => e.onclick = () => set({ colours: { boots: e.getAttribute("data-boots") } }));
   }
-  function onClose() { st = null; if (root()) root().style.background = ""; }
-  return { openCalendar, openWardrobe, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
+  // ================================================================ leaving for the races (Phase 13): the preparation summary
+  function openDeparture(ctx, sum, go) {
+    style(); F = ctx; st = { kind: "depart", sum, go, msg: "" }; drawDeparture();
+  }
+  function drawDeparture() {
+    const s = st.sum, h = s.horse, bar = (v, c) => `<div style="height:7px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden"><i style="display:block;height:100%;width:${Math.max(2, Math.min(100, v))}%;background:${c}"></i></div>`;
+    frame(`<div class="fu" style="max-width:640px"><div class="top"><div><h2>Ready to go?</h2><div class="sub">${esc(s.name)} · ${esc(s.venue)} · ${esc(s.date)}${s.daysAway ? ` (${s.daysAway} day${s.daysAway === 1 ? "" : "s"} away)` : " (today)"}</div></div>${s.course ? `<div class="sub" style="margin-top:3px">Course: ${esc(s.course)}</div>` : ""}</div></div>
+      <div class="card"><div class="lab" style="font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9">Your runner</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:19px">${esc(h.name)}</b><span class="sub">rating ${h.rating}${h.form && h.form !== "—" ? " · form " + esc(h.form) : ""}</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px"><div><div class="sub">Fitness ${h.fitness}</div>${bar(h.fitness, h.fitness >= 85 ? "#7bd88f" : h.fitness >= 70 ? "#e8c35a" : "#e25b4a")}</div><div><div class="sub">Composure ${h.composure}</div>${bar(h.composure, "#7cc6e8")}</div><div><div class="sub">Readiness ${h.readiness}</div>${bar(h.readiness, "#e8c35a")}</div></div>
+        <div class="sub" style="margin-top:6px">${h.peak ? `<span style="color:#8fd18f">Peaking — fresh and fit for a small lift on the day.</span>` : h.pen ? `<span style="color:#e8a35a">Tired: will race about ${Math.round(h.pen * 1000) / 10}% below his ratings.</span>` : "In good racing condition."}</div></div>
+      <div class="card" style="margin-top:10px"><div class="lab" style="font:700 11.5px var(--font-d,system-ui);letter-spacing:.08em;text-transform:uppercase;color:#b9c4b9">The race</div>
+        <div class="kv" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px"><span><b>${s.dist.toLocaleString("en-AU")} m</b></span><span>${esc(s.grade)}</span>${s.tod ? `<span>${esc(s.tod)}</span>` : ""}${s.weather ? `<span>Forecast <b>${esc(s.weather)}</b></span>` : ""}${s.going ? `<span>Going <b>${esc(s.going)}</b></span>` : ""}${s.prize ? `<span>Prize ${esc(s.prize)}</span>` : ""}</div>
+        <div class="sub" style="margin-top:6px">Entry fee <b>${money(s.fee)}</b> — charged on arrival · cash ${money(s.cash)}</div></div>
+      ${s.warnings.length ? `<div class="card" style="margin-top:10px;border-color:rgba(226,91,74,.6)">${s.warnings.map(w => `<div style="color:#f1b3a8;font-size:13px">⚠ ${esc(w)}</div>`).join("")}</div>` : ""}
+      ${st.msg ? `<div class="card" style="margin-top:10px;border-color:rgba(226,91,74,.7);color:#f1b3a8">${st.msg}</div>` : ""}
+      <div style="display:flex;gap:10px;margin-top:14px"><button class="btn pri" id="fuLeave" ${s.afford ? "" : "disabled"}>${s.afford ? "Leave now (Enter)" : "Can't afford the entry"}</button><button class="btn" id="fuStay">Not yet (Esc)</button></div>
+      <div class="sub" style="margin-top:8px">Your career is saved before you travel; if it can't be saved, you stay home.</div></div>`, true);
+    const lv = q("#fuLeave"), stay = q("#fuStay");
+    if (stay) stay.onclick = () => F.closePanel();
+    if (lv) lv.onclick = () => { const r = CAREER.travel.commit(); if (!r.ok) { st.msg = r.reason === "save" ? "<b>Your career couldn't be saved</b> — browser storage is full or blocked, so the horse stays home rather than risk losing the result. Download a copy from the Office → Save &amp; backups, then try again." : "That booking is gone."; return drawDeparture(); } const go = st.go; F.closePanel(); if (go) go(); };
+  }
+
+  // ================================================================ the farm map (M)
+  // A top-down plan of the property drawn from the same layout and colliders the world is built from: paddocks, the exercise oval, the courtyard and boxes, the farmhouse, sheds,
+  // the float and the gate, the fences, the horses in their boxes, where you stand and where the booked horse is.
+  function openMap(ctx) {
+    style(); F = ctx; st = { kind: "map" };
+    frame(`<div class="top"><div><h2>Farm map</h2><div class="sub">${esc(CAREER.data ? CAREER.data.stable : "")} · you are the gold arrow · M or Esc to close</div></div><button class="btn" id="fuClose">Close (Esc)</button></div>
+      <div class="card" style="padding:10px"><canvas id="fuMap" width="1000" height="560" style="width:100%;display:block;border-radius:10px"></canvas></div>
+      <div class="sub" style="margin-top:6px;display:flex;gap:16px;flex-wrap:wrap"><span><i style="display:inline-block;width:10px;height:10px;background:#c9a45c;border-radius:50%"></i> you</span><span><i style="display:inline-block;width:10px;height:10px;background:#e8c35a;transform:rotate(45deg)"></i> the booked horse's box</span><span><i style="display:inline-block;width:10px;height:10px;background:#8a5a32"></i> buildings</span><span><i style="display:inline-block;width:10px;height:10px;background:#c9b48a"></i> exercise oval</span></div>`);
+    q("#fuClose").onclick = () => F.closePanel(); drawMap();
+  }
+  function drawMap() {
+    const cv = q("#fuMap"); if (!cv) return; const g = cv.getContext("2d"), L = FARMWORLD.L, w = F.world, W = cv.width, H = cv.height;
+    const x0 = -104, x1 = 152, z0 = -80, z1 = 90, sc = Math.min(W / (x1 - x0), H / (z1 - z0)), ox = (W - (x1 - x0) * sc) / 2, oz = (H - (z1 - z0) * sc) / 2, X = x => ox + (x - x0) * sc, Z = z => oz + (z - z0) * sc;
+    g.fillStyle = "#587a45"; g.fillRect(0, 0, W, H); g.fillStyle = "#4c6c3b"; for (let i = 0; i < 40; i++) { g.fillRect((i * 97) % W, (i * 53) % H, 70, 3); }
+    const rect = (a, b, c, d, fill, line) => { g.fillStyle = fill; g.fillRect(X(a), Z(b), (c - a) * sc, (d - b) * sc); if (line) { g.strokeStyle = line; g.lineWidth = 1.2; g.strokeRect(X(a), Z(b), (c - a) * sc, (d - b) * sc); } };
+    const label = (t, x, z, col, size) => { g.font = "600 " + (size || 13) + "px system-ui,sans-serif"; g.textAlign = "center"; g.fillStyle = "rgba(0,0,0,.55)"; g.fillText(t, X(x) + 1, Z(z) + 1); g.fillStyle = col || "#f2efe6"; g.fillText(t, X(x), Z(z)); };
+    for (const p of L.paddocks) { rect(p.x0, p.z0, p.x1, p.z1, "#6c9654", "#d8d1b3"); label(p.name, (p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2, "#e8f0d8"); }
+    rect(L.court.x0, L.court.z0, L.court.x1, L.court.z1, "#b8aa88", "#d8d1b3"); label("Courtyard", (L.court.x0 + L.court.x1) / 2, L.court.z1 - 2, "#3a3222", 12);
+    // the exercise oval: a stadium of two straights and two bends
+    { const T = L.track, half = 60, ring = (r, fill) => { g.beginPath(); g.moveTo(X(- half), Z(T.cz - r)); g.lineTo(X(half), Z(T.cz - r)); g.arc(X(half), Z(T.cz), r * sc, -Math.PI / 2, Math.PI / 2); g.lineTo(X(- half), Z(T.cz + r)); g.arc(X(- half), Z(T.cz), r * sc, Math.PI / 2, Math.PI * 1.5); g.closePath(); g.fillStyle = fill; g.fill(); };
+      ring(T.r1, "#c9b48a"); ring(T.r0, "#6c9654"); g.lineWidth = 1.5; g.strokeStyle = "#f2efe6"; label("Exercise oval", 0, T.cz + 1, "#e8f0d8"); }
+    g.strokeStyle = "rgba(240,236,220,.7)"; g.lineWidth = 1.1; g.beginPath(); for (const s of w.segs) { g.moveTo(X(s.x0), Z(s.z0)); g.lineTo(X(s.x1), Z(s.z1)); } g.stroke();
+    for (const c of w.colliders) { g.fillStyle = "#8a5a32"; g.fillRect(X(c.x0), Z(c.z0), Math.max(1.5, (c.x1 - c.x0) * sc), Math.max(1.5, (c.z1 - c.z0) * sc)); }
+    label("Stables", (L.stable.x0 + L.stable.x1) / 2, L.stable.zBack - 2, "#f2efe6"); label("Farmhouse", (L.house.x0 + L.house.x1) / 2, L.house.z0 - 2); label("Feed shed", (L.feed.x0 + L.feed.x1) / 2, L.feed.z0 - 2); label("Vet", (L.vet.x0 + L.vet.x1) / 2, L.vet.z0 - 2);
+    label("Float & ute", L.float.x, L.float.z + 7, "#f6e6b0"); label("Farm gate", L.gate.x, L.gate.z - 4, "#f6e6b0"); label("Wash bay", -12.4, -17.2, "#d7ecf5", 11);
+    try { for (const p of FARMTRAIN.POINTS) label(p.where === "gate" ? "Starting-gate unit" : "Oval entrance", p.x, p.z - 3, "#f6e6b0", 11); } catch (e) {}
+    // the horses in their boxes (the booked one marked)
+    let bk = null; try { bk = CAREER.booking(); } catch (e) {}
+    for (const gm of F.horses) { const i = gm.userData.stallI; if (i == null) continue; const s = w.stalls[i], away = gm.userData.out, x = away ? X(gm.position.x) : X(s.x), z = away ? Z(gm.position.z) : Z(s.z + 4.2), booked = bk && bk.hid === gm.userData.hid;
+      g.beginPath(); g.arc(x, z, booked ? 5.5 : 4, 0, Math.PI * 2); g.fillStyle = booked ? "#e8c35a" : "#f2efe6"; g.fill(); g.strokeStyle = "#3a2a18"; g.lineWidth = 1; g.stroke(); }
+    try { if (FARMACTORS.live()) { g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(W - 150, 10, 140, 26); g.fillStyle = "#f2efe6"; g.font = "700 14px system-ui"; g.textAlign = "center"; g.fillText("Farm time " + CORE.fmtClock(FARMACTORS.hour()), W - 80, 28); } } catch (e) {}
+    // you
+    const P = F.P, px = X(P.x), pz = Z(P.z), f = P.face || 0; g.save(); g.translate(px, pz); g.rotate(-f + Math.PI / 2 * 0 + Math.PI); g.beginPath(); g.moveTo(0, -9); g.lineTo(6, 7); g.lineTo(0, 3); g.lineTo(-6, 7); g.closePath(); g.fillStyle = "#e8c35a"; g.fill(); g.strokeStyle = "#1a1408"; g.lineWidth = 1.5; g.stroke(); g.restore();
+    g.fillStyle = "#f2efe6"; g.font = "600 11px system-ui"; g.textAlign = "left"; g.fillRect(14, H - 22, 20 * sc, 3); g.fillText("20 m", 14 + 20 * sc + 6, H - 17);
+  }
+  // ================================================================ the training board (Phase 26): the Training screen's allocation, at the horse's own box
+  function openTraining(ctx, hid) { style(); F = ctx; st = { kind: "train", hid }; drawTraining(); }
+  function drawTraining(keepScroll) {
+    const v = CAREER.training.view(st.hid); if (!v) return F.closePanel(); const y = keepScroll && q(".fu .card") ? q(".fu .card").scrollTop : 0;
+    frame(`<div style="max-width:760px;margin:0 auto"><div class="top"><div><h2>Training board</h2><div class="sub">${esc(v.name)} · ${esc(v.style)} · rating <b style="color:#f2efe6">${v.rating}</b> of ${v.potRating} · level ${v.lvl} (${v.xp}/${v.xpNeed} XP)</div></div><button class="btn" id="fuClose">Close (Esc)</button></div>
+      <div class="card" style="max-height:min(68vh,560px);overflow:auto"><div class="pool"><span class="sub" style="font-size:13px">Training points to spend</span><b>${v.pts}</b></div>
+      <div class="sub" style="margin-bottom:4px">Every race earns training points, far more against strong fields and for good finishes. An upgrade costs more as a stat rises and stops at the horse's potential (the white mark). The same rules as the Training screen: changes apply at once and can be undone.</div>
+      ${v.rows.map(r => `<div class="tr"><div><div class="nm">${esc(r.lab)}</div><div class="v">${r.v}${r.gained ? ` <span style="color:#7bd88f">+${r.gained}</span>` : ""} <span style="color:#8fa08f">of ${r.p}</span></div></div>
+        <div><div class="bar"><u style="width:${r.p}%"></u><i style="width:${r.v}%"></i><b style="left:${r.p}%"></b></div><div class="sub">${esc(r.effect)}${r.maxed ? " · at this horse's potential" : ` · ${esc(r.next)}`}</div></div>
+        <button class="btn pri" data-up="${esc(r.k)}" ${r.can ? "" : "disabled"}>${r.maxed ? "Maxed" : "+1 · " + r.cost + " pt" + (r.cost > 1 ? "s" : "")}</button></div>`).join("")}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><button class="btn" id="fuUndo" ${v.canUndo ? "" : "disabled"}>Undo last</button><span class="sub">Esc closes the board</span></div></div>`, true);
+    q("#fuClose").onclick = () => F.closePanel(); q("#fuUndo").onclick = () => { CAREER.training.undo(st.hid); try { FARMCARE.refreshBoards(); } catch (e) {} drawTraining(true); };
+    qa("[data-up]").forEach(b => b.onclick = () => { const r = CAREER.training.up(st.hid, b.dataset.up); if (r.ok) { try { FARMCARE.refreshBoards(); } catch (e) {} } drawTraining(true); });
+    if (y && q(".fu .card")) q(".fu .card").scrollTop = y;
+  }
+  function onClose() { try { FARMCARE.refreshBoards(); } catch (e) {} st = null; if (root()) root().style.background = ""; }
+  return { openCalendar, openWardrobe, openDeparture, openMap, openTraining, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
 })();

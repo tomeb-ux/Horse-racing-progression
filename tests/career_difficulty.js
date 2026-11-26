@@ -6,7 +6,7 @@
 // finals → about as hard as Quick Race Hard.
 const { execFile } = require('child_process'), path = require('path');
 const AK = ["top", "acc", "end", "spr", "rec", "tem", "agi", "sta"];
-const CONDS = [
+const CONDS_ALL = [
   { id: "QR hard (baseline)", qr: true },
   { id: "new horse · maiden", div: 0, round: 0, rating: 71, runs: 0 },
   { id: "new horse · country cup", div: 0, round: 1, rating: 71, runs: 1 },
@@ -18,7 +18,15 @@ const CONDS = [
   { id: "G1 · Doncaster (major)", div: 2, round: 2, rating: 84, runs: 24 },
   { id: "The Everest (crown)", div: 2, round: 6, rating: 87, runs: 28, final: true },
   { id: "Melbourne Cup (crown)", div: 2, round: 10, rating: 87, runs: 30, final: true },
+  // Phase 11: the grassroots and regional circuit — early races a well-ridden new horse can win
+  { id: "new horse · Picnic Maiden", opt: "g_picnic", rating: 71, runs: 0 },
+  { id: "new horse · 3yo Maiden", opt: "g_threeyo", rating: 71, runs: 1 },
+  { id: "2nd start · Country Maiden Plate", div: 0, round: 0, rating: 71, runs: 1 },
+  { id: "3rd start · Country Cup (Scone)", div: 0, round: 1, rating: 71, runs: 2 },
+  { id: "5th start · Benchmark 58 Mile", opt: "g_bm58", rating: 72, runs: 4 },
+  { id: "8th start · Kyneton Cup", opt: "g_kyneton", rating: 73, runs: 7 },
 ];
+const CONDS = process.env.ONLY ? CONDS_ALL.filter(c => new RegExp(process.env.ONLY).test(c.id)) : CONDS_ALL;
 if (process.argv[2] === 'worker') {
   const sim = require(path.join(__dirname, '..', 'public', 'sim.js'));
   const S = require(path.join(__dirname, '..', 'public', 'season.js'));
@@ -47,8 +55,8 @@ if (process.argv[2] === 'worker') {
       r = new sim.Race({ distance: dist, field: 10, diff: "hard", playerHorse: s % sim.ROSTER.length, allBots: true, going: "good", incidents: "full", seed });
     } else {
       const C = { seed: 4242 + (s % 9), stable: "T", horses: [], trophies: [] }; S.migrate(C);
-      const meta = S.DIVS[c.div].rounds[c.round], pd = playerDef(c.rating, meta.dist);
-      let opp = S.runnersFor(C, c.div, c.round);
+      const meta = c.opt ? S.BY_ID[c.opt] : S.DIVS[c.div].rounds[c.round], pd = playerDef(c.rating, meta.dist);
+      let opp = c.opt ? S.optionalField(C, c.opt) : S.runnersFor(C, c.div, c.round);
       if (lift) opp = S.raceField(opp, meta, { attrs: pd.attrs, races: c.runs }, !!c.final);
       r = new sim.Race({ distance: meta.dist, field: meta.field, diff: lift ? diff : meta.diff, playerDef: pd, oppDefs: opp, allBots: true, going: "good", incidents: "full", seed });
     }

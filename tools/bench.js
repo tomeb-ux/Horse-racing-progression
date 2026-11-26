@@ -26,7 +26,7 @@ const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s[Math
     const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-precise-memory-info', '--js-flags=--expose-gc'] });
     const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
     if (fs.existsSync(path.join(__dirname, '../public/vendor/three.min.js'))) await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(path.join(__dirname, '../public/vendor/three.min.js')), contentType: 'text/javascript' }));
-    await ctx.addInitScript(q => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); localStorage.setItem('ff_comm', '"off"'); localStorage.setItem('ff_quality', JSON.stringify(q)); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false'); window.__noPresent = true; window.__bench = true; }, s.q);
+    await ctx.addInitScript(q => { localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_autoReplay', 'false'); localStorage.setItem('ff_commentary', JSON.stringify({ on: false, vol: 0.9, captions: false })); localStorage.setItem('ff_quality', JSON.stringify(q)); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false'); window.__noPresent = true; window.__bench = true; }, s.q);
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
     await p.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 120000 }); await p.waitForFunction(() => typeof startRace === 'function' && typeof race !== 'undefined');

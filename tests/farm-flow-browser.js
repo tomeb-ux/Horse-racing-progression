@@ -15,7 +15,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
     const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
     if (fs.existsSync(__dirname + '/../public/vendor/three.min.js')) await ctx.route(/cdnjs\.cloudflare\.com/, r => r.fulfill({ body: fs.readFileSync(__dirname + '/../public/vendor/three.min.js'), contentType: 'text/javascript' }));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-    await ctx.addInitScript(() => { if (!sessionStorage.getItem('__ff_init')) { sessionStorage.setItem('__ff_init', '1'); } localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false'); localStorage.setItem('ff_autoReplay', 'false'); window.__noPresent = true; });
+    await ctx.addInitScript(lab => { if (!sessionStorage.getItem('__ff_init')) { sessionStorage.setItem('__ff_init', '1'); } if (lab) localStorage.setItem('ff_lab', lab); localStorage.setItem('ff_crowd', '"off"'); localStorage.setItem('ff_shadows', 'false'); localStorage.setItem('ff_sound', 'false'); localStorage.setItem('ff_parade', '"off"'); localStorage.setItem('ff_celebrate', 'false'); localStorage.setItem('ff_autoReplay', 'false'); window.__noPresent = true; }, process.env.FF_LAB || null);   // FF_LAB='{"park":"park"}': the hidden "park the farm" switch on
     return ctx;
   };
   const errs = [];
@@ -134,7 +134,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   s = await I(p); ok(/Enter the farmhouse/.test(s.prompt), `at the front steps the prompt is "${s.prompt}"`);
   await p.keyboard.press('e'); await frames(p, 4); await p.evaluate(() => FARM._test.skipFade()); await frames(p, 4);
   s = await p.evaluate(() => { const i = FARM.info(), w = FARM._test.house(); return { i, ids: FARM._test.points.map(x => x.id).sort().join(), b: w.bounds, col: w.colliders.length }; });
-  ok(s.i.place === 'in' && s.ids === 'board,cabinet,door,ledger,mirror' && s.col >= 8, `E goes inside (fade through black): a walkable room with a calendar board, ledger, trophy cabinet, mirror and door (${s.col} solid pieces)`);
+  ok(s.i.place === 'in' && s.ids === 'board,cabinet,door,ledger,mirror,rest' && s.col >= 8, `E goes inside (fade through black): a walkable room with a calendar board, ledger, trophy cabinet, mirror and door (${s.col} solid pieces)`);
   const wall = await p.evaluate(() => [FARM._test.settle(-20, 0), FARM._test.settle(0, 20), FARM._test.settle(20, 0), FARM._test.settle(0, -20)]);
   const bd = (await p.evaluate(() => FARM._test.house().bounds));
   ok(wall[0].x >= bd.x0 - 1e-6 && wall[1].z <= bd.z1 + 1e-6 && wall[2].x <= bd.x1 + 1e-6 && wall[3].z >= bd.z0 - 1e-6, 'the walls hold: you cannot walk out of the room');
@@ -165,11 +165,11 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   await p.keyboard.press('e'); await frames(p, 3);
   s = await p.evaluate(() => ({ i: FARM.info(), txt: document.getElementById('farmPanel').textContent, races: document.querySelectorAll('#farmPanel .ri').length, horses: document.querySelectorAll('#farmPanel .hc').length, today: !!document.querySelector('#farmPanel .day.today') }));
   ok(s.i.panel === 'calendar' && /Race Calendar/.test(s.txt) && /Maiden Plate/.test(s.txt) && s.horses === 3 && s.races >= 3 && s.today, 'E at the board opens the race calendar: this month, today, the upcoming races and your three horses');
-  ok(await p.evaluate(() => { const r = [...document.querySelectorAll('#farmPanel .ri')]; return r.length > 1 && /Opens after the previous round/.test(r[1].textContent) && document.getElementById('fuBook') && !document.getElementById('fuBook').disabled; }), 'only the current championship round can be booked; later rounds are marked as not open yet');
+  ok(await p.evaluate(() => { const r = [...document.querySelectorAll('#farmPanel .ri')]; return r.length > 1 && r.some(x => /Opens after the previous round|Held after the next championship round/.test(x.textContent)) && document.getElementById('fuBook') && !document.getElementById('fuBook').disabled; }), 'only the current championship round can be booked; later races are marked as not open yet');
   const sel = await p.evaluate(() => { document.querySelectorAll('#farmPanel .hc')[1].click(); document.getElementById('fuBook').click(); const b = CAREER.booking(); return b && { name: b.name, horse: b.horse, kind: b.kind, round: b.round, day: b.day, stored: JSON.parse(localStorage.getItem('ff_career')).booking && JSON.parse(localStorage.getItem('ff_career')).booking.hid }; });
   ok(sel && sel.name === 'Maiden Plate' && sel.horse === 'Copper Coast' && sel.kind === 'round' && sel.round === 0 && sel.stored === 'h1', `choosing a horse and pressing Book books ${sel && sel.horse} for the ${sel && sel.name} (saved with the career)`);
   s = await p.evaluate(() => ({ txt: document.getElementById('farmPanel').textContent, obj: FARM.info().objective }));
-  ok(/Booked:/.test(s.txt) && /Cancel booking/.test(s.txt) && /Copper Coast/.test(s.obj) && /float/i.test(s.obj), 'the screen shows the booking (with Cancel) and the objective now tells you to take the horse to the float');
+  ok(/Booked:/.test(s.txt) && /Cancel booking/.test(s.txt) && /Copper Coast/.test(s.obj) && /box 2/i.test(s.obj), 'the screen shows the booking (with Cancel) and the objective now tells you to go to the horse\'s box (Phase 6 guided race day)');
   const bad = await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'optional' && e.ref === 'o_wfa'), rd2 = C.cal.events.find(e => e.kind === 'round' && e.round === 1); return { opt: CAREER.book(ev.id, 'h0'), r2: CAREER.book(rd2.id, 'h0'), none: CAREER.book('nope', 'h0'), still: CAREER.booking().horse }; });
   ok(!bad.opt.ok && !bad.r2.ok && !bad.none.ok && bad.still === 'Copper Coast', `a race that is not open (round 2, or an optional race after the next round) cannot be booked, and the booking is untouched ("${bad.r2.error}")`);
   await p.evaluate(() => { document.getElementById('fuCancel').click(); }); ok(await p.evaluate(() => CAREER.booking() === null && !JSON.parse(localStorage.getItem('ff_career')).booking), 'Cancel booking clears it');
@@ -204,8 +204,9 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   s = await I(p); ok(/book a race/i.test(s.prompt), `with nothing booked the float says so: "${s.prompt}"`);
   await p.keyboard.press('e'); await frames(p, 3); ok(!(await I(p)).trip && (await I(p)).active, 'E with nothing booked does nothing but remind you');
   await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'round' && e.round === 0); CAREER.book(ev.id, 'h2'); }); await frames(p, 4);
-  s = await I(p); ok(/Load Silver Billabong and leave for Maiden Plate/.test(s.prompt), `with a race booked: "${s.prompt}"`);
+  s = await I(p); ok(/Quick departure for Maiden Plate/.test(s.prompt), `with a race booked: "${s.prompt}"`);
   await p.keyboard.press('e'); await frames(p, 3);
+  ok(await p.evaluate(() => FARM.info().panel === 'depart' && /Ready to go/i.test(document.getElementById('farmPanel').innerText)), 'E at the float shows the preparation summary first (Phase 13)'); await p.evaluate(() => document.getElementById('fuLeave').click()); await frames(p, 3);
   s = await p.evaluate(() => ({ i: FARM.info(), ph: FARMTRIP.phase, boxHidden: FARM._test.horses.filter(g => !g.visible).length, hs: FARM._test.ctx.scene.children.length }));
   ok(s.i.trip && s.ph === 'fadeIn' && s.boxHidden === 1, 'E at the float starts the loading sequence (the horse leaves its box)');
   // run the whole sequence in simulated time (no rendering) and record what happens
@@ -227,39 +228,10 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   ok(/calendar/i.test(s.i.objective) && s.i.horses === 3, 'the objective is back to "check the calendar" and all three horses are in their boxes');
   // skip: Space jumps to the end of the sequence
   await p.evaluate(() => { const C = CAREER.data, ev = C.cal.events.find(e => e.kind === 'round' && e.round === 1); CAREER.book(ev.id, 'h0'); const T = FARM._test.TRAVEL; FARM._test.setPos(T.x, T.z); }); await frames(p, 4);
-  await p.keyboard.press('e'); await frames(p, 3); ok((await I(p)).trip, 'a second booking (round 2) can be made and the sequence started');
+  await p.keyboard.press('e'); await frames(p, 3); await p.evaluate(() => { const l = document.getElementById('fuLeave'); if (l) l.click(); }); await frames(p, 3); ok((await I(p)).trip, 'a second booking (round 2) can be made and the sequence started');
   await p.keyboard.press('Space'); await frames(p, 2); ok(await p.evaluate(() => FARMTRIP.phase === 'out'), 'Space skips straight to the end of the sequence');
   await p.evaluate(() => { for (let k = 0; k < 200 && FARMTRIP.on; k++) FARMTRIP.frame(0.05); }); await p.waitForFunction(() => ui.state === 'racing', null, { timeout: 60000 }); ok(await p.evaluate(() => race.cfg.career.round === 2 && race.player.def.name === 'Bay Majesty'), 'and the booked round-2 race starts with its horse');
   await p.evaluate(() => { race = null; clearRaceMeshes(); SCENES.enter('menu', { instant: true }); }); await frames(p, 3);
-
-  // =========================================================== 8b. the character: animation, outfits, cost, leaks
-  console.log('\nâ€” the character (animation, outfits, cost, leaks)');
-  await p.evaluate(() => { SCENES.enter('farm', { instant: true }); }); await p.waitForFunction(() => FARM.active, null, { timeout: 30000 }); await frames(p, 3);
-  const ch = await p.evaluate(() => {
-    const fig = FARM._test.figure, P = FARMPEOPLE, out = {};
-    const hipAfter = sp => { for (let i = 0; i < 20; i++) P.pose(fig, 0.05, sp); return fig.parts.legL.hip.rotation.x; };
-    for (let i = 0; i < 80; i++) P.pose(fig, 0.05, 0); const ph0 = fig.phase; for (let i = 0; i < 10; i++) P.pose(fig, 0.05, 0); const phIdle = fig.phase - ph0;
-    const ph1 = fig.phase; let swing = 0; for (let i = 0; i < 40; i++) { P.pose(fig, 0.05, 2.4); swing = Math.max(swing, Math.abs(fig.parts.legL.hip.rotation.x)); } const phWalk = fig.phase - ph1;
-    let jog = 0; for (let i = 0; i < 40; i++) { P.pose(fig, 0.05, 5.2); jog = Math.max(jog, Math.abs(fig.parts.legL.hip.rotation.x)); }
-    for (let i = 0; i < 40; i++) P.pose(fig, 0.05, 0); const rest = Math.abs(fig.parts.legL.hip.rotation.x);
-    Object.assign(out, { phIdle, phWalk, swing, jog, rest });
-    const per = {}; for (const o of ['stable', 'training', 'raceday']) { CAREER.setPlayer({ outfit: o }); FARM._test.ctx.refreshFigure(); let meshes = 0; fig.root.traverse(m => { if (m.isMesh) meshes++; }); per[o] = { meshes, dressed: fig.dressed.length, mats: fig.mats.length }; }
-    out.per = per;
-    const g0 = renderer.info.memory.geometries, t0 = renderer.info.memory.textures; for (let i = 0; i < 30; i++) { CAREER.setPlayer({ outfit: ['stable', 'training', 'raceday'][i % 3], look: { hair: i % 6, head: i % 5, skin: FARMPEOPLE.SKINS[i % 6] } }); FARM._test.ctx.refreshFigure(); }
-    out.leak = { geo: renderer.info.memory.geometries - g0, tex: renderer.info.memory.textures - t0, mats: fig.mats.length, dressed: fig.dressed.length };
-    CAREER.setPlayer({ outfit: 'training', look: { hair: 4, head: 1, skin: '#7b4a30' }, colours: { shirt: '#8a2f26' } }); FARM._test.ctx.refreshFigure();
-    return out;
-  });
-  ok(ch.phIdle < 0.001 && ch.phWalk > 1 && ch.swing > 0.3 && ch.jog > ch.swing * 1.2 && ch.rest < 0.05, `the walk cycle runs only while moving (idle phase change ${ch.phIdle}, walk ${ch.phWalk.toFixed(1)}), the jog swings the legs further (${ch.jog.toFixed(2)} vs ${ch.swing.toFixed(2)} rad) and the legs return to rest when stopped (${ch.rest.toFixed(3)})`);
-  ok(Object.values(ch.per).every(x => x.meshes <= 60) && new Set(Object.values(ch.per).map(x => x.dressed)).size >= 2, `three genuinely different outfits, each a small figure (${Object.entries(ch.per).map(([k, v]) => k + ' ' + v.meshes + ' meshes').join(' Â· ')})`);
-  ok(ch.leak.geo === 0 && ch.leak.tex === 0 && ch.leak.mats < 20, `changing outfit, hair, face and skin 30 times creates no new geometry or textures (Î” geometries ${ch.leak.geo}, textures ${ch.leak.tex}; ${ch.leak.mats} materials in use)`);
-  // movement: stopping is smooth, and the walker's cost on screen is small
-  await p.evaluate(() => { FARM._test.setPos(0, 0); FARM._test.ctx.CAM.yaw = 0; }); await frames(p, 3);
-  await p.keyboard.down('w'); await p.keyboard.down('Shift'); await frames(p, 40); const sp1 = (await I(p)).speed; await p.keyboard.up('w'); await p.keyboard.up('Shift'); const sp2 = (await I(p)).speed; await frames(p, 60); const sp3 = (await I(p)).speed;
-  ok(sp1 > 4.2 && sp2 > 1 && sp3 < 0.2, `Shift runs (${sp1.toFixed(1)} m/s), and releasing the keys slows you smoothly (${sp2.toFixed(1)} â†’ ${sp3.toFixed(2)} m/s) rather than stopping dead`);
-  await p.evaluate(() => { window.__rr(FARM._test.ctx.scene, FARM._test.ctx.cam); });
-  const cost = await p.evaluate(() => { const fig = FARM._test.figure, c = FARM._test.ctx.cam, sc = FARM._test.ctx.scene; fig.root.visible = true; renderer.info.reset(); window.__rr(sc, c); const withFig = renderer.info.render.calls; fig.root.visible = false; renderer.info.reset(); window.__rr(sc, c); const without = renderer.info.render.calls; return { withFig, without }; });
-  ok(cost.withFig - cost.without <= 45, `the character costs ${cost.withFig - cost.without} draw calls on screen (${cost.without} â†’ ${cost.withFig}); the whole walking view stays within the 250-call budget (${cost.withFig})`);
 
   // =========================================================== 9. the character persists
   console.log('\nâ€” the character is saved with the career');

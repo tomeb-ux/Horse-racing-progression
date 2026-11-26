@@ -233,7 +233,7 @@ const VENUES = (() => {
      ROYAL RANDWICK
      ===================================================================== */
   function buildRandwick(trk) {
-    const G = new THREE.Group(); G.name = "venue-randwick";
+    const G = new THREE.Group(); G.name = "venue-randwick"; G.userData.trk = trk;
     const W = trk.W, lap = trk.lap, pt = trk.point, rng = GFX.rand(2224);
     const C = course(G, trk, { turfTint: 0xa6bf9c, infieldTint: 0xb3c49c, groundTint: 0xb4b88e, chuteGapBefore: 60 });
     // ---- infield: the Kensington track (inner turf course) and a sand training track, service road, big screen
@@ -347,7 +347,7 @@ const VENUES = (() => {
      FLEMINGTON
      ===================================================================== */
   function buildFlemington(trk) {
-    const G = new THREE.Group(); G.name = "venue-flemington";
+    const G = new THREE.Group(); G.name = "venue-flemington"; G.userData.trk = trk;
     const W = trk.W, lap = trk.lap, pt = trk.point, rng = GFX.rand(2312);
     const C = course(G, trk, { turfTint: 0xa2bc98, infieldTint: 0xafc298, groundTint: 0xb2b68a, chuteGapBefore: 40 });
     const spots = [], mm = M();
@@ -659,14 +659,102 @@ const VENUES = (() => {
     return cr;
   }
 
+
+  /* =====================================================================
+     COUNTRY RACE CLUBS (Phase 11) — two cheap looks for the small regional courses, on the generic course geometry:
+     a short timber or brick stand under a tin roof, a tote building, a modest lawn crowd, gum or poplar trees, low hills, white rails.
+     A fraction of the cost of the two flagships (no parade ring, no glass, no skyline); the town's name goes on the stand.
+     ===================================================================== */
+  // Phase 22: six looks for the small country courses. The course geometry is the generic oval (physics unchanged); a look is palette, stand, trees, hills and extras.
+  const LOOKS = [
+    { name: "tablelands", tint: { turfTint: 0xb3c29a, infieldTint: 0xbcc79e, groundTint: 0xbcae80 }, L: 38, seat: 0x6b2a24, wall: "timber", tote: "whiteConc", roof: 0xaeb4b8, board: "#5a2b1c", trees: [["gum", 1]], treeN: 150, hill: 0x9a9266, hillH: 1 },
+    { name: "provincial", tint: { turfTint: 0xa8bf92, infieldTint: 0xb2c79a, groundTint: 0xa7b283 }, L: 30, seat: 0x2c4a6e, wall: "whiteConc", tote: "timber", roof: 0xaeb4b8, board: "#1e3a5f", trees: [["plane", 0.55], ["gum", 0.45]], treeN: 150, hill: 0x7d9a6a, hillH: 1 },
+    { name: "coastal", tint: { turfTint: 0x9fc48a, infieldTint: 0xaed39a, groundTint: 0xd8c9a0 }, L: 34, seat: 0x1f6f78, wall: "whiteConc", tote: "timber", roof: 0x3f8c94, board: "#0f5a63", trees: [["fig", 0.4], ["gum", 0.6]], treeN: 130, hill: 0x6f9a6a, hillH: 1.25, bunting: true },
+    { name: "western district", tint: { turfTint: 0x8fb784, infieldTint: 0x9cc28f, groundTint: 0x9aa77c }, L: 32, seat: 0x24402e, wall: "timber", tote: "whiteConc", roof: 0x6b4a3a, board: "#24402e", trees: [["cypress", 0.5], ["plane", 0.5]], treeN: 140, hill: 0x6c8f5a, hillH: 1.5 },
+    { name: "plains", tint: { turfTint: 0xc2bd8a, infieldTint: 0xc9c496, groundTint: 0xc99a6a }, L: 30, seat: 0x8a3b24, wall: "timber", tote: "timber", roof: 0xa23c2a, board: "#7a3a1c", trees: [["gum", 1]], treeN: 70, step: 30, hill: 0xb08a5a, hillH: 0.7 },
+    { name: "river", tint: { turfTint: 0xa4c48e, infieldTint: 0xaecf98, groundTint: 0xa9b283 }, L: 34, seat: 0x3a5a3a, wall: "whiteConc", tote: "timber", roof: 0xaeb4b8, board: "#2e4a2a", trees: [["plane", 0.6], ["fig", 0.4]], treeN: 140, hill: 0x7aa07a, hillH: 1, bunting: true, water: true },
+  ];
+  const pickSp = (list, r) => { let a = 0; for (const [sp, w] of list) { a += w; if (r < a) return sp; } return list[list.length - 1][0]; };
+  function buildCountry(trk, v) {
+    const LK = LOOKS[v] || LOOKS[0];
+    const G = new THREE.Group(); G.name = "venue-country-" + v;
+    const F0 = trk.finishD || 0, tr = { id: "country" + v, W: trk.W, lap: trk.lap, point: (s, off, out) => trk.point(F0 + s, off, out), chutes: {}, marks: {} };
+    G.userData.trk = tr;
+    const W = tr.W, lap = tr.lap, pt = tr.point, rng = GFX.rand(3100 + v * 17), spots = [], mm = M();
+    const C = course(G, tr, LK.tint);
+    finish(G, tr, "COUNTRY RACE CLUB", ["#14331f", "#ffffff"]);
+    // ---- the stand: a short tiered bank of seats under a tin roof, a timber (or brick) back wall, an apron, a tote building beside it
+    const L = LK.L, roof = std(LK.roof, 0.5, 0.35), S = place(new THREE.Group(), frameAt(tr, lap - 55, W + 3)); S.name = "country stand";
+    box(S, mm.concrete, 0, 0.05, -5.5, L + 26, 0.1, 10, false);
+    spots.push(...standSpotsToWorld(S, tiers(S, { len: L, z0: -9, y0: 0.5, rows: 5, seat: LK.seat, occ: 0.72 })));
+    tbox(S, LK.wall === "timber" ? mm.timber : mm.whiteConc, 0, 2.3, -14.2, L, 4.6, 0.5, 3);
+    for (const x of [-L / 2 + 0.5, -L / 6, L / 6, L / 2 - 0.5]) cyl(S, mm.steelWhite, x, 0, -9.4, 0.12, 0.12, 5.4, 8);
+    box(S, roof, 0, 5.6, -11.8, L + 2, 0.22, 9); box(S, mm.steelWhite, 0, 5.45, -7.2, L + 2, 0.4, 0.2);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(14, 2.0, 0.2), new THREE.MeshStandardMaterial({ color: 0x1e3a5f })); board.position.set(0, 6.8, -7.0); S.add(board);
+    tbox(S, LK.tote === "timber" ? mm.timber : mm.whiteConc, L / 2 + 10, 2.0, -9, 12, 4, 7, 3); box(S, roof, L / 2 + 10, 4.2, -9, 13, 0.3, 8); box(S, mm.dark, L / 2 + 10, 1.4, -5.4, 4.2, 2.0, 0.2);
+    batchStatic(S); G.add(S);
+    G.userData.setTown = name => { const m = board.material; if (m.map) m.map.dispose(); m.dispose(); board.material = boardMat(String(name || "Country").toUpperCase() + " RACE CLUB", LK.board, "#f4f1ea", 1024, 160, 82); };
+    G.userData.setTown("Country");
+    // ---- spectators: the stand, and a modest crowd along the lawn and the rail
+    spots.push(...lawnSpots(tr, lap - 120, lap - 6, W + 4, W + 15, 0.05, rng, 0.4));
+    spots.push(...lawnSpots(tr, 0, 40, W + 3, W + 10, 0.05, rng, 0.5));
+    // ---- the view: gums (or poplars) round the outside, a few in the infield, low hills on the horizon
+    const trees = [];
+    for (let s = 0; s < lap; s += (LK.step || 16)) { if (s > lap - 150 && s < lap - 2) continue; const p = pt(s, W + 24 + rng() * 46, {}); trees.push({ x: p.x, z: p.z, s: 0.8 + rng() * 0.7, sp: pickSp(LK.trees, rng()) }); }
+    for (let k = 0; k < 400 && trees.length < LK.treeN; k++) { const x = C.cx + (rng() - 0.5) * 520, z = C.cz + (rng() - 0.5) * 220; if (!C.inside(x, z)) continue; let ok = true; for (let s = 0; s < lap; s += 20) { const p = pt(s, -22, Q); if ((p.x - x) ** 2 + (p.z - z) ** 2 < 30 * 30) { ok = false; break; } } if (ok && rng() < 0.35) trees.push({ x, z, s: 0.8 + rng() * 0.5, sp: pickSp(LK.trees, rng()) }); }
+    GFX.plantTrees(G, trees);
+    const hm = lam(LK.hill); for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + rng(), r = 1200 + rng() * 500, h = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), hm); h.scale.set(260 + rng() * 200, (28 + rng() * 40) * LK.hillH, 220 + rng() * 160); h.position.set(C.cx + Math.cos(a) * r, -6, C.cz + Math.sin(a) * r); G.add(h); }
+    // ---- picnic-race bunting along the stand's fascia (one instanced mesh) and, on the river course, a lake in the infield (one mesh)
+    if (LK.bunting) {
+      const nF = 34, geo = new THREE.PlaneGeometry(0.55, 0.7), mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), im = new THREE.InstancedMesh(geo, mat, nF * 2), dm = new THREE.Object3D(), cols = [0xd7263d, 0xf4d35e, 0x1b998b, 0xffffff, 0x2e86ab]; let n = 0;
+      for (const [z, y0] of [[-6.85, 5.25], [-6.85, 4.6]]) for (let i = 0; i < nF; i++) { const u = i / (nF - 1), x = -L / 2 + u * L, sag = Math.sin(u * Math.PI * 4) * 0.12; dm.position.set(x, y0 - 0.35 + sag, z); dm.rotation.set(0, 0, Math.PI + (i % 2 ? 0.1 : -0.1)); dm.updateMatrix(); im.setMatrixAt(n, dm.matrix); im.setColorAt(n, new THREE.Color(cols[i % cols.length])); n++; }
+      im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.frustumCulled = false; S.add(im);
+    }
+    if (LK.water) { const lake = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshStandardMaterial({ color: 0x4f7f96, roughness: 0.12, metalness: 0.15 })); lake.rotation.x = -Math.PI / 2; lake.scale.set(70, 26, 1); lake.position.set(C.cx, 0.04, C.cz); G.add(lake); }
+    G.userData.crowd = buildCrowd(G, spots, tr, rng, 60 + v, 0);
+    return G;
+  }
+
+  // ---------- Phase 21: floodlight towers for evening meetings. Built once per venue (one instanced pole, one instanced lamp head, one additive halo point cloud = 3 draws),
+  // visible only when the atmosphere is dusk or evening. Towers stand outside the rail round the back of the course, clear of the stands and the finish.
+  let HALO = null;
+  function haloTex() { if (HALO) return HALO; const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"), g = x.createRadialGradient(32, 32, 2, 32, 32, 31); g.addColorStop(0, "rgba(255,244,214,1)"); g.addColorStop(0.35, "rgba(255,236,190,.55)"); g.addColorStop(1, "rgba(255,230,170,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); HALO = new THREE.CanvasTexture(c); return HALO; }
+  function floodlights(G, trk) {
+    const lap = trk.lap, W = trk.W; if (!lap || !trk.point) return null; const pts = [];
+    const n = lap > 2200 ? 10 : 8; for (let i = 0; i < n; i++) { const s = 80 + (lap - 360) * (i / (n - 1)); const p = trk.point(s, W + 16, {}); if (isFinite(p.x) && isFinite(p.z)) pts.push(p); }
+    if (!pts.length) return null; const grp = new THREE.Group(); grp.name = "floodlights"; grp.visible = false;
+    const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.28, 0.4, 30, 8), new THREE.MeshLambertMaterial({ color: 0x8e949a }), pts.length), head = new THREE.InstancedMesh(new THREE.BoxGeometry(5.5, 1.6, 0.7), new THREE.MeshBasicMaterial({ color: 0xfff1cc }), pts.length), d = new THREE.Object3D();
+    const pos = new Float32Array(pts.length * 3);
+    pts.forEach((p, i) => { d.position.set(p.x, 15, p.z); d.rotation.set(0, 0, 0); d.updateMatrix(); pole.setMatrixAt(i, d.matrix); const ang = Math.atan2(p.nx || 0, p.nz || 1); d.position.set(p.x, 30.6, p.z); d.rotation.set(0, ang, 0); d.updateMatrix(); head.setMatrixAt(i, d.matrix); pos.set([p.x, 30.6, p.z], i * 3); });
+    pole.frustumCulled = head.frustumCulled = false; const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const halo = new THREE.Points(g, new THREE.PointsMaterial({ map: haloTex(), size: 38, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.85, sizeAttenuation: true, fog: false })); halo.frustumCulled = false;
+    grp.add(pole, head, halo); G.add(grp); G.userData.flood = grp; return grp;
+  }
+  const isNight = () => { try { const t = GFX.atmo && GFX.atmo.tod; return t === "dusk" || t === "evening"; } catch (e) { return false; } };
+  function syncFlood() { if (!current) return; if (!current.userData.flood && current.userData.trk) floodlights(current, current.userData.trk); const f = current.userData.flood; if (f) f.visible = isNight(); }
+
   // ---------- switching venue ----------
   function use(trk, cfg) {
     if (!BOX) BOX = new THREE.BoxGeometry(1, 1, 1);
     if (!generic) { generic = typeof VENUE_GENERIC !== "undefined" ? VENUE_GENERIC : null; }
     trk = trk || TRACKS.generic;
     if (!FOG0) FOG0 = [scene.fog.near, scene.fog.far];
-    if (trk.analytic) { if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); scene.fog.near = FOG0[0]; scene.fog.far = FOG0[1]; return; }
-    scene.fog.near = 650; scene.fog.far = 5600;                                   // a clear day: the city skyline shows through the haze
+    if (trk.analytic) {
+      const vs = cfg && cfg.career && cfg.career.venueStyle;
+      if (vs && vs.style === "country") {                                               // a regional race club: the small country look on the generic course
+        const vi = Math.max(0, Math.min(LOOKS.length - 1, vs.variant | 0)), key = "country" + vi; if (!built[key]) { built[key] = buildCountry(trk, vi); world.add(built[key]); }
+        built[key].userData.setTown(vs.town); for (const k in built) built[k].visible = k === key; if (generic) generic.visible = false; current = built[key]; currentId = key;
+        GFX.fogRange(FOG0[0], FOG0[1]); const cr = current.userData.crowd, c = cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && /picnic|cup|carnival/i.test(c.name || "") ? 0.62 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); syncFlood(); return;
+      }
+      if (generic) generic.visible = true; for (const k in built) built[k].visible = false; current = null; currentId = null; restoreFinishNear(); GFX.fogRange(FOG0[0], FOG0[1]); return;
+    }
+    if (trk.country) {                                                              // Phase 24: a country course with its own layout: the same country look, laid out along ITS route
+      const vs = (cfg && cfg.career && cfg.career.venueStyle) || { variant: 0, town: "Country" }, vi = Math.max(0, Math.min(LOOKS.length - 1, vs.variant | 0)), key = "country" + vi + "_" + trk.id;
+      if (!built[key]) { built[key] = buildCountry(trk, vi); world.add(built[key]); }
+      built[key].userData.setTown(vs.town); for (const k in built) built[k].visible = k === key; if (generic) generic.visible = false; current = built[key]; currentId = key;
+      GFX.fogRange(FOG0[0], FOG0[1]); const cr = current.userData.crowd, c = cfg && cfg.career; if (cr) cr.set(c && (c.crown || c.major) ? 0.8 : c && /picnic|cup|carnival/i.test(c.name || "") ? 0.62 : c && c.official ? 0.5 : 0.35); swapFinishNear(current.userData.finishNear || []); syncFlood(); return;
+    }
+    GFX.fogRange(650, 5600);                                   // a clear day: the city skyline shows through the haze
     if (!built[trk.id]) { built[trk.id] = trk.id === "flemington" ? buildFlemington(trk) : buildRandwick(trk); world.add(built[trk.id]); }
     for (const k in built) built[k].visible = k === trk.id;
     if (generic) generic.visible = false;
@@ -674,7 +762,7 @@ const VENUES = (() => {
     // a major meeting fills the stands; an ordinary one is a decent midweek crowd
     const c = cfg && cfg.career, cr = current.userData.crowd;
     if (cr) cr.set(c && (c.crown || c.major) ? 1 : c && c.official ? 0.6 : 0.48);
-    swapFinishNear(current.userData.finishNear || []);
+    swapFinishNear(current.userData.finishNear || []); syncFlood();
   }
   // the photo-finish view hides the inner finish post (it stands between the camera and the noses)
   let savedNear = null;
@@ -683,7 +771,7 @@ const VENUES = (() => {
   let screenT = 0;
   function update(dt) {
     if (!current) return;
-    screenT -= dt; if (screenT > 0) return; screenT = 0.25;
+    screenT -= dt; if (screenT > 0) return; screenT = 0.25; syncFlood();
     for (const sc of SCREENS) {
       if (!sc.group.visible) continue;
       const g = sc.ctx, W2 = 640, H2 = 256;

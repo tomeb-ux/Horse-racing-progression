@@ -21,7 +21,7 @@ ok(K.parts(-5).y === 2026 && K.fmtDate(NaN) === 'Sat 1 Aug 2026', 'a bad day num
 // ---------------------------------------------------------------- a new career
 const NC = K.fresh(777); S.migrate(NC); K.migrate(NC, { from: 4 });
 ok(NC.v === 4 && NC.cash === 150000 && NC.ledger.length === 1 && NC.ledger[0].kind === 'start' && NC.ledger[0].bal === 150000, 'a new career starts at v4 with the $150,000 package as one ledger entry');
-ok(NC.day === 0 && NC.season.n === 1 && NC.cal.season === 1 && NC.cal.events.length === 10 + 8 * K.OPT_PER_SEASON, 'new career: day 0, season 1, a dated programme of 10 rounds + optional meetings');
+ok(NC.day === 0 && NC.season.n === 1 && NC.cal.season === 1 && NC.cal.events.length === 10 + require('../public/season.js').OPTIONAL.length * K.OPT_PER_SEASON, 'new career: day 0, season 1, a dated programme of 10 rounds + optional meetings');
 ok(Object.keys(NC.fac).sort().join() === K.FAC_KEYS.slice().sort().join() && K.FAC_KEYS.every(k => NC.fac[k] === 0) && K.STAFF_KEYS.every(k => NC.staff[k] === null), 'facilities start at Basic (0), no staff');
 ok(NC.player.outfit === 'stable' && /^#[0-9a-f]{6}$/.test(NC.player.look.skin) && Array.isArray(NC.hof) && NC.hof.length === 0 && NC.rep === 0 && Array.isArray(NC.market.listings) && NC.farm.state === 'default', 'character appearance, hall of fame, reputation, market and farm state have defaults');
 ok(K.audit(NC).length === 0, 'a new career passes the money audit');
@@ -57,19 +57,19 @@ ok(K.audit(NC).length === 0, 'a new career passes the money audit');
 }
 
 // ---------------------------------------------------------------- prizes
-ok(K.purseOf({ prize: '$40,000' }) === 40000 && K.purseOf({ prize: '$20,000,000' }) === 20000000 && K.purseOf({}) === 0 && K.purseOf({ prize: 'abc' }) === 0, 'the purse is read once, from the race data; a race without a purse pays nothing (optional races, as before)');
+ok(K.purseFace({ prize: '$40,000' }) === 40000 && K.purseOf({ prize: '$40,000' }) === 12000 && K.purseOf({ prize: '$20,000,000', tier: 4 }) === 1000000 && K.purseOf({}) === 0 && K.purseOf({ prize: 'abc' }) === 0, 'the purse is read once, from the race data; a race without a purse pays nothing (optional races, as before)');
 { const m = { prize: '$40,000', tier: 1 }, t = { prize: '$5,000,000', tier: 3 };
   const sum = K.prizeFor(m, 1) + K.prizeFor(m, 2) + K.prizeFor(m, 3) + K.prizeFor(m, 4) + K.prizeFor(m, 5);
-  ok(K.prizeFor(m, 1) === 24000 && K.prizeFor(m, 2) === 8000 && K.prizeFor(m, 3) === 4000 && K.prizeFor(m, 4) === 2400 && K.prizeFor(m, 5) === 1600 && sum === 40000, 'places 1–5 share the whole purse (60/20/10/6/4%)');
-  ok(K.prizeFor(m, 6) === 0 && K.prizeFor(m, 0) === 0 && K.prizeFor(m, -1) === 0 && K.prizeFor(m, 1.9) === 24000 && K.prizeFor({}, 1) === 0, 'sixth and below, DNF (0) and a race with no purse earn nothing');
-  ok(K.prizeFor(t, 1) === 2900000 && [1, 2, 3, 4, 5].reduce((s, p) => s + K.prizeFor(t, p), 0) === 5000000, 'Group 1 and crown races use the top-grade split, still summing to the purse'); }
+  ok(K.prizeFor(m, 1) === 7200 && K.prizeFor(m, 2) === 2400 && K.prizeFor(m, 3) === 1200 && K.prizeFor(m, 4) === 720 && K.prizeFor(m, 5) === 480 && sum === 12000, 'places 1–5 share the whole purse (60/20/10/6/4%)');
+  ok(K.prizeFor(m, 6) === 0 && K.prizeFor(m, 0) === 0 && K.prizeFor(m, -1) === 0 && K.prizeFor(m, 1.9) === 7200 && K.prizeFor({}, 1) === 0, 'sixth and below, DNF (0) and a race with no purse earn nothing');
+  ok(K.prizeFor(t, 1) === 174000 && [1, 2, 3, 4, 5].reduce((s, p) => s + K.prizeFor(t, p), 0) === 300000, 'Group 1 and crown races use the top-grade split, still summing to the purse'); }
 for (const d of S.DIVS) for (const r of d.rounds) if (![1, 2, 3, 4, 5].every(p => K.prizeFor(r, p) > 0) || [1, 2, 3, 4, 5].reduce((s, p) => s + K.prizeFor(r, p), 0) !== K.purseOf(r)) ok(false, 'purse not fully paid for ' + r.id);
 { const C = clone(NC), m = S.DIVS[0].rounds[0];
-  const a = K.awardPrize(C, 'prize:s1:maiden:h1', m, 1, 'Fast Lad'); ok(a.ok && a.amount === 24000 && C.cash === 174000, 'a prize is credited once through the ledger');
-  const b = K.awardPrize(C, 'prize:s1:maiden:h1', m, 1, 'Fast Lad'); ok(!b.ok && b.dup && b.amount === 0 && C.cash === 174000, 'the same race result replayed does not pay again');
-  const R = JSON.parse(JSON.stringify(C)); const c = K.awardPrize(R, 'prize:s1:maiden:h1', m, 1, 'Fast Lad'); ok(!c.ok && R.cash === 174000, 'after the save is serialised and reloaded the same result still cannot pay again');
-  ok(!K.awardPrize(C, 'prize:s1:x:h1', m, 6, 'x').ok && !K.awardPrize(C, 'prize:s1:x2:h1', m, 0, 'x').ok && C.cash === 174000, 'unplaced runners and DNFs earn nothing');
-  const d = K.awardPrize(C, 'prize:s1:maiden:h2', m, 2, 'Second Horse'); ok(d.ok && C.cash === 182000, 'a different horse in the same race (different key) is a separate award'); }
+  const a = K.awardPrize(C, 'prize:s1:maiden:h1', m, 1, 'Fast Lad'); ok(a.ok && a.amount === 7200 && C.cash === 157200, 'a prize is credited once through the ledger');
+  const b = K.awardPrize(C, 'prize:s1:maiden:h1', m, 1, 'Fast Lad'); ok(!b.ok && b.dup && b.amount === 0 && C.cash === 157200, 'the same race result replayed does not pay again');
+  const R = JSON.parse(JSON.stringify(C)); const c = K.awardPrize(R, 'prize:s1:maiden:h1', m, 1, 'Fast Lad'); ok(!c.ok && R.cash === 157200, 'after the save is serialised and reloaded the same result still cannot pay again');
+  ok(!K.awardPrize(C, 'prize:s1:x:h1', m, 6, 'x').ok && !K.awardPrize(C, 'prize:s1:x2:h1', m, 0, 'x').ok && C.cash === 157200, 'unplaced runners and DNFs earn nothing');
+  const d = K.awardPrize(C, 'prize:s1:maiden:h2', m, 2, 'Second Horse'); ok(d.ok && C.cash === 159600, 'a different horse in the same race (different key) is a separate award'); }
 
 // ---------------------------------------------------------------- migration fixtures
 // v1: no season, no rivals, no distances in history; a horse with a custom appearance and a recorded prize
@@ -165,7 +165,7 @@ ok(J(K.keepHorse({ id: 'x', fitness: 55, age: 5, foaled: 2021, plan: 'speed', re
   const C = migrated({ v: 3, seed: 56, stable: 'T', horses: [mkHorse('h1', 'One', 70, { born: 1 })], trophies: [], wins: 0, history: [], active: 0 }), h = C.horses[0];
   const meta = S.DIVS[0].rounds[0]; const a = K.afterRace(C, h, meta, { going: 'good', dnf: false }); ok(h.fitness === 90 - a.cost && a.cost > 0 && h.lastRaceDay === C.day, 'a race lowers fitness by a distance/going/endurance cost and records the date');
   const f0 = h.fitness; K.advance(C, 2, { force: true }); ok(h.fitness > f0 && h.fitness <= 100, 'fitness recovers as days pass');
-  K.advance(C, 60, { force: true }); ok(h.fitness === 100, 'and never exceeds 100');
+  K.setPlan(C, h.id, 'rest', 1); K.advance(C, 60, { force: true }); ok(h.fitness === 100, 'and never exceeds 100 (a rested horse)');
   ok(K.raceFitnessCost(h, { dist: 3200, going: 'good' }) > K.raceFitnessCost(h, { dist: 1000, going: 'good' }) && K.raceFitnessCost(h, { dist: 1600, going: 'heavy' }) > K.raceFitnessCost(h, { dist: 1600, going: 'good' }) && K.raceFitnessCost(h, { dist: 1600, going: 'good', dnf: true }) > K.raceFitnessCost(h, { dist: 1600, going: 'good' }), 'a longer race, heavier going or a fall costs more fitness');
   const lo = { attrs: { end: 50, rec: 50 } }, hi = { attrs: { end: 95, rec: 95 } }; ok(K.raceFitnessCost(hi, { dist: 2400 }) < K.raceFitnessCost(lo, { dist: 2400 }) && K.recoveryPerDay(hi, {}) > K.recoveryPerDay(lo, {}) && K.recoveryPerDay(lo, { recovery: 3 }) > K.recoveryPerDay(lo, { recovery: 0 }), 'endurance, recovery and the recovery facility all help');
   ok(K.fitnessPenalty(100) === 0 && K.fitnessPenalty(80) === 0 && K.fitnessPenalty(60) > 0 && K.fitnessPenalty(20) > K.fitnessPenalty(60) && K.fitnessPenalty(0) <= 0.06, 'the (not yet active) unfit penalty is zero when fit and small even when exhausted');
@@ -196,7 +196,8 @@ ok(J(K.keepHorse({ id: 'x', fitness: 55, age: 5, foaled: 2021, plan: 'speed', re
     K.afterRace(C, h, m, { going: C.season.rounds[i].going, dnf: !p });
     K.afterOptional(C);   // an optional race between rounds
   }
-  ok(mono && C.cash === expectCash && replay === 0 && K.audit(C).length === 0, `ten rounds played with every result replayed: cash is exactly the sum of the prizes (${expectCash}), nothing paid twice, date never goes back, audit clean`);
+  const adj = C.ledger.filter(e => e.kind === 'upkeep' || e.kind === 'sponsor' || e.kind === 'repay' || e.kind === 'advance').reduce((t, e) => t + e.amount, 0);   // Phase 7: the weekly bills fall due as the calendar moves
+  ok(mono && C.cash === expectCash + adj && replay === 0 && K.audit(C).length === 0, `ten rounds played with every result replayed: cash is exactly the prizes (${expectCash}) plus the weekly bills charged on the way (${adj}), nothing paid twice, date never goes back, audit clean`);
   ok(C.horses[0].fitness >= 0 && C.horses[0].fitness <= 100, 'fitness stays within 0–100 over a season');
   const age0 = h.age, n0 = C.season.n; S.closeSeason(C); K.startSeason(C);
   ok(C.season.n === n0 + 1 && C.cal.season === n0 + 1 && C.day === K.seasonStartDay(n0 + 1) && h.age === age0 + 1, 'closing the season lays out the next programme, moves to 1 August and ages the horses once');

@@ -85,8 +85,7 @@ const FARMBUILD = (() => {
           for (let k = 0; k < 11; k++) { const bxk = a + (b - a) * (k + 0.5) / 11; bx(M.steel, bxk - 0.011, 1.3, zf - 0.07, bxk + 0.011, 2.22, zf - 0.05, COL.steel); } }
         for (const sd of [-1, 1]) bx(M.wood, xc + sd * dw - 0.07, 0, zf - 0.14, xc + sd * dw + 0.07, 2.3, zf + 0.04, 0x6b5238, { grain: true });
         // Dutch door: lower leaf shut (boards, strap hinges, latch), upper leaf swung open against the wall, kick plate
-        bx(M.timber, xc - dw + 0.07, 0.06, zf - 0.07, xc + dw - 0.07, 1.25, zf - 0.01, 0x8a6a46, { tile: 1.2 }); bx(M.steel, xc - dw + 0.07, 0.5, zf + 0.0, xc - 0.1, 0.56, zf + 0.025, COL.steel); bx(M.steel, xc - dw + 0.07, 0.95, zf + 0.0, xc - 0.1, 1.01, zf + 0.025, COL.steel);
-        bx(M.steel, xc + dw - 0.2, 1.05, zf + 0.0, xc + dw - 0.1, 1.12, zf + 0.05, COL.black);
+        // (the lower leaf — boards, strap hinges, latch — is a separate hinged mesh made by farm-care.js, so a horse can be led out through it)
         bx(M.timber, xc - dw - 0.75, 1.3, zf + 0.04, xc - dw - 0.69, 2.22, zf + 0.7, jit(0x7e6446, 0.15, i + 20), { tile: 1.2 });           // upper leaf standing open
         // partitions (solid boards below, bars above) and kick boards
         for (const px of [xa, xb]) { bx(M.timber, px - 0.05, 0, zb, px + 0.05, 1.6, zf, 0x866a49, { tile: 1.8 }); bx(M.wood, px - 0.07, 1.6, zb, px + 0.07, 1.68, zf, 0x6b5238, { grain: true }); bx(M.wood, px - 0.07, 2.45, zb, px + 0.07, 2.52, zf, 0x6b5238, { grain: true });

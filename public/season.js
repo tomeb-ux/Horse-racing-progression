@@ -29,8 +29,8 @@ const SEASON = (() => {
   const R = (o) => Object.assign({ tier: 1, req: [], major: false, crown: false }, o);
   const DIVS = [
     { id: 0, key: "prov", name: "Provincial Championship", short: "Provincial", field: 10, promote: 3, rounds: [
-      R({ id: "maiden", name: "Maiden Plate", venue: "Randwick", dist: 1200, grade: "Maiden", diff: "easy", str: 59, prize: "$40,000" }),
-      R({ id: "country", name: "Country Cup", venue: "Scone", dist: 1400, grade: "Provincial", diff: "easy", str: 60, prize: "$60,000" }),
+      R({ id: "maiden", name: "Maiden Plate", venue: "Randwick", dist: 1200, grade: "Maiden", diff: "easy", str: 59, prize: "$40,000", pressure: "grass" }),
+      R({ id: "country", name: "Country Cup", venue: "Scone", dist: 1400, grade: "Provincial", diff: "easy", str: 60, prize: "$60,000", pressure: "country" }),
       R({ id: "kembla", name: "Kembla Sprint", venue: "Kembla Grange", dist: 1000, grade: "Class 3", diff: "medium", str: 60, prize: "$45,000" }),
       R({ id: "midweek", name: "Midweek Handicap", venue: "Warwick Farm", dist: 1600, grade: "Class 2", diff: "medium", str: 61, prize: "$50,000" }),
       R({ id: "geelongtrial", name: "Geelong Classic Trial", venue: "Geelong", dist: 2000, grade: "Benchmark 70", diff: "medium", str: 62, prize: "$55,000" }),
@@ -72,15 +72,40 @@ const SEASON = (() => {
   ];
   // Optional races: run any time, any number of times. Experience and horse records only — never championship points.
   const OPTIONAL = [
-    R({ id: "o_trial", name: "Barrier Trial", venue: "Warwick Farm", dist: 1000, grade: "Trial", tier: 0, diff: "easy", str: 56, field: 8, note: "A gentle hit-out — little experience" }),
-    R({ id: "o_maiden", name: "Maiden Handicap", venue: "Wyong", dist: 1200, grade: "Maiden", tier: 1, diff: "easy", str: 59, field: 10 }),
-    R({ id: "o_bm64", name: "Benchmark 64 Handicap", venue: "Gosford", dist: 1400, grade: "Benchmark 64", tier: 1, diff: "medium", str: 62, field: 10 }),
-    R({ id: "o_stayhcp", name: "Country Staying Handicap", venue: "Ballarat", dist: 2400, grade: "Benchmark 64", tier: 1, diff: "medium", str: 62, field: 10 }),
+    R({ id: "o_trial", name: "Barrier Trial", venue: "Warwick Farm", dist: 1000, grade: "Trial", tier: 0, diff: "easy", str: 56, field: 8, pressure: "grass", note: "A gentle hit-out — little experience" }),
+    R({ id: "o_maiden", name: "Maiden Handicap", venue: "Wyong", dist: 1200, grade: "Maiden", tier: 1, diff: "easy", str: 59, field: 10, pressure: "grass", req: [{ k: "wins", max: 0, label: "Maiden (no wins)", hint: "this race is for horses that have not won" }] }),
+    R({ id: "o_bm64", name: "Benchmark 64 Handicap", venue: "Gosford", dist: 1400, grade: "Benchmark 64", tier: 1, diff: "medium", str: 62, field: 10, pressure: "country" }),
+    R({ id: "o_stayhcp", name: "Country Staying Handicap", venue: "Ballarat", dist: 2400, grade: "Benchmark 64", tier: 1, diff: "medium", str: 62, field: 10, pressure: "country" }),
     R({ id: "o_bm78", name: "Benchmark 78 Mile", venue: "Rosehill", dist: 1600, grade: "Benchmark 78", tier: 2, diff: "medium", str: 68, field: 12, req: [{ k: "rating", min: 62 }] }),
     R({ id: "o_wildcard", name: "Everest Wildcard Sprint", venue: "Randwick", dist: 1200, grade: "Listed · Everest qualifier", tier: 2, diff: "hard", str: 73, field: 12, req: [{ k: "rating", min: 68 }], note: "Top 3 earns Everest sprint qualification" }),
     R({ id: "o_cuptrial", name: "Bart's Cup Trial", venue: "Flemington", dist: 2400, grade: "Listed · Cup qualifier", tier: 2, diff: "hard", str: 73, field: 12, req: [{ k: "rating", min: 68 }], note: "Top 3 earns Melbourne Cup staying qualification" }),
     R({ id: "o_wfa", name: "Weight-for-Age Stakes", venue: "Caulfield", dist: 2000, grade: "Group 2", tier: 3, diff: "hard", str: 78, field: 12, req: [{ k: "rating", min: 72 }], note: "Counts as recent form for the Cox Plate" }),
+    // ---- the grassroots and regional circuit (Phase 11): country meetings where a young or modest horse learns its trade — maidens, age-restricted races and benchmark handicaps at small courses
+    R({ id: "g_trial", name: "Country Barrier Trial", venue: "Muswellbrook", dist: 1000, grade: "Trial", tier: 0, diff: "easy", str: 53, field: 8, pressure: "grass", regional: true, note: "A quiet trial at a country track — good first outing" }),
+    R({ id: "g_picnic", name: "Picnic Maiden", venue: "Moree", dist: 1200, grade: "Maiden", tier: 1, diff: "easy", str: 55, field: 8, prize: "$12,000", pressure: "grass", regional: true, req: [{ k: "wins", max: 0, label: "Maiden (no wins)", hint: "this race is for horses that have not won" }] }),
+    R({ id: "g_twoyo", name: "Two-Year-Old Dash", venue: "Mudgee", dist: 1000, grade: "2yo Maiden", tier: 1, diff: "easy", str: 54, field: 8, prize: "$15,000", pressure: "grass", regional: true, req: [{ k: "age", max: 2, label: "Two-year-olds only", hint: "this race is for two-year-olds" }, { k: "wins", max: 0, label: "Maiden (no wins)", hint: "this race is for horses that have not won" }] }),
+    R({ id: "g_threeyo", name: "Three-Year-Old Maiden", venue: "Tamworth", dist: 1400, grade: "3yo Maiden", tier: 1, diff: "easy", str: 56, field: 8, prize: "$15,000", pressure: "grass", regional: true, req: [{ k: "age", max: 3, label: "Three-year-olds and under", hint: "this race is for three-year-olds and under" }, { k: "wins", max: 0, label: "Maiden (no wins)", hint: "this race is for horses that have not won" }] }),
+    R({ id: "g_bm54", name: "Benchmark 54 Sprint", venue: "Dubbo", dist: 1200, grade: "Benchmark 54", tier: 1, diff: "easy", str: 57, field: 9, prize: "$12,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 70, label: "Benchmark 54 class", hint: "this race is for horses rated 70 or under" }] }),
+    R({ id: "g_bm58", name: "Benchmark 58 Mile", venue: "Wagga Wagga", dist: 1600, grade: "Benchmark 58", tier: 1, diff: "easy", str: 58, field: 9, prize: "$14,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 72, label: "Benchmark 58 class", hint: "this race is for horses rated 72 or under" }] }),
+    R({ id: "g_hamilton", name: "Hamilton Cup", venue: "Hamilton", dist: 2000, grade: "Benchmark 60", tier: 1, diff: "medium", str: 59, field: 10, prize: "$20,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 74, label: "Benchmark 60 class", hint: "this race is for horses rated 74 or under" }] }),
+    R({ id: "g_echuca", name: "Echuca Stayers' Cup", venue: "Echuca", dist: 2400, grade: "Benchmark 60", tier: 1, diff: "medium", str: 60, field: 10, prize: "$22,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 74, label: "Benchmark 60 class", hint: "this race is for horses rated 74 or under" }] }),
+    R({ id: "g_kyneton", name: "Kyneton Cup", venue: "Kyneton", dist: 1400, grade: "Benchmark 62", tier: 1, diff: "medium", str: 60, field: 10, prize: "$18,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 74, label: "Benchmark 62 class", hint: "this race is for horses rated 74 or under" }] }),
+    R({ id: "g_warrnambool", name: "Warrnambool Sprint", venue: "Warrnambool", dist: 1200, grade: "Benchmark 62", tier: 1, diff: "medium", str: 60, field: 10, prize: "$16,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 74, label: "Benchmark 62 class", hint: "this race is for horses rated 74 or under" }] }),
+    R({ id: "g_toowoomba", name: "Toowoomba Guineas", venue: "Toowoomba", dist: 1600, grade: "3yo Benchmark 62", tier: 1, diff: "medium", str: 61, field: 10, prize: "$20,000", pressure: "country", regional: true, req: [{ k: "age", max: 3, label: "Three-year-olds and under", hint: "this race is for three-year-olds and under" }, { k: "maxrating", max: 76, label: "Benchmark 62 class", hint: "this race is for horses rated 76 or under" }] }),
+    R({ id: "g_grafton", name: "Grafton Gold Cup", venue: "Grafton", dist: 2000, grade: "Benchmark 64", tier: 1, diff: "medium", str: 61, field: 10, prize: "$22,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 76, label: "Benchmark 64 class", hint: "this race is for horses rated 76 or under" }] }),
+    R({ id: "g_portmac", name: "Port Macquarie Cup", venue: "Port Macquarie", dist: 1600, grade: "Benchmark 64", tier: 1, diff: "medium", str: 62, field: 10, prize: "$22,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 76, label: "Benchmark 64 class", hint: "this race is for horses rated 76 or under" }] }),
+    R({ id: "g_casino", name: "Casino Beef Week Cup", venue: "Casino", dist: 2400, grade: "Benchmark 64", tier: 1, diff: "medium", str: 62, field: 10, prize: "$25,000", pressure: "country", regional: true, req: [{ k: "maxrating", max: 76, label: "Benchmark 64 class", hint: "this race is for horses rated 76 or under" }] }),
   ];
+  // the small country courses (the two cheap venue looks in venues.js): where a race is run decides which scenery it gets; the big city courses keep their own
+  const REGIONAL_VENUES = ["Wyong", "Gosford", "Scone", "Kembla Grange", "Ballarat", "Bendigo", "Newcastle", "Geelong", "Muswellbrook", "Moree", "Mudgee", "Tamworth", "Dubbo", "Wagga Wagga", "Hamilton", "Echuca", "Kyneton", "Warrnambool", "Toowoomba", "Grafton", "Port Macquarie", "Casino"];
+  // Phase 22: which of the six country looks a town gets (0 tablelands, 1 provincial, 2 coastal, 3 western district, 4 plains, 5 river)
+  const TOWN_LOOK = { Muswellbrook: 0, Scone: 0, Tamworth: 0, Mudgee: 0, Gosford: 2, Wyong: 2, Newcastle: 2, "Kembla Grange": 2, Grafton: 2, "Port Macquarie": 2, Casino: 2, Toowoomba: 1, Bendigo: 1, Kyneton: 1, Dubbo: 4, Moree: 4, "Wagga Wagga": 5, Echuca: 5, Hamilton: 3, Warrnambool: 3, Ballarat: 3, Geelong: 3 };
+  // Phase 24: the course layout each town races on (table tracks in sim.js; null = the original oval). Tight and turning, long-straight, pear-shaped, dog-leg, wide and sweeping.
+  const TOWN_LAYOUT = { Moree: "c_tight", Muswellbrook: "c_tight", Casino: "c_tight", Mudgee: "c_tight", Kyneton: "c_tight", Gosford: "c_tight", Dubbo: "c_long", "Wagga Wagga": "c_long", Toowoomba: "c_long", Warrnambool: "c_pear", Echuca: "c_pear", Grafton: "c_pear", "Port Macquarie": "c_pear", Tamworth: "c_dogleg", Scone: "c_dogleg", Bendigo: "c_dogleg", Wyong: "c_dogleg", Ballarat: "c_dogleg", Geelong: "c_sweep", Newcastle: "c_sweep", "Kembla Grange": "c_sweep", Hamilton: "c_sweep" };
+  function venueStyle(name) {
+    const n = String(name || "").trim(); if (!REGIONAL_VENUES.includes(n)) return null;
+    return { style: "country", variant: TOWN_LOOK[n] != null ? TOWN_LOOK[n] : hashStr("venue/" + n) % 6, town: n, layout: TOWN_LAYOUT[n] || null };
+  }
   const BY_ID = {};
   DIVS.forEach(d => d.rounds.forEach((r, i) => { r.div = d.id; r.round = i; r.field = r.field || d.field; BY_ID[r.id] = r; }));
   OPTIONAL.forEach(r => { r.optional = true; BY_ID[r.id] = r; });
@@ -249,11 +274,17 @@ const SEASON = (() => {
     normal: [5.0, 3.2, 1.8, 0.8, -0.2, -1.2],
     major:  [5.0, 3.4, 2.0, 1.0, 0.0, -1.0],
     final:  [4.5, 3.0, 1.6, 0.6, -0.2, -1.0],
+    grass:   [2.4, 1.2, 0.3, -0.5, -1.3, -2.1],    // maidens, trials and two-year-old races at country courses: a well-ridden new horse can win these
+    country: [3.4, 2.0, 1.0, 0.0, -0.9, -1.7],     // country class races: competitive, winnable, but you have to ride well
   };
-  const LIFT_REST = { early: -2.0, normal: -2.6, major: -2.4, final: -2.2 };   // the depth of the rest of the field
+  const LIFT_REST = { early: -2.0, normal: -2.6, major: -2.4, final: -2.2, grass: -3.0, country: -2.8 };   // the depth of the rest of the field
+  // Phase 26 (owner request: "slightly harder, but still quite easy"): every non-final field is lifted a little further over the player's horse: the three strongest rivals by CAREER_HARDER lengths,
+  // the rest of the strong end by 70 % of that, the depth of the field by 60 %. The finals (already as hard as Quick Race on Hard) and Quick Race itself are untouched.
+  const CAREER_HARDER = 0.55;
+  for (const key of ["early", "normal", "major", "grass", "country"]) { LIFT[key] = LIFT[key].map((x, i) => +(x + CAREER_HARDER * (i < 3 ? 1 : 0.7)).toFixed(2)); LIFT_REST[key] = +(LIFT_REST[key] + CAREER_HARDER * 0.6).toFixed(2); }
   function racePressure(h, meta, isFinal) {
     const runs = h ? (h.races | 0) : 0;
-    const base = isFinal || meta.crown ? "final" : meta.major ? "major" : "normal";
+    const base = isFinal || meta.crown ? "final" : meta.major ? "major" : meta.pressure && LIFT[meta.pressure] ? meta.pressure : "normal";
     // a new horse's first three starts are early-pressure; the 4th–6th blend into the normal margins
     const early = clampN((6 - runs) / 3, 0, 1);
     return { key: base, early: base === "normal" ? early : 0 };
@@ -438,6 +469,9 @@ const SEASON = (() => {
   }
   function checkReq(h, rq) {
     if (rq.k === "rating") { const v = hRating(h); return { label: "Horse rating", ok: v >= rq.min, detail: v + " / " + rq.min + " required" }; }
+    if (rq.k === "age") { const v = h.age | 0 || 3; return { label: rq.label || "Age", ok: (rq.max == null || v <= rq.max) && (rq.min == null || v >= rq.min), detail: v + (v === 1 ? " year old" : " years old") + (rq.max != null ? " (" + rq.max + " or under)" : " (" + rq.min + " or over)") }; }
+    if (rq.k === "wins") { const v = h.wins | 0; return { label: rq.label || "Wins", ok: v <= rq.max, detail: v + (v === 1 ? " win" : " wins") + (v <= rq.max ? "" : " — " + (rq.hint || "too many wins")) }; }
+    if (rq.k === "maxrating") { const v = hRating(h); return { label: rq.label || "Class", ok: v <= rq.max, detail: "rated " + v + (v <= rq.max ? "" : " — " + (rq.hint || "too good for this class")) }; }
     if (rq.k === "sprint") { const v = sprintIdx(h.attrs); return { label: "Sprinting ability", ok: v >= rq.min, detail: v + " / " + rq.min + " (speed, acceleration, sprint)" }; }
     if (rq.k === "stamina") { const v = stayIdx(h.attrs); return { label: "Staying ability", ok: v >= rq.min, detail: v + " / " + rq.min + " (endurance, recovery)" }; }
     if (rq.k === "result" || rq.k === "form") {
@@ -447,7 +481,7 @@ const SEASON = (() => {
     }
     return { label: "?", ok: true, detail: "" };
   }
-  function eligibility(h, race) { const reqs = (race.req || []).map(rq => checkReq(h, rq)); return { ok: reqs.every(r => r.ok), reqs }; }
+  function eligibility(h, race) { if (!h || !h.attrs) return { ok: false, reqs: [] }; const reqs = (race.req || []).map(rq => checkReq(h, rq)); return { ok: reqs.every(r => r.ok), reqs }; }
   const ordinalS = n => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
 
   // ---------- form guide ----------
@@ -519,7 +553,7 @@ const SEASON = (() => {
     return C;
   }
 
-  return { PLAYER_NAMES, HORSE_NAMES, DIVS, OPTIONAL, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
+  return { PLAYER_NAMES, HORSE_NAMES, DIVS, OPTIONAL, REGIONAL_VENUES, TOWN_LAYOUT, venueStyle, LIFT, racePower, ptsPerLength, BY_ID, POINTS, BANDS, pointsFor, power, runners, runnersFor, optionalField, simulateRound, newSeason, done, roundDef, standings, standingsFrom, rankOf,
     commitRound, skipRound, closeSeason, eligibility, checkReq, migrate, hRating, sprintIdx, stayIdx, goingFor, hashStr, rngOf, ensureWorld, stablesOf, rival, rivalDef, rRating,
     recordResult, recordH2H, h2hFor, formGuide, suitability, xpFor, upgCost, XP_PER_PT, retireRivals, raceField, racePressure, racePower, ptsPerLength, LIFT };
 })();
