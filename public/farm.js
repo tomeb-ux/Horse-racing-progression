@@ -213,7 +213,7 @@ const FARM = (() => {
   function openPanel(name, arg) {
     if (panel || trip) return; openArg = arg || null; unlock(); panel = name; panelEl.hidden = false; panelEl.innerHTML = ""; for (const k in fk) fk[k] = false; if (cross) cross.hidden = true; prompt.hidden = true; near = null;
     hud.querySelector("#farmInfo").style.visibility = "hidden";
-    if (name === "calendar") FARMUI.openCalendar(ctx); else if (name === "wardrobe") FARMUI.openWardrobe(ctx); else if (name === "depart") FARMUI.openDeparture(ctx, openArg.sum, openArg.go); else if (name === "map") FARMUI.openMap(ctx);
+    if (name === "calendar") FARMUI.openCalendar(ctx); else if (name === "wardrobe") FARMUI.openWardrobe(ctx); else if (name === "depart") FARMUI.openDeparture(ctx, openArg.sum, openArg.go); else if (name === "train") FARMUI.openTraining(ctx, openArg.hid); else if (name === "map") FARMUI.openMap(ctx);
   }
   function closePanel() { if (!panel) return; panel = null; hud.querySelector("#farmInfo").style.visibility = ""; panelEl.hidden = true; panelEl.innerHTML = ""; if (typeof FARMUI !== "undefined" && FARMUI.onClose) FARMUI.onClose(); refreshBoard(); objective(); if (cross) cross.hidden = person !== 1; }
   function refreshBoard() { if (iworld) { try { iworld.refresh(CAREER.boardInfo(), (CAREER.data && CAREER.data.trophies || []).length); } catch (e) {} } }
@@ -260,6 +260,7 @@ const FARM = (() => {
       resume = { place, x: P.x, z: P.z, face: P.face, yaw: CAM.yaw, pitch: CAM.pitch }; CAREER.openScreen(p.id === "ledger" ? "office" : "trophies"); return true;
     }
     if (p.id === "travel") return floatInteract();
+    if (p.id === "trainboard") return openPanel("train", { hid: p.hid }) || true;
     if (p.id === "stall") return FARMCARE.openMenu(p.i);
     if (FARMLIFE.interact(p)) return true;
     if (FARMAMBIENT.interact(p)) return true;

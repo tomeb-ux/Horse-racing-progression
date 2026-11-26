@@ -32,6 +32,16 @@ const FARMUI = (() => {
     .fu .mg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
     .fu .mg .dw{font-size:11px;color:#8fa08f;padding:2px 0}
     .fu .day{aspect-ratio:1;display:grid;place-items:center;border-radius:9px;font-size:14px;position:relative;color:#d9e0d6;border:1px solid transparent;background:rgba(255,255,255,.03)}
+    .fu .tr{display:grid;grid-template-columns:132px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+    .fu .tr:last-child{border-bottom:0}
+    .fu .tr .nm{font:800 13px var(--font-d,system-ui);letter-spacing:.07em;text-transform:uppercase}
+    .fu .tr .v{font-size:12.5px;color:#cfd8cd;margin-top:2px}
+    .fu .tr .bar{position:relative;height:8px;border-radius:5px;background:rgba(255,255,255,.1);margin:5px 0 3px}
+    .fu .tr .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,#5fb87a,#a8e0a0)}
+    .fu .tr .bar u{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:rgba(232,195,90,.28)}
+    .fu .tr .bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#f2efe6}
+    .fu .pool{display:flex;justify-content:space-between;align-items:baseline;background:rgba(232,195,90,.1);border:1px solid rgba(232,195,90,.35);border-radius:10px;padding:8px 14px;margin-bottom:6px}
+    .fu .pool b{font:800 26px var(--font-d,system-ui);color:#e8c35a}
     .fu .day.past{color:#6f7d70}
     .fu .day.race{cursor:pointer;background:rgba(232,195,90,.18);border-color:rgba(232,195,90,.5);color:#fff}
     .fu .day.race.opt{background:rgba(160,190,150,.14);border-color:rgba(160,190,150,.45)}
@@ -197,6 +207,21 @@ const FARMUI = (() => {
     const P = F.P, px = X(P.x), pz = Z(P.z), f = P.face || 0; g.save(); g.translate(px, pz); g.rotate(-f + Math.PI / 2 * 0 + Math.PI); g.beginPath(); g.moveTo(0, -9); g.lineTo(6, 7); g.lineTo(0, 3); g.lineTo(-6, 7); g.closePath(); g.fillStyle = "#e8c35a"; g.fill(); g.strokeStyle = "#1a1408"; g.lineWidth = 1.5; g.stroke(); g.restore();
     g.fillStyle = "#f2efe6"; g.font = "600 11px system-ui"; g.textAlign = "left"; g.fillRect(14, H - 22, 20 * sc, 3); g.fillText("20 m", 14 + 20 * sc + 6, H - 17);
   }
-  function onClose() { st = null; if (root()) root().style.background = ""; }
-  return { openCalendar, openWardrobe, openDeparture, openMap, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
+  // ================================================================ the training board (Phase 26): the Training screen's allocation, at the horse's own box
+  function openTraining(ctx, hid) { style(); F = ctx; st = { kind: "train", hid }; drawTraining(); }
+  function drawTraining(keepScroll) {
+    const v = CAREER.training.view(st.hid); if (!v) return F.closePanel(); const y = keepScroll && q(".fu .card") ? q(".fu .card").scrollTop : 0;
+    frame(`<div style="max-width:760px;margin:0 auto"><div class="top"><div><h2>Training board</h2><div class="sub">${esc(v.name)} · ${esc(v.style)} · rating <b style="color:#f2efe6">${v.rating}</b> of ${v.potRating} · level ${v.lvl} (${v.xp}/${v.xpNeed} XP)</div></div><button class="btn" id="fuClose">Close (Esc)</button></div>
+      <div class="card" style="max-height:min(68vh,560px);overflow:auto"><div class="pool"><span class="sub" style="font-size:13px">Training points to spend</span><b>${v.pts}</b></div>
+      <div class="sub" style="margin-bottom:4px">Every race earns training points, far more against strong fields and for good finishes. An upgrade costs more as a stat rises and stops at the horse's potential (the white mark). The same rules as the Training screen: changes apply at once and can be undone.</div>
+      ${v.rows.map(r => `<div class="tr"><div><div class="nm">${esc(r.lab)}</div><div class="v">${r.v}${r.gained ? ` <span style="color:#7bd88f">+${r.gained}</span>` : ""} <span style="color:#8fa08f">of ${r.p}</span></div></div>
+        <div><div class="bar"><u style="width:${r.p}%"></u><i style="width:${r.v}%"></i><b style="left:${r.p}%"></b></div><div class="sub">${esc(r.effect)}${r.maxed ? " · at this horse's potential" : ` · ${esc(r.next)}`}</div></div>
+        <button class="btn pri" data-up="${esc(r.k)}" ${r.can ? "" : "disabled"}>${r.maxed ? "Maxed" : "+1 · " + r.cost + " pt" + (r.cost > 1 ? "s" : "")}</button></div>`).join("")}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><button class="btn" id="fuUndo" ${v.canUndo ? "" : "disabled"}>Undo last</button><span class="sub">Esc closes the board</span></div></div>`, true);
+    q("#fuClose").onclick = () => F.closePanel(); q("#fuUndo").onclick = () => { CAREER.training.undo(st.hid); try { FARMCARE.refreshBoards(); } catch (e) {} drawTraining(true); };
+    qa("[data-up]").forEach(b => b.onclick = () => { const r = CAREER.training.up(st.hid, b.dataset.up); if (r.ok) { try { FARMCARE.refreshBoards(); } catch (e) {} } drawTraining(true); });
+    if (y && q(".fu .card")) q(".fu .card").scrollTop = y;
+  }
+  function onClose() { try { FARMCARE.refreshBoards(); } catch (e) {} st = null; if (root()) root().style.background = ""; }
+  return { openCalendar, openWardrobe, openDeparture, openMap, openTraining, onClose, get kind() { return st ? st.kind : null; }, _test: { get st() { return st; }, redraw() { if (st && st.kind === "cal") drawCalendar(); else if (st) drawWardrobe(); } } };
 })();

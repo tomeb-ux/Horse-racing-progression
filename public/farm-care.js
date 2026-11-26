@@ -55,20 +55,47 @@ const FARMCARE = (() => {
   function enter() {
     S.led = null; S.act = null; S.menu = null; S.card = false; S.pending = null; if (menuEl) menuEl.hidden = true; if (doors) { doors.d.forEach(q => { q.a = q.want = 0; }); doors.set(); } if (ropeLine) ropeLine.visible = false;
     for (const g of F.horses) tackFor(g);
+    try { buildBoards(); } catch (e) { console.error(e); }
   }
-  function leave() { S.led = null; S.act = null; S.menu = null; if (menuEl) menuEl.hidden = true; if (ropeLine) ropeLine.visible = false; }
-  function dispose() { if (doors) { F.scene && F.scene.remove(doors.mesh); doors.mesh.dispose(); doors = null; } if (doorGeo) { doorGeo.dispose(); doorGeo = null; } if (ropeGeo) { ropeGeo.dispose(); ropeMat.dispose(); ropeGeo = null; } if (menuEl) { menuEl.remove(); menuEl = null; } F = null; }
+  function leave() { disposeBoards(); S.led = null; S.act = null; S.menu = null; if (menuEl) menuEl.hidden = true; if (ropeLine) ropeLine.visible = false; }
+  function dispose() { disposeBoards(); if (doors) { F.scene && F.scene.remove(doors.mesh); doors.mesh.dispose(); doors = null; } if (doorGeo) { doorGeo.dispose(); doorGeo = null; } if (ropeGeo) { ropeGeo.dispose(); ropeMat.dispose(); ropeGeo = null; } if (menuEl) { menuEl.remove(); menuEl = null; } F = null; }
 
   // tack (saddle cloth, saddle, girth): visible while the horse is prepared today
   function tackFor(g) { const hid = g.userData.hid; let on = false; try { const st = hid && hasCare() ? CAREER.care.status(hid) : null; on = !!(st && st.prepared); } catch (e) {} setTack(g, on); }
   function setTack(g, on) { const t = g.userData.tack; if (t) t.forEach(x => { x.visible = !!on; }); g.userData.tackOn = !!on; }
 
+
+  // ---------------------------------------------------------------- Phase 26: a training board on the wall beside each box (one mesh, one atlas texture)
+  let boards = null;
+  function buildBoards() {
+    disposeBoards(); const st = F.world.stalls, n = st.length, CW = 256, CH = 200, cv = document.createElement("canvas"); cv.width = CW * n; cv.height = CH; const ctx2 = cv.getContext("2d");
+    const pos = [], uv = [], idx = []; st.forEach((s, i) => { const x = s.x - 1.55, y = 1.25, z = s.door + 0.045, hw = 0.36, hh = 0.29, b = pos.length / 3; pos.push(x - hw, y - hh, z, x + hw, y - hh, z, x + hw, y + hh, z, x - hw, y + hh, z); const u0 = i / n, u1 = (i + 1) / n; uv.push(u0, 0, u1, 0, u1, 1, u0, 1); idx.push(b, b + 1, b + 2, b, b + 2, b + 3); });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4; const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.name = "trainingBoards"; F.scene.add(mesh); boards = { mesh, tex, geo, mat, ctx2, CW, CH, n };
+    refreshBoards();
+  }
+  function refreshBoards() {
+    if (!boards || !F) return; const B = boards, g = B.ctx2; g.clearRect(0, 0, B.CW * B.n, B.CH);
+    for (let i = 0; i < B.n; i++) {
+      const horse = F.horses.find(h => h.userData.stallI === i && h.userData.hid); if (!horse) continue; let pts = 0; try { pts = CAREER.training.points(horse.userData.hid); } catch (e) {}
+      const x = i * B.CW; g.fillStyle = "#6b5238"; g.fillRect(x + 2, 2, B.CW - 4, B.CH - 4); g.fillStyle = "#1f2d25"; g.fillRect(x + 12, 12, B.CW - 24, B.CH - 24);
+      g.textAlign = "center"; g.fillStyle = "#e8c35a"; g.font = "800 26px Archivo, Inter, Arial, sans-serif"; g.fillText("TRAINING", x + B.CW / 2, 48);
+      g.fillStyle = pts > 0 ? "#f4efe2" : "#7d8a80"; g.font = "900 78px Archivo, Inter, Arial, sans-serif"; g.fillText(String(pts), x + B.CW / 2, 128);
+      g.fillStyle = "#b9c4b9"; g.font = "700 22px Archivo, Inter, Arial, sans-serif"; g.fillText(pts === 1 ? "point" : "points", x + B.CW / 2, 154);
+      let nm = String(horse.userData.name || ""); try { nm = CAREER.data.horses.find(h => h.id === horse.userData.hid).name; } catch (e) {} g.fillStyle = "#cfe8d4"; g.font = "700 20px Archivo, Inter, Arial, sans-serif"; while (nm.length > 3 && g.measureText(nm).width > B.CW - 40) nm = nm.slice(0, -2) + "…"; g.fillText(nm, x + B.CW / 2, 182);
+    }
+    B.tex.needsUpdate = true;
+  }
+  function disposeBoards() { if (!boards) return; try { F.scene.remove(boards.mesh); boards.geo.dispose(); boards.mat.dispose(); boards.tex.dispose(); } catch (e) {} boards = null; }
   // ---------------------------------------------------------------- points the walker can use (stalls)
   const stallAnchor = i => { const s = F.world.stalls[i]; return { x: s.x + 0.72, z: -21.74 }; };
   function points() {
     const out = []; if (!F || !F.world) return out;
     for (const g of F.horses) { const i = g.userData.stallI; if (i == null || g.userData.out) continue; const s = F.world.stalls[i], led = S.led && S.led.g === g, away = S.led && S.led.g === g;
       out.push({ id: "stall", i, hid: g.userData.hid, x: s.x + 0.35, z: -21.4, r: 2.0, text: away ? "E — Put " + nameOf(g) + " back in the box" : "E — " + nameOf(g) + ": inspect · groom · feed · prepare · lead out", led: !!led }); }
+    for (const g of F.horses) { const i = g.userData.stallI, hid = g.userData.hid; if (i == null || !hid) continue; const s = F.world.stalls[i]; let pts = 0, nm = nameOf(g); try { pts = CAREER.training.points(hid); } catch (e) {}
+      out.push({ id: "trainboard", i, hid, x: s.x - 1.5, z: -21.4, r: 1.35, text: "E — Training board: " + nm + " · " + pts + " point" + (pts === 1 ? "" : "s") + " to spend" }); }
     // empty boxes you have unlocked: E opens the horse creator (the same creator as the career hub's)
     try { const free = CAREER.slotsFree(), n = F.horses.length; if (free > 0) { const st = F.world.stalls; for (let i = 0; i < st.length; i++) { if (F.horses.some(g => g.userData.stallI === i)) continue; if (i >= n + free) continue; const s = st[i]; out.push({ id: "vacant", i, x: s.x + 0.35, z: -21.4, r: 2.0, text: "E — Empty box: horse market · create a horse" }); break; } } } catch (e) {}
     return out;
@@ -256,7 +283,7 @@ const FARMCARE = (() => {
   function untake(g) { const i = g.userData.stallI, s = F.world.stalls[i]; g.visible = true; g.position.set(s.x + (i % 2 ? 0.1 : -0.1), 0.15, s.z + 0.55); g.rotation.y = -Math.PI / 2 + (i % 2 ? 0.1 : -0.08); if (doors) { doors.d[i].a = doors.d[i].want = 0; doors.set(); } if (ropeLine) ropeLine.visible = false; return g; }
   function adopt(g, hid) { if (S.led) return false; S.led = { g, hid, i: g.userData.stallI, mode: "follow", sp: 0, gait: 0, look: 0 }; return true; }
   function ropeVisible(v) { if (ropeLine) ropeLine.visible = !!v && !!S.led; }
-  return { init, enter, leave, dispose, take, untake, adopt, ropeVisible, frame, animateHorses, points, openMenu, closeMenu, key, release, summon, setTack, tackFor, startAction,
+  return { init, enter, leave, dispose, refreshBoards, take, untake, adopt, ropeVisible, frame, animateHorses, points, openMenu, closeMenu, key, release, summon, setTack, tackFor, startAction,
     get led() { return S.led; }, get busy() { return !!S.act; }, get menuOpen() { return !!S.menu; }, get acting() { return S.act ? S.act.kind : ""; }, get doors() { return doors; }, rope() { return ropeLine; },
     ledHid() { return S.led ? S.led.hid : null; }, ledMesh() { return S.led ? S.led.g : null; }, setLeadLook(v) { if (S.led) S.led.look = v; }, hold(h) { if (S.led) S.led.hold = h; }, freeze(v) { if (S.led) S.led.freeze = !!v; }, ropeUpdate, DUR };
 })();
