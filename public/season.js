@@ -278,6 +278,10 @@ const SEASON = (() => {
     country: [3.4, 2.0, 1.0, 0.0, -0.9, -1.7],     // country class races: competitive, winnable, but you have to ride well
   };
   const LIFT_REST = { early: -2.0, normal: -2.6, major: -2.4, final: -2.2, grass: -3.0, country: -2.8 };   // the depth of the rest of the field
+  // Phase 26 (owner request: "slightly harder, but still quite easy"): every non-final field is lifted a little further over the player's horse: the three strongest rivals by CAREER_HARDER lengths,
+  // the rest of the strong end by 70 % of that, the depth of the field by 60 %. The finals (already as hard as Quick Race on Hard) and Quick Race itself are untouched.
+  const CAREER_HARDER = 0.55;
+  for (const key of ["early", "normal", "major", "grass", "country"]) { LIFT[key] = LIFT[key].map((x, i) => +(x + CAREER_HARDER * (i < 3 ? 1 : 0.7)).toFixed(2)); LIFT_REST[key] = +(LIFT_REST[key] + CAREER_HARDER * 0.6).toFixed(2); }
   function racePressure(h, meta, isFinal) {
     const runs = h ? (h.races | 0) : 0;
     const base = isFinal || meta.crown ? "final" : meta.major ? "major" : meta.pressure && LIFT[meta.pressure] ? meta.pressure : "normal";
