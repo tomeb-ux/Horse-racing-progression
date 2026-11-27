@@ -4369,7 +4369,7 @@ $("resAgain").onclick = () => { if (typeof MP !== "undefined" && MP.inRoom) retu
 $("resMenu").onclick = () => { if (typeof MP !== "undefined" && MP.inRoom) MP.leave(); quitToMenu(); };
 $("resLobby").onclick = () => MP.backToLobby();
 // Multiplayer: private online races (mp.js, server/). Needs the hosted version (the single-file build has no server).
-$("btnMP").hidden = !FF_FEATURES.multiplayer;
+$("btnMP").hidden = !FF_FEATURES.multiplayer || !!window.FF_STANDALONE;   // the single-file build has no server
 $("btnMP").onclick = () => { if (FF_FEATURES.multiplayer) MP.open(); };
 $("resReplay").onclick = () => startReplay("finish", false);
 $("resHl").onclick = () => startHighlights(false);
