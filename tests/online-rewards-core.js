@@ -1,0 +1,20 @@
+// Online prize money rules (career-core): once per race, none for solo/DNF, scaled by field, capped per day, milestones once.
+const CORE = require('../public/career-core.js'); let pass = 0, fail = 0;
+const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? ' ✓ ' : ' ✗ ') + m); };
+const C = { cash: 100000, day: 10, txn: {}, horses: [{ id: 'h1', name: 'A', online: { runs: 0, wins: 0, places: 0, last: [] } }] };
+const P = (e) => CORE.onlinePurse(e);
+ok(P({ place: 1, humans: 1, dist: 1600 }) === 0, 'solo run pays nothing');
+ok(P({ place: 1, humans: 2, dnf: true, dist: 1600 }) === 0, 'a faller is paid nothing');
+ok(P({ place: 1, humans: 2, dist: 1600 }) === 5000 && P({ place: 2, humans: 2, dist: 1600 }) === 3000, 'win 5000, second 3000 (two riders)');
+ok(P({ place: 1, humans: 4, dist: 1600 }) > P({ place: 1, humans: 2, dist: 1600 }), 'more riders pay more');
+ok(P({ place: 9, humans: 2, dist: 1600 }) === 300, 'finishing pays a small amount');
+ok(P({ place: 1, humans: 6, dist: 3200 }) <= 5000 * 1.5 * 1.3 + 50, 'bounded');
+const r1 = CORE.onlineAward(C, 'on:77:h1', { hid: 'h1', place: 1, humans: 2, dist: 1600 }, 'A');
+ok(r1.ok && r1.amount === 5000 && C.cash === 105000, 'paid once');
+const r2 = CORE.onlineAward(C, 'on:77:h1', { hid: 'h1', place: 1, humans: 2, dist: 1600 }, 'A');
+ok(!r2.ok && C.cash === 105000, 'the same race cannot pay twice');
+for (let i = 0; i < 6; i++) CORE.onlineAward(C, 'on:' + (100 + i) + ':h1', { hid: 'h1', place: 1, humans: 2, dist: 1600 }, 'A');
+ok(C.cash - 100000 <= CORE.ONLINE.DAY_CAP, `daily cap holds (${C.cash - 100000} ≤ ${CORE.ONLINE.DAY_CAP})`);
+const m1 = CORE.onlineMilestones(C, 1), m2 = CORE.onlineMilestones(C, 1);
+ok(m1.length === 1 && m2.length === 0, 'milestone paid once');
+console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

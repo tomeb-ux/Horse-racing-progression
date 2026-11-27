@@ -643,7 +643,7 @@ body.touch #touchUI{display:flex;}
    horse models & gait · particles · cameras · audio · HUD · menus · loop.
    ===================================================================== */
 /* feature switches — multiplayer is hidden and disabled for the Career expansion; its code (mp.js, server/) is kept: set this back to true to restore it */
-const FF_FEATURES = { multiplayer: false };
+const FF_FEATURES = { multiplayer: true };
 /* the simulation core lives in sim.js (shared with the multiplayer server) */
 
 
@@ -4245,7 +4245,7 @@ function orderHtml(r) {
 }
 function finishRace(r) {
   const p = r.player;
-  { const b = document.getElementById("resMPLine"); if (b) b.hidden = true; $("resLobby").hidden = true; }
+  { const b = document.getElementById("resMPLine"); if (b) b.hidden = true; $("resLobby").hidden = true; $("resAgain").textContent = "Race Again"; }
   if (p.dnf) { finishRaceDNF(r); return; }
   $("resFall").hidden = true; $("resReplay").hidden = false; $("resHl").hidden = !r.recFull.n;
   const place = r.finishOrder.indexOf(p) + 1;
@@ -4365,7 +4365,7 @@ $("howBack").onclick = () => show("menu");
 $("pauseResume").onclick = () => { show("racing"); };
 $("pauseRestart").onclick = () => { startRace(Object.assign({}, lastRaceCfg)); };
 $("pauseQuit").onclick = quitToMenu;
-$("resAgain").onclick = () => startRace(Object.assign({}, lastRaceCfg));
+$("resAgain").onclick = () => { if (typeof MP !== "undefined" && MP.inRoom) return MP.rematch(); startRace(Object.assign({}, lastRaceCfg)); };
 $("resMenu").onclick = () => { if (typeof MP !== "undefined" && MP.inRoom) MP.leave(); quitToMenu(); };
 $("resLobby").onclick = () => MP.backToLobby();
 // Multiplayer: private online races (mp.js, server/). Needs the hosted version (the single-file build has no server).

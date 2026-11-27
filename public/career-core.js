@@ -205,6 +205,22 @@ const CORE = (() => {
     const r = apply(C, key, amt, "prize", ordinal(place) + " · " + meta.name + (horseName ? " · " + horseName : ""));
     return Object.assign(r, { amount: r.ok ? amt : 0 });
   }
+  // ---------- online races (multiplayer): a modest, capped payout so your career horse earns when it races friends ----------
+  // Paid once per race and horse (the key names the room's race seed), never for a solo or fallen runner, scaled by how many people raced, and capped per horse per career day.
+  const ONLINE = { BASE: [5000, 3000, 1800, 1000, 600], FINISH: 300, DAY_CAP: 20000, MILESTONES: [[1, "First online win", 2500], [5, "5 online wins", 8000], [10, "10 online wins", 15000], [25, "25 online wins", 40000]] };
+  function onlinePurse(e) {
+    e = e || {}; if (e.dnf || (e.humans | 0) < 2) return 0; const pl = e.place | 0; if (pl < 1) return 0;
+    const base = pl <= 5 ? ONLINE.BASE[pl - 1] : ONLINE.FINISH, hum = [0, 0, 1, 1.15, 1.3, 1.4, 1.5][Math.min(6, e.humans | 0)], dist = Math.max(0.7, Math.min(1.3, (e.dist || 1600) / 1600));
+    return Math.round(base * hum * dist / 50) * 50;
+  }
+  function onlineAward(C, key, e, label) {
+    const want = onlinePurse(e); if (!want) return { ok: false, reason: "no-prize", amount: 0 };
+    const h = (C.horses || []).find(x => x.id === e.hid), o = h && h.online, day = dayInt(C.day);
+    const used = o && o.day && o.day.d === day ? o.day.amt : 0, amt = Math.max(0, Math.min(want, ONLINE.DAY_CAP - used)); if (!amt) return { ok: false, reason: "daily-cap", amount: 0 };
+    const r = apply(C, key, amt, "prize", ordinal(e.place) + " · Online · " + (label || "")); if (!r.ok) return Object.assign(r, { amount: 0 });
+    if (o) o.day = { d: day, amt: used + amt }; return Object.assign(r, { amount: amt });
+  }
+  function onlineMilestones(C, wins) { const got = []; for (const [n, label, amt] of ONLINE.MILESTONES) if (wins >= n) { const r = apply(C, "ms:online" + n, amt, "bonus", "Milestone · " + label); if (r.ok) got.push({ n, label, amount: amt }); } return got; }
   const ordinal = n => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
 
   // ---------- the dated race programme ----------
@@ -948,7 +964,7 @@ const CORE = (() => {
   return { HOF, hofEntry, retireHorse, retirePrompt, autoRetire, retireWhy, MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
     CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, postWork, farmTasks, GOALS, goalsOf, claimGoals, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
-    apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
+    apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal, ONLINE, onlinePurse, onlineAward, onlineMilestones,
     conditions, placeSeason, syncCalendar, roundEvent, roundStatus, upcoming, nextMeeting, nextOpenRoundDay, skipsBetween,
     advance, enterRound, afterOptional, startSeason, afterRace, fresh, migrate, backup, listBackups, exportSave, parseImport, checksum };
 })();

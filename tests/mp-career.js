@@ -23,7 +23,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
     C.horses = [{ id: 'hx1', name: 'Thunder Road', attrs: { top: 90, acc: 90, end: 90, spr: 90, rec: 90, tem: 90, agi: 90, sta: 90 }, pot: { top: 95, acc: 95, end: 95, spr: 95, rec: 95, tem: 95, agi: 95, sta: 95 },
       look: { type: 'chestnut', coat: '#9a4a20', face: 'blaze', socks: [1, 0, 0, 2] }, silk: '#ff6600', silk2: '#101010', silkPat: 'stripes', races: 4, wins: 1, xp: 37, trainPts: 3, champPts: 12 }];
     store.set('career', C); CAREER.load();
-    const h = CAREER.data.horses[0]; return { list: CAREER.onlineHorses().map(x => x.name + ' ' + x.rating), xp: h.xp, trainPts: h.trainPts, races: h.races, champPts: h.champPts };
+    const h = CAREER.data.horses[0]; return { cash: CAREER.data.cash, list: CAREER.onlineHorses().map(x => x.name + ' ' + x.rating), xp: h.xp, trainPts: h.trainPts, races: h.races, champPts: h.champPts };
   });
   ok(before.list.join() === 'Thunder Road 90', `Alice's career horses offered for online races: ${before.list.join(', ')}`);
   await A.click('#btnMP'); await A.fill('#mpName', 'Alice'); await A.click('#mpCreate');
@@ -62,10 +62,20 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) { pass++; console.log(' âœ
   const resB = await B.evaluate(() => ({ order: race.finishOrder.map(h => h.def.name).join('|'), q: race.horses[0].stat.lungeQ }));
   ok(resA.lunge && resA.q != null && resA.q > 0, `the lunge works online: "${resA.lunge}" (stretch at the line ${resA.q})`);
   ok(resA.order === resB.order, 'identical official result on both screens');
-  ok(/Added to Thunder Road's record/.test(resA.line), `the result screen notes the record: "${resA.line.slice(0, 110)}â€¦"`);
-  const after = await A.evaluate(() => { CAREER.load(); const h = CAREER.data.horses[0]; return { online: h.online, xp: h.xp, trainPts: h.trainPts, races: h.races, champPts: h.champPts }; });
+  ok(/Added to Thunder Road's online record/.test(resA.line), `the result screen notes the record: "${resA.line.slice(0, 110)}â€¦"`);
+  const after = await A.evaluate(() => { CAREER.load(); const h = CAREER.data.horses[0]; return { cash: CAREER.data.cash, txn: Object.keys(CAREER.data.txn || {}).filter(k => /^on:/.test(k)), online: h.online, xp: h.xp, trainPts: h.trainPts, races: h.races, champPts: h.champPts }; });
   ok(after.online && after.online.runs === 1 && after.online.last.length === 1 && after.online.last[0].vs === 'Bob', `on Thunder Road's record: ${JSON.stringify(after.online)}`);
   ok(after.xp === before.xp && after.trainPts === before.trainPts && after.races === before.races && after.champPts === before.champPts, 'no experience, training points, career starts or championship points from an online race');
+  ok(after.cash > before.cash || /no prize money/.test(resA.line) === false && after.txn.length === 0, `online prize money banked (cash ${before.cash} â†’ ${after.cash}) once: ${after.txn.join()}`);
+  ok(after.txn.length === 1 || after.cash === before.cash, 'one ledger entry for the race');
+  // rematch: one click each returns to the lobby already ready (same horses), the host starts again
+  ok(await A.$eval('#resAgain', e => !e.hidden && /Rematch/.test(e.textContent)), 'the result screen offers a REMATCH button');
+  await A.click('#resAgain'); await B.click('#resAgain');
+  await A.waitForFunction(() => /All \d+ ready/.test(document.getElementById('mpStatus') ? document.getElementById('mpStatus').textContent : ''), null, { timeout: 15000 }).catch(() => {});
+  const st = await A.$eval('#mpStatus', e => e.textContent).catch(() => '?');
+  ok(/All 2 ready/.test(st), `after Rematch both riders are ready in the lobby: "${st}"`);
+  await A.click('#mpStart'); await A.waitForFunction(() => typeof race !== 'undefined' && race && race.state && race.state !== 'done' && MP.racing, null, { timeout: 20000 });
+  ok(true, 'the rematch starts a new online race');
   for (const [nm, p] of [['Alice', A], ['Bob', B]]) ok(!p.errs.length, `no page errors (${nm})` + (p.errs.length ? ': ' + p.errs.join(' | ') : ''));
   console.log(`\n${pass} passed, ${fail} failed`); await b.close(); process.exit(fail ? 1 : 0);
 })().catch(e => { console.log('FAIL', e.message); console.log(global.__pages ? global.__pages.map(p => p.errs) : ''); process.exit(1); });

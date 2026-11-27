@@ -167,7 +167,7 @@ const MP = (() => {
     // your own career horses first (they race at their real ratings), then the Quick Race horses
     const mine = typeof CAREER !== "undefined" && CAREER.onlineHorses ? CAREER.onlineHorses() : [];
     if (mine.length) {
-      const lab = document.createElement("div"); lab.className = "mp-note"; lab.style.width = "100%"; lab.textContent = "Your career horses (real ratings — online races go on their record only):"; hz.appendChild(lab);
+      const lab = document.createElement("div"); lab.className = "mp-note"; lab.style.width = "100%"; lab.textContent = "Your career horses — real ratings, training and facilities. Online results earn prize money for your career bank:"; hz.appendChild(lab);
       mine.forEach(c => {
         const b = document.createElement("button"); b.className = "chip mp-career" + (me && me.career && me.career.name === c.name ? " sel" : "");
         b.innerHTML = `<i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;background:${esc(c.silk)}"></i>★ ${esc(c.name)} · ${c.rating}`;
@@ -412,12 +412,14 @@ const MP = (() => {
     if (M.rode && M.rode.hid && typeof CAREER !== "undefined" && CAREER.recordOnline) {
       const mine = R.riders.find(r => r.slot === M.slot);
       if (mine) { const pl = R.order.findIndex(x => x[0] === mine.i) + 1;
-        const ok = CAREER.recordOnline(M.rode.hid, { place: pl, field: race.horses.length, dist: race.dist, dnf: !!mine.dnf, vs: R.riders.filter(r => r.slot !== M.slot).map(r => r.name).join(", ") });
-        if (ok) b.innerHTML += `<div style="font-size:12px;font-weight:400;color:var(--fg-dim);margin-top:4px">Added to ${esc(M.rode.name)}'s record (online races)</div>`; }
+        const humans = R.riders.length, ok = CAREER.recordOnline(M.rode.hid, { place: pl, field: race.horses.length, dist: race.dist, dnf: !!mine.dnf, humans, key: String(race.seed), vs: R.riders.filter(r => r.slot !== M.slot).map(r => r.name).join(", ") });
+        if (ok) { const pz = ok.prize ? ` · prize money <b>+$${ok.prize.toLocaleString()}</b> into your career bank` : (humans < 2 ? " · no prize money for a solo run" : ""), bn = (ok.bonus || []).map(x => ` · ${esc(x.label)} bonus +$${x.amount.toLocaleString()}`).join("");
+          b.innerHTML += `<div style="font-size:12px;font-weight:400;color:var(--fg-dim);margin-top:4px">Added to ${esc(M.rode.name)}'s online record${pz}${bn}</div>`; } }
       M.rode = null;
     }
-    $("resAgain").hidden = true; $("resNext").hidden = true; $("resLobby").hidden = false;
+    $("resAgain").hidden = false; $("resAgain").textContent = "Rematch"; $("resNext").hidden = true; $("resLobby").hidden = false;
   }
+  function rematch() { backToLobby(); setTimeout(() => { const me = M.lobby && M.lobby.players[M.slot]; if (M.inRoom && !(me && me.ready)) send({ type: "ready", ready: true }); }, 250); }
   function backToLobby() { const b = document.getElementById("resMPLine"); if (b) b.hidden = true; $("resLobby").hidden = true; clearRaceMeshes(); race = null; show("mp"); renderLobby(); setMenuHorse(settings.playerHorse); }
   function leaveRaceView() { M.racing = false; M.spec = null; resetSpecHud(); tagEls.forEach(t => { t.hidden = true; }); if (netEl) netEl.hidden = true; if (specEl) specEl.hidden = true; clearRaceMeshes(); race = null; show("mp"); renderLobby(); }
   // ---------- entry points ----------
@@ -430,6 +432,6 @@ const MP = (() => {
     if (ss && ss.code && ss.token && Date.now() - ss.t < 2 * 3600 * 1000 && serverURL()) { M.code = ss.code; M.token = ss.token; M.inRoom = true; show("mp"); connect(() => send({ type: "rejoin", code: ss.code, token: ss.token })); }
     else if (q) { open(); $m("mpCode").value = q.toUpperCase().slice(0, 6); setStatus("Enter your name and press JOIN RACE."); $m("mpName").focus(); }
   }, 300);
-  M.open = open; M.camHorse = () => camHorse(); M.afterHUD = afterHUD; M.update = update; M.press = press; M.kick = kick; M.localInput = localInput; M.backToLobby = backToLobby; M.leave = () => { leaveRoom(); };
+  M.open = open; M.camHorse = () => camHorse(); M.afterHUD = afterHUD; M.update = update; M.press = press; M.kick = kick; M.localInput = localInput; M.backToLobby = backToLobby; M.rematch = rematch; M.leave = () => { leaveRoom(); };
   return M;
 })();
