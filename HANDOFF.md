@@ -21,6 +21,8 @@ Paste this file into a new Claude Code chat to continue work. All the code is in
 
 **Standing rules from the owner:** push only to the dev branch; never merge to `main` without approval; keep five horses maximum; farm and race are separate scenes; the single-file build (`node tools/build-single.js`) must keep working; risk-based testing (Tier 1 always; Tier 3 full suite when race physics/results/shared systems change) — report what ran and what was deferred; failed browser tests are rerun once and **both results reported**; never claim unmeasured performance; no unrelated refactoring; keep the existing character, interaction, career and scene systems rather than creating competing ones; performance first (no noticeable lag or micro-stutter).
 
+> **Latest (Phase 28): multiplayer is ON** with career horses and online prize money — see `docs/MULTIPLAYER.md` and the Phase 28 section of `PROGRESS_P15.md`. Phases 16–27 (farm clock, trackwork, care loop, venues, ambient life, task list/race board) are logged in `PROGRESS_P15.md`.
+
 ## 1. What the game is (today)
 
 A browser-based 3D horse-racing game (Three.js r128; single self-contained HTML file or served by a small Node server) with a realistic, skill-based racing engine (fixed 120 Hz sim, ridden with the keyboard: effort, rhythm, steering, lunge, three-stage starts) and, since the expansion, a **Career Mode centred on a walkable Australian horse-training property**. Everything is procedural (no asset downloads except optional recorded commentary clips). **Quick Race** (the original arcade mode, fixed afternoon/clear look) and **Career Mode** share the same racing engine.

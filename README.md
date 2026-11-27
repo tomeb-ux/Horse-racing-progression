@@ -5,9 +5,10 @@ A 3D horse-racing game for the browser (three.js). Single-player runs anywhere, 
 **Private online races** let 2–6 friends ride against each other, with AI runners filling the rest of the field. They need the small Node
 server in this project, because the server runs the race.
 
-> **Multiplayer is currently hidden and disabled** while Career Mode is expanded (`FF_FEATURES.multiplayer = false` in `public/index.html`):
-> no menu button, and `?join=` links and automatic rejoin do nothing. All its code (`public/mp.js`, `server/`, `tests/mp-*.js`) is kept
-> unchanged — set the flag back to `true` to restore it. The online sections below describe the feature as it will work once restored.
+> **Multiplayer is ON** (`FF_FEATURES.multiplayer = true` in `public/index.html`). Start a race from **MULTIPLAYER** on the main menu: create a private room, share the
+> 6-letter code (or the invite link), pick a horse — **your own Career Mode horses (real ratings, training and facilities) or the normal Quick Race roster** — ready up,
+> and the host starts. After the race: results, photo-finish replay, **REMATCH** (one click back to the lobby, already ready) and online prize money for your career bank.
+> See **docs/MULTIPLAYER.md** for how it works and the step-by-step Render deployment.
 
 ```
 public/            what the browser loads

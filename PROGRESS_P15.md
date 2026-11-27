@@ -500,3 +500,9 @@ Keys: **F8** = overlay · **Shift+F8** = report, lab and benchmark (on a laptop 
 
 **What to send back:** all the `report.txt` files, the `gpu.txt`, one `trace.json`, one `frames.png`, one `overlay.png`, and `<device>_notes.txt`, with a line on which condition felt worst.
 
+
+## Phase 28 — Multiplayer enabled, career horses online, online prize money, rematch
+- `FF_FEATURES.multiplayer = true`; main-menu **Multiplayer** button (hidden in the single-file build, which has no server). Existing server/client unchanged apart from the result flow.
+- Career horses race online with their real (fitness-adjusted) attributes — training, facilities and staff already feed those. Server validates/clamps them.
+- New: online prize money + milestones (`CORE.onlinePurse/onlineAward/onlineMilestones`, ledger key `on:<seed>:<horse>`, solo/DNF pays 0, $20k/horse/day cap), **Rematch** button, lobby caption. See `docs/MULTIPLAYER.md` (how to play + Render deploy).
+- Tests (run with `FF_TEST_HOOKS=1 PORT=8095 node server/index.js`; run them ONE AT A TIME — parallel/back-to-back runs on this sandbox time out): mp-protocol ✓, mp-e2e ✓, mp-career 18/18 ✓ (now incl. prize + rematch), mp-spectate ✓, mp-leader ✓, online-rewards-core 10/10 ✓. mp-chaos not re-run. Not tested: real internet latency, >2 browsers on career horses, Render itself.

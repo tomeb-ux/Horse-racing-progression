@@ -205,6 +205,22 @@ const CORE = (() => {
     const r = apply(C, key, amt, "prize", ordinal(place) + " · " + meta.name + (horseName ? " · " + horseName : ""));
     return Object.assign(r, { amount: r.ok ? amt : 0 });
   }
+  // ---------- online races (multiplayer): a modest, capped payout so your career horse earns when it races friends ----------
+  // Paid once per race and horse (the key names the room's race seed), never for a solo or fallen runner, scaled by how many people raced, and capped per horse per career day.
+  const ONLINE = { BASE: [5000, 3000, 1800, 1000, 600], FINISH: 300, DAY_CAP: 20000, MILESTONES: [[1, "First online win", 2500], [5, "5 online wins", 8000], [10, "10 online wins", 15000], [25, "25 online wins", 40000]] };
+  function onlinePurse(e) {
+    e = e || {}; if (e.dnf || (e.humans | 0) < 2) return 0; const pl = e.place | 0; if (pl < 1) return 0;
+    const base = pl <= 5 ? ONLINE.BASE[pl - 1] : ONLINE.FINISH, hum = [0, 0, 1, 1.15, 1.3, 1.4, 1.5][Math.min(6, e.humans | 0)], dist = Math.max(0.7, Math.min(1.3, (e.dist || 1600) / 1600));
+    return Math.round(base * hum * dist / 50) * 50;
+  }
+  function onlineAward(C, key, e, label) {
+    const want = onlinePurse(e); if (!want) return { ok: false, reason: "no-prize", amount: 0 };
+    const h = (C.horses || []).find(x => x.id === e.hid), o = h && h.online, day = dayInt(C.day);
+    const used = o && o.day && o.day.d === day ? o.day.amt : 0, amt = Math.max(0, Math.min(want, ONLINE.DAY_CAP - used)); if (!amt) return { ok: false, reason: "daily-cap", amount: 0 };
+    const r = apply(C, key, amt, "prize", ordinal(e.place) + " · Online · " + (label || "")); if (!r.ok) return Object.assign(r, { amount: 0 });
+    if (o) o.day = { d: day, amt: used + amt }; return Object.assign(r, { amount: amt });
+  }
+  function onlineMilestones(C, wins) { const got = []; for (const [n, label, amt] of ONLINE.MILESTONES) if (wins >= n) { const r = apply(C, "ms:online" + n, amt, "bonus", "Milestone · " + label); if (r.ok) got.push({ n, label, amount: amt }); } return got; }
   const ordinal = n => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
 
   // ---------- the dated race programme ----------
@@ -884,6 +900,26 @@ const CORE = (() => {
     const v = goalsOf(C), paid = []; for (const g of v.goals) if (g.done && !g.paid) { const r = apply(C, g.key, g.reward, "goal", g.label); if (r.ok) paid.push({ id: g.id, label: g.label, reward: g.reward }); }
     return paid;
   }
+  // ---------- Phase 27: the farm's task list. PURE: derived from the career (what has and has not been done today), never stored. Shown at the top of the farm screen as "next task".
+  // ctx (optional): { points(hid) -> training points, canSpend(hid) -> true when at least one upgrade is affordable, worked(hid) -> true once the horse's morning work is over }.
+  // Order: the race if it is today, tacking up for a race tomorrow, then feeding and grooming every horse, spending training points, washing after work, booking a race, resting. Drills are optional.
+  function farmTasks(C, ctx) {
+    ctx = ctx || {}; const d = dayInt(C.day), hs = (C.horses || []).filter(h => h && !h.retired).slice(0, 5), b = C.booking && hs.find(h => h.id === C.booking.hid) ? C.booking : null, out = [];
+    const cr = h => (C.farm && C.farm.care && C.farm.care[h.id]) || {}, T = (id, kind, label, done, o) => out.push(Object.assign({ id, kind, label, done: !!done, optional: false }, o || {}));
+    const toRace = b ? b.day - d : null;
+    if (b && toRace === 0) { const h = hs.find(x => x.id === b.hid); T("race", "race", `Take ${h.name} to the races: ${b.name}`, false, { hid: h.id, name: h.name }); }
+    for (const h of hs) if (b && b.hid === h.id && toRace != null && toRace >= 0 && toRace <= 1) T("prep:" + h.id, "prepare", `Tack up ${h.name} for ${b.name}`, cr(h).prepDay === d, { hid: h.id, name: h.name });
+    for (const h of hs) T("feed:" + h.id, "feed", `Feed ${h.name}`, cr(h).fedDay === d, { hid: h.id, name: h.name });
+    for (const h of hs) T("groom:" + h.id, "groom", `Groom ${h.name}`, cr(h).groomDay === d, { hid: h.id, name: h.name });
+    for (const h of hs) { const pts = ctx.points ? ctx.points(h.id) : (h.trainPts | 0); if (pts > 0) T("train:" + h.id, "train", `Spend ${h.name}'s ${pts} training point${pts === 1 ? "" : "s"}`, ctx.canSpend ? !ctx.canSpend(h.id) : false, { hid: h.id, name: h.name }); }
+    for (const h of hs) { const r = cr(h), worked = r.drillDay === d || (ctx.worked && ctx.worked(h.id)); if (worked) T("wash:" + h.id, "wash", `Wash ${h.name} after work`, r.washDay === d, { hid: h.id, name: h.name }); }
+    if (!b && hs.length) T("book", "book", "Book a race on the race board by the stables", false);
+    const required = out.filter(t => !t.optional), pendingReq = required.filter(t => !t.done);
+    if (hs.length && !(b && toRace === 0) && !pendingReq.length) T("rest", "rest", "All done: rest at the farmhouse to end the day", false);
+    for (const h of hs) { const r = cr(h), fit = finite(h.fitness) ? h.fitness : 80; if (fit >= CARE.DRILL_MIN_FITNESS && r.drillDay !== d && !(b && b.hid === h.id && toRace != null && toRace <= 2 && toRace >= 0)) T("drill:" + h.id, "drill", `Take ${h.name} to the oval for a drill (optional)`, false, { hid: h.id, name: h.name, optional: true }); }
+    const pending = out.filter(t => !t.done), done = required.filter(t => t.done).length, total = required.length;
+    return { day: d, tasks: out, pending, next: pending[0] || null, done, total };
+  }
   // ---------- Phase 17: the farm day. A PURE schedule: what each horse is doing at which hour of the farm clock (never stored, always derived from the real career data) ----------
   // The farm clock is ambience: it sets the light and what the staff do with horses that are NOT with the player. It never advances the calendar.
   const CLOCK = { start: 5.5, dusk: 19, secPerDay: 600 };                                   // 05:30 → 19:00 in about ten real minutes
@@ -926,9 +962,9 @@ const CORE = (() => {
   // the farm clock's saved state: { day, t }. Reads and repairs; never advances anything
   function clockOf(C) { const f = isObj(C.farm) ? C.farm : (C.farm = { state: "default" }), c = f.clock; if (!isObj(c) || c.day !== dayInt(C.day) || !finite(c.t) || c.t < CLOCK.start || c.t > CLOCK.dusk) f.clock = { day: dayInt(C.day), t: CLOCK.start }; return f.clock; }
   return { HOF, hofEntry, retireHorse, retirePrompt, autoRetire, retireWhy, MKT, MCATS, MCAT_ORDER, valueOf, marketSync, marketView, marketOffer, marketBuy, marketGen, sellQuote, sellHorse, createFee, ratingOf: rateOf, DEV, PLANS, DRILL_ATTR, devRec, addProg, trainSession, autoDay, setPlan, devReport, peaking, raceAttrs, FACILITIES, STAFFROLES, FAC_CAP, facLevel, staffOf, facEffects, buyFacility, hireStaff, fireStaff, staffDaily, wash, ECON, weekOf, fmtMoney, purseFace, purseLabel, entryFee, econOf, sponsorWeekly, weeklyBill, payBill, chargeWeeks, payEntry, clubOffer, clubAdvance, repayFromPrize, addRep, milestones, CARE, careRec, careStatus, readiness, groom, feed, prepare, unprepare, drillReward, restDay, V, SAVE_KEY, EPOCH_YEAR, START_CASH, LEGACY_CAP, FAC_KEYS, STAFF_KEYS, TODS, TOD_LABEL, WX_LABEL, OPT_PER_SEASON,
-    CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, postWork, GOALS, goalsOf, claimGoals, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
+    CLOCK, fmtClock, sessionFor, farmDay, placeAt, clockOf, postWork, farmTasks, GOALS, goalsOf, claimGoals, cleanPlayer, parts, dateOf: day => new Date(T0 + dayInt(day) * MS), fmtDate, seasonYear, seasonLabel, seasonOfDay, seasonStartDay, seasonEndDay, dowOf, daysUntil,
     growthProfile, ageOf, ageStage, devRate, declineRate, raceFitnessCost, recoveryPerDay, fitnessPenalty, formIdx, keepHorse, fillHorse, migratedAge,
-    apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal,
+    apply, applied, audit, ledgerInit, purseOf, prizeFor, awardPrize, ordinal, ONLINE, onlinePurse, onlineAward, onlineMilestones,
     conditions, placeSeason, syncCalendar, roundEvent, roundStatus, upcoming, nextMeeting, nextOpenRoundDay, skipsBetween,
     advance, enterRound, afterOptional, startSeason, afterRace, fresh, migrate, backup, listBackups, exportSave, parseImport, checksum };
 })();

@@ -1611,7 +1611,11 @@ const CAREER = (() => {
     const o = h.online || (h.online = { runs: 0, wins: 0, places: 0, last: [] });
     o.runs++; if (!e.dnf && e.place === 1) o.wins++; if (!e.dnf && e.place >= 1 && e.place <= 3) o.places++;
     o.last.push({ place: e.place | 0, field: e.field | 0, dist: e.dist | 0, dnf: !!e.dnf, vs: String(e.vs || "").slice(0, 80), d: Date.now() / 1000 | 0 }); if (o.last.length > 10) o.last.shift();
-    save(); return true;
+    // prize money (once per race and horse) and online milestones: the career bank grows from racing friends — but no experience, points or career starts
+    const out = { prize: 0, bonus: [] };
+    if (e.key) { const k = "on:" + String(e.key).replace(/[^A-Za-z0-9:_.\-]/g, "").slice(0, 50) + ":" + String(h.id).replace(/[^A-Za-z0-9_.\-]/g, "").slice(0, 30); out.prize = CORE.onlineAward(C, k, { hid: h.id, humans: e.humans | 0, dist: e.dist, place: e.place, dnf: e.dnf }, h.name).amount || 0; }
+    if (!e.dnf && e.place === 1) { const tot = C.horses.reduce((n, x) => n + ((x.online && x.online.wins) | 0), 0); out.bonus = CORE.onlineMilestones(C, tot); }
+    save(); return out;
   }
   // the market through the public API (used by the tests and the farm)
   const marketApi = {
